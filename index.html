@@ -1,0 +1,1678 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Последняя ветка">
+<meta name="theme-color" content="#06080a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Последняя ветка 0.5.2</title>
+<style>
+:root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#06080a;color:var(--ink);overscroll-behavior:none}
+body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+#screen{position:fixed;left:0;top:0;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+/* Сенсорный слой: левая половина экрана — «влево», правая — «вправо». */
+#touch{position:fixed;inset:0;z-index:2;touch-action:none}
+#hud{position:fixed;z-index:3;top:calc(env(safe-area-inset-top) + 10px);left:calc(env(safe-area-inset-left) + 12px);
+  right:calc(env(safe-area-inset-right) + 12px);display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+.station{background:var(--panel);border:1px solid var(--line);padding:6px 10px 7px;line-height:1.3}
+.station b{display:block;font-size:13px;letter-spacing:.16em;color:var(--gold)}
+.station span{font-size:11px;color:var(--muted);letter-spacing:.03em}
+#ver{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:11px;
+  padding:6px 9px;letter-spacing:.08em;cursor:pointer}
+#hint{position:fixed;z-index:3;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
+  font-size:11px;color:#d4ccb6;background:var(--panel);padding:6px 11px;border:1px solid var(--line);white-space:nowrap;
+  pointer-events:none;transition:opacity 1s}
+#hint.gone{opacity:0}
+.pad{position:fixed;z-index:3;bottom:calc(env(safe-area-inset-bottom) + 14px);width:86px;height:86px;border-radius:50%;
+  background:rgba(8,11,14,.42);border:2px solid rgba(232,184,106,.38);display:grid;place-items:center;pointer-events:none;
+  transition:background .08s,transform .08s}
+.pad svg{width:34px;height:34px;fill:var(--gold);opacity:.9}
+#padL{left:calc(env(safe-area-inset-left) + 18px)}
+#padR{right:calc(env(safe-area-inset-right) + 18px)}
+.pad.on{background:rgba(232,184,106,.30);transform:scale(.93)}
+.desktop .pad{display:none}
+/* Контекстная кнопка «Подняться/Спуститься»: лежит поверх сенсорного слоя, поэтому не запускает ходьбу. */
+#act{position:fixed;z-index:4;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);min-width:176px;
+  padding:15px 22px;background:rgba(14,12,8,.72);border:2px solid rgba(232,184,106,.75);color:var(--ink);font-size:14px;
+  letter-spacing:.06em;text-align:center;display:none;touch-action:none;cursor:pointer}
+#act.show{display:block}
+#act.press{background:rgba(232,184,106,.38)}
+#debug{position:fixed;z-index:4;top:calc(env(safe-area-inset-top) + 54px);right:calc(env(safe-area-inset-right) + 12px);
+  font-size:10px;line-height:1.45;white-space:pre;background:rgba(0,0,0,.65);padding:6px 8px;color:#9fe0b0;display:none;pointer-events:none}
+#title{position:fixed;inset:0;z-index:5;display:grid;place-items:center;text-align:center;padding:24px;
+  background:radial-gradient(ellipse at center,rgba(6,8,10,.45),rgba(6,8,10,.93) 70%);transition:opacity .9s}
+#title.gone{opacity:0;pointer-events:none}
+#title small{display:block;font-size:11px;letter-spacing:.3em;color:var(--muted)}
+#title h1{margin-top:8px;font-size:clamp(24px,5.2vw,42px);letter-spacing:.18em;color:var(--gold);font-weight:800}
+#title p{margin-top:10px;font-size:12px;color:#bfb8a5;line-height:1.7}
+#title .note{font-size:10px;color:#7e8883}
+#title .tap{margin-top:18px;font-size:12px;color:var(--ink);animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.35}}
+#rotate{position:fixed;inset:0;z-index:6;display:none;place-items:center;text-align:center;background:#06080a;padding:30px;
+  font-size:14px;line-height:1.7;color:var(--ink)}
+#rotate b{color:var(--gold);letter-spacing:.12em}
+@media (orientation:portrait) and (pointer:coarse){#rotate{display:grid}}
+</style>
+</head>
+<body>
+<canvas id="screen"></canvas>
+<div id="touch"></div>
+<div id="hud">
+  <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span></div>
+  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.5.2</button>
+</div>
+<div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
+<div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
+<div class="pad" id="padR"><svg viewBox="0 0 24 24"><path d="M8.5 4 17 12l-8.5 8z"/></svg></div>
+<div id="act" role="button" aria-label="Лестница"></div>
+<div id="debug"></div>
+<div id="title">
+  <div>
+    <small>САМАРА · 2055</small>
+    <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+    <p>Станция «Гагаринская» · прототип 0.5.2<br>
+    <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+    <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+  </div>
+</div>
+<div id="rotate"><div><b>ПОВЕРНИТЕ ТЕЛЕФОН</b><br>Игра рассчитана на горизонтальную ориентацию</div></div>
+
+<script>
+/* ==========================================================================
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.5.2
+   Один файл, Canvas 2D, без зависимостей.
+   Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+            INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+   Все координаты мира — в «игровых пикселях» базовой высоты 270.
+   ========================================================================== */
+(() => {
+'use strict';
+
+/* =============================== CONFIG ================================== */
+const CONFIG = {
+  VERSION: '0.5.2',
+  BASE_H: 270,              // высота сцены в игровых пикселях
+  WORLD_W: 2000,            // ширина уровня
+  // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+  FLOORS: {
+    platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
+    upper:    { y: 98,  minX: 852, maxX: 1856 },  // площадка лестницы → мастерская → медпункт → энергоблок → шлюз → насосная
+    surface:  { y: -61, minX: 1136, maxX: 1980 }, // улица у вестибюля: слева завал из обломков, справа забор
+  },
+  // Лестничные марши. from/to — этажи; bottom/top — площадки: x — где герой встаёт после перехода,
+  // trigger — участок, где доступна кнопка ▲/▼; run — сам марш: x0 → x1 и число ступеней; hole — проём в перекрытии.
+  STAIRS: [{ id: 'main', from: 'platform', to: 'upper',
+    bottom: { x: 652, trigger: [636, 666] }, top: { x: 862, trigger: [846, 870] },
+    run: { x0: 666, x1: 846, steps: 20 }, hole: [752, 846] }],
+  STAIR_SPEED: 52,          // пикс/с по горизонтали при ходьбе по маршу
+  // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
+  GATES: [{ radius: 12,
+    a: { floor: 'upper',   x: 1635, dir: 'up',   label: '▲ На поверхность' },
+    b: { floor: 'surface', x: 1650, dir: 'down', label: '▼ Вход в метро' } }],
+  SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
+  STEP: 1 / 60,             // фиксированный шаг логики
+  PLAYER: {
+    START_X: 1000,
+    MAX_SPEED: 72,          // пикс/с
+    ACCEL: 480, DECEL: 640, TURN: 1300,
+    STRIDE: 3.3,            // сколько пикселей пути на один кадр ходьбы
+  },
+  CAMERA: { SMOOTH_TIME: 0.32, LOOK_AHEAD: 34, LOOK_RATE: 1.8,
+    SMOOTH_Y: 0.45,         // плавность вертикальной камеры
+    SURFACE_FEET: 0.72 },   // на поверхности ступни героя — на 72% высоты кадра
+  PARALLAX: { BACK: 0.9, FORE: 1.22, SKY: 0.15, RUINS: 0.5 },
+  AMBIENT: [74, 80, 100],
+  AMBIENT_SURFACE: [168, 150, 124],   // пыльные сумерки снаружи    // цвет «темноты» в карте освещения
+  ZONES: [
+    { name: 'Жилой сектор',          to: 740 },
+    { name: 'Центральная платформа', to: 1300 },
+    { name: 'Техническая зона',      to: Infinity },
+  ],
+};
+const W = CONFIG.WORLD_W, H = CONFIG.BASE_H;
+const COLUMNS = [];                       // x центров колонн
+for (let x = 180; x <= 1820; x += 160) COLUMNS.push(x);
+const toBack = mx => Math.round(mx * CONFIG.PARALLAX.BACK + 25);   // мировой x → x на дальнем слое
+const toFore = mx => Math.round(mx * CONFIG.PARALLAX.FORE - 60);   // мировой x → x на ближнем слое
+
+/* ================================ UTIL =================================== */
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+function hash(x, y) {                     // детерминированный шум 0..1
+  let h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(CONFIG.SEED, 1442695041);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function noise1(t, seed = 0) {            // плавный одномерный шум 0..1
+  const i = Math.floor(t), f = t - i, s = f * f * (3 - 2 * f);
+  const a = hash(i, seed), b = hash(i + 1, seed);
+  return a + (b - a) * s;
+}
+function makeRng(seed) {                  // mulberry32
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const rand = makeRng(CONFIG.SEED);
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+const dither = (x, y) => (BAYER[((y & 3) << 2) | (x & 3)] + 0.5) / 16;
+function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+const rgb = (c, k = 1) => `rgb(${clamp(c[0] * k, 0, 255) | 0},${clamp(c[1] * k, 0, 255) | 0},${clamp(c[2] * k, 0, 255) | 0})`;
+/** Прямоугольник целыми пикселями. */
+function R(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+/** Линия по Брезенхэму толщиной `t` пикселей (по горизонтали). */
+function L(g, x0, y0, x1, y1, c, t = 1) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  g.fillStyle = c;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let e = dx + dy;
+  for (;;) {
+    g.fillRect(x0 - (t >> 1), y0, t, 1);
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; }
+  }
+}
+/** Провисающий кабель (цепная линия упрощённо — парабола). */
+function cable(g, x0, x1, y, sag, c) {
+  for (let x = x0; x <= x1; x++) { const t = (x - x0) / (x1 - x0); R(g, x, y + Math.round(sag * 4 * t * (1 - t)), 1, 1, c); }
+}
+/** Заливка круга построчно (пиксельный круг). */
+function disc(g, cx, cy, r, c) {
+  g.fillStyle = c;
+  for (let y = -r; y <= r; y++) { const w = Math.round(Math.sqrt(r * r - y * y)); g.fillRect(cx - w, cy + y, w * 2 + 1, 1); }
+}
+/** Попиксельная «покраска» участка канваса функцией fn(x, y, out[r,g,b,a]) → true, если пиксель рисуется. */
+function paintRegion(g, x0, y0, w, h, fn) {
+  const img = g.getImageData(x0, y0, w, h), d = img.data, out = [0, 0, 0, 255];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    out[3] = 255;
+    if (fn(x0 + x, y0 + y, out)) { const i = (y * w + x) * 4; d[i] = out[0]; d[i + 1] = out[1]; d[i + 2] = out[2]; d[i + 3] = out[3]; }
+  }
+  g.putImageData(img, x0, y0);
+}
+function setC(o, r, g, b, n = 0) { o[0] = r + n; o[1] = g + n; o[2] = b + n; return true; }
+
+/* ================================ FONT ===================================
+   Пиксельный шрифт 5×7 для надписей внутри мира (кириллица, цифры). */
+const FONT_SRC = {
+  'А':'01110100011000111111100011000110001','Б':'11111100001000011110100011000111110','В':'11110100011000111110100011000111110',
+  'Г':'11111100001000010000100001000010000','Д':'00110010100101001010010101111110001','Е':'11111100001000011110100001000011111',
+  'Ж':'10101101010111000100011101010110101','З':'01110100010000100110000011000101110','И':'10001100011001110101110011000110001',
+  'Й':'01010001001000110011101011100110001','К':'10001100101010011000101001001010001','Л':'00111010010100101001010010100111001',
+  'М':'10001110111010110101100011000110001','Н':'10001100011000111111100011000110001','О':'01110100011000110001100011000101110',
+  'П':'11111100011000110001100011000110001','Р':'11110100011000111110100001000010000','С':'01110100011000010000100001000101110',
+  'Т':'11111001000010000100001000010000100','У':'10001100011000101111000011000101110','Ф':'00100011101010110101011100010000100',
+  'Х':'10001100010101000100010101000110001','Ц':'10010100101001010010100101111100001','Ч':'10001100011000101111000010000100001',
+  'Ш':'10101101011010110101101011010111111','Щ':'10101101011010110101101011111100001','Ы':'10001100011000111101100111001111101',
+  'Ь':'10000100001000011110100011000111110','Э':'01110100010000100111000011000101110','Ю':'10010101011010111101101011010110010',
+  'Я':'01111100011000101111001010100110001','0':'01110100011001110101110011000101110','1':'00100011000010000100001000010001110',
+  '2':'01110100010000100010001000100011111','3':'11110000010000101110000010000111110','4':'00010001100101010010111110001000010',
+  '5':'11111100001111000001000011000101110','6':'00110010001000011110100011000101110','7':'11111000010001000100010000100001000',
+  '8':'01110100011000101110100011000101110','9':'01110100011000101111000010001001100',' ':'00000000000000000000000000000000000',
+  '-':'00000000000000011111000000000000000',':':'00000001000010000000001000010000000','.':'00000000000000000000000000000000100',
+  '!':'00100001000010000100001000000000100','№':'10010110101011010111100101001010011',
+};
+/** Рисует строку пиксельным шрифтом. Возвращает ширину. */
+function drawText(g, str, x, y, color, shadow = null, scale = 1) {
+  const pts = [];
+  [...str.toUpperCase()].forEach((ch, i) => {
+    const gl = FONT_SRC[ch]; if (!gl) return;
+    for (let k = 0; k < 35; k++) if (gl[k] === '1') pts.push(x + (i * 6 + (k % 5)) * scale, y + ((k / 5) | 0) * scale);
+  });
+  if (shadow) { g.fillStyle = shadow; for (let i = 0; i < pts.length; i += 2) g.fillRect(pts[i], pts[i + 1] + scale, scale, scale); }
+  g.fillStyle = color; for (let i = 0; i < pts.length; i += 2) g.fillRect(pts[i], pts[i + 1], scale, scale);
+  return textWidth(str, scale);
+}
+const textWidth = (str, scale = 1) => ([...str].length * 6 - 1) * scale;
+/** Табличка с надписью по центру cx. */
+function plate(g, cx, y, str, bg, fg, rim) {
+  const w = textWidth(str) + 10, x = Math.round(cx - w / 2);
+  R(g, x - 1, y - 1, w + 2, 13, '#0d1012'); R(g, x, y, w, 11, bg); R(g, x, y, w, 1, rim);
+  drawText(g, str, x + 5, y + 2, fg, 'rgba(0,0,0,.55)');
+}
+
+/* ================================ WORLD ==================================
+   Мир собирается один раз при загрузке в три канваса-слоя:
+   back  (параллакс 0.9) — дальняя стена зала;
+   main  (1.0)          — верхний ярус с комнатами, перекрытие, колонны, платформа, пути;
+   fore  (1.22)         — тёмные силуэты переднего плана.
+   Параллельно заполняются списки источников света и «светящихся» элементов. */
+const SURF_H = 280;                     // слой поверхности над станцией: мировые y от -280 до 0
+const GROUND_Y = CONFIG.FLOORS.surface.y;
+const surfRow = y => y + SURF_H;        // мировой y → строка канваса поверхности
+// Области, за которые не выходит свет: зал (ниже перекрытия) и полоса верхнего яруса.
+const HALL_CLIP = { x0: -Infinity, x1: Infinity, y0: 108, y1: Infinity };
+const UPPER_CLIP = { x0: -Infinity, x1: Infinity, y0: 15, y1: 107 };
+const SURF_CLIP = { x0: -Infinity, x1: Infinity, y0: -SURF_H, y1: -50 };
+const WORLD = { sky: null, ruins: null, surface: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
+
+/** Регистрирует источник света. layer: 'main' | 'back'. */
+function addLight(x, y, r, color, mode = 'steady', power = 1, layer = 'main') {
+  const l = { x, y, r, c: color, mode, power, layer, seed: (rand() * 1000) | 0, i: 1, pool: false };
+  WORLD.lights.push(l); return l;
+}
+/** Регистрирует светящийся элемент (лампочка, экран, индикатор), рисуемый поверх освещения. */
+function addEmissive(x, y, w, h, color, light = null, layer = 'main', mode = null) {
+  WORLD.emissive.push({ x, y, w, h, c: color, light, layer, mode, seed: (rand() * 1000) | 0 });
+}
+
+/* ---------- MAIN: базовые текстуры (камень, перекрытие, платформа, пути) ---------- */
+function mainTexel(x, y, o) {
+  const n = (hash(x, y) - 0.5) * 10;
+  if (y < 108) {                                    // толща грунта/бетона вокруг верхнего яруса
+    const s = Math.sin(y * 0.45 + Math.sin(x * 0.021) * 2.2) * 3;
+    const crack = hash(x >> 3, y >> 1) > 0.985 ? -8 : 0;
+    return setC(o, 25, 27, 31, n * 0.8 + s + crack);
+  }
+  if (y < 122) {                                    // межэтажное перекрытие
+    if (y === 108) return setC(o, 112, 114, 106, n);
+    if (y === 109) return setC(o, 86, 90, 87, n);
+    if (y >= 119) return setC(o, 30, 33, 36, n * 0.6);
+    let v = 68 + n * 1.2;
+    if (x % 48 === 0 || x % 48 === 1) v -= 13;      // швы опалубки
+    if (hash(x >> 1, 5) > 0.93 && y > 112) v -= 11; // потёки
+    return setC(o, v - 4, v, v + 1);
+  }
+  if (y < 214) return false;                        // зал — прозрачен, там видна дальняя стена
+  if (y < 222) {                                    // настил платформы: два ряда плит
+    const row = y < 218 ? 0 : 1, tw = row ? 26 : 22, off = row ? 9 : 0;
+    const seam = (x + off) % tw === 0 || y === 214 || y === 218;
+    let v = (((x + off) / tw | 0) + row) % 2 ? 90 : 82;
+    if (seam) v -= 28;
+    if (y === 214) v -= 18;
+    if (hash(x >> 2, y >> 1) > 0.94) v -= 14;       // грязь, сколы
+    return setC(o, v + 6, v, v - 10, n * 0.9);
+  }
+  if (y === 222) return setC(o, 128, 120, 100, n);  // гранитная кромка
+  if (y === 223) {                                  // стёртая жёлтая полоса
+    const dash = (x % 14) < 9 && hash(x >> 1, 223) > 0.22;
+    return dash ? setC(o, 184, 156, 84, n) : setC(o, 104, 98, 82, n);
+  }
+  if (y === 224) return setC(o, 90, 84, 72, n);
+  if (y === 225) return setC(o, 44, 42, 40, n * 0.5);
+  if (y < 231) {                                    // торец платформы
+    const stain = hash(x >> 1, 7) > 0.9 ? -8 : 0;
+    return setC(o, 30, 33, 36, n * 0.7 + stain);
+  }
+  // Путевая зона на переднем плане.
+  if (y < 236) return setC(o, 19, 22, 25, n * 0.5);
+  if (y === 236) return setC(o, 78, 72, 58, n);     // кожух контактного рельса
+  if (y === 237) return setC(o, 54, 50, 42, n);
+  if (y < 240) return setC(o, (x % 50) < 4 ? 70 : 34, (x % 50) < 4 ? 66 : 36, (x % 50) < 4 ? 58 : 38, n);
+  if (y === 247) return setC(o, 156, 152, 140, n);  // дальний рельс
+  if (y === 248) return setC(o, 110, 108, 100, n);
+  if (y === 249 || y === 250) return setC(o, 62, 60, 56, n);
+  if (y === 258) return setC(o, 176, 170, 152, n);  // ближний рельс
+  if (y === 259) return setC(o, 132, 126, 112, n);
+  if (y >= 260 && y <= 262) return setC(o, 76, 72, 64, n);
+  if (y >= 251 && y <= 257 && (x % 22) < 12) {      // шпалы
+    const edge = (x % 22) === 0 || (x % 22) === 11 || y === 251;
+    return setC(o, edge ? 42 : 60, edge ? 36 : 50, edge ? 30 : 40, n);
+  }
+  // Балласт; к низу кадра темнее (дизеринг).
+  const dark = dither(x, y) < (y - 240) / 40 ? 0.62 : 1;
+  const stone = hash(x >> 1, y >> 1) > 0.7 ? 8 : 0;
+  // Лужи с отражением.
+  if (y >= 264 && y <= 267 && Math.sin(x * 0.013) > 0.72) return setC(o, 44, 56, 64, n * 0.6 + (y === 264 ? 10 : 0));
+  return setC(o, (32 + stone) * dark, (34 + stone) * dark, (35 + stone) * dark, n * 0.7);
+}
+
+/* ---------- MAIN: верхний ярус (декоративные помещения в разрезе) ---------- */
+const ROOMS = [
+  { x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130] },
+  { x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120] },
+  { x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150] },
+  { x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150] },
+  { x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236] },
+  { x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240] },
+  { x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236] },
+  { x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228] },
+];
+function drawRoom(g, r) {
+  const { x, w } = r, cx = x + w / 2;
+  R(g, x, 15, w, 92, '#3b4042'); R(g, x, 15, w, 1, '#5c6264');          // бетонная рама
+  R(g, x + 4, 19, w - 8, 81, rgb(r.tint));                               // стена
+  paintRegion(g, x + 4, 19, w - 8, 81, (px, py, o) => {                  // фактура стены + затемнение к углам
+    const n = (hash(px, py) - 0.5) * 8, edge = Math.min(py - 19, px - x - 4, x + w - 5 - px);
+    const k = edge < 6 && dither(px, py) < (6 - edge) / 8 ? 0.72 : 1;
+    const panel = (px - x) % 24 === 0 ? 0.86 : 1;
+    const top = py < 23 ? 0.7 : 1;
+    o[0] = r.tint[0] * k * panel * top + n; o[1] = r.tint[1] * k * panel * top + n; o[2] = r.tint[2] * k * panel * top + n; return true;
+  });
+  R(g, x + 4, 96, w - 8, 4, '#4e463c'); R(g, x + 4, 96, w - 8, 1, '#7a6c58'); // пол
+  R(g, x + 4, 100, w - 8, 1, '#24221f');
+  const firstLight = WORLD.lights.length;
+  const lamps = w > 200 ? [x + Math.round(w * 0.22), x + Math.round(w * 0.78)] : [x + Math.round(w * 0.8)];
+  lamps.forEach(lx => {
+    R(g, lx, 19, 1, 7, '#1d1f21'); R(g, lx - 4, 26, 9, 2, '#5a6062'); R(g, lx - 4, 26, 9, 1, '#7a8082');
+    const l = addLight(lx, 30, 62, r.light, 'steady', 0.85);
+    addEmissive(lx - 2, 28, 5, 1, [255, 240, 200], l);
+  });
+  ROOM_DRAW[r.type](g, r);
+  for (let i = firstLight; i < WORLD.lights.length; i++) WORLD.lights[i].clip = { x0: x + 4, x1: x + w - 4, y0: 19, y1: 100 };
+  plate(g, cx, 22, r.label, '#1e2426', '#e0c48c', '#4a5254');
+}
+const ROOM_DRAW = {
+  bunks(g, r) {
+    for (let i = 0; i < 3; i++) {
+      const bx = r.x + 14 + i * 76;
+      R(g, bx, 56, 2, 40, '#4a4844'); R(g, bx + 52, 56, 2, 40, '#4a4844');
+      [[70, '#7a3b34'], [88, '#465a6c']].forEach(([y, blanket], k) => {
+        R(g, bx + 2, y, 50, 4, '#8c7b60'); R(g, bx + 2, y + 4, 50, 1, '#3a352e');
+        R(g, bx + 16 + k * 4, y - 2, 36 - k * 4, 4, blanket); R(g, bx + 16 + k * 4, y - 2, 36 - k * 4, 1, rgb([150, 110, 100], 0.9));
+        R(g, bx + 4, y - 3, 10, 3, '#c0b69c');
+      });
+      R(g, bx + 8, 94, 6, 2, '#2a2622');                                // ботинки под нарами
+    }
+    const lx = r.x + r.w - 34;                                          // шкафчик
+    R(g, lx, 52, 22, 44, '#55625f'); R(g, lx, 52, 22, 1, '#7a8784'); R(g, lx + 11, 53, 1, 43, '#3a4442');
+    for (let k = 0; k < 3; k++) { R(g, lx + 3, 57 + k * 3, 6, 1, '#2e3432'); R(g, lx + 14, 57 + k * 3, 6, 1, '#2e3432'); }
+    R(g, r.x + 236, 36, 10, 12, '#b8a98a'); R(g, r.x + 237, 37, 8, 7, '#6a7a6a');   // фотография на стене
+  },
+  kitchen(g, r) {
+    const tx = r.x + 30;
+    R(g, tx, 80, 120, 3, '#7a5a3e'); R(g, tx, 80, 120, 1, '#9c7a58'); R(g, tx, 83, 120, 1, '#4e3a28');
+    R(g, tx + 4, 84, 2, 12, '#3e2e20'); R(g, tx + 114, 84, 2, 12, '#3e2e20');
+    R(g, tx + 6, 88, 44, 2, '#5e4630'); R(g, tx + 66, 88, 44, 2, '#5e4630');
+    for (let k = 0; k < 5; k++) R(g, tx + 12 + k * 22, 78, 6, 2, '#c8bfa8');                 // миски
+    const sx = r.x + r.w - 72;                                          // буржуйка
+    R(g, sx, 66, 30, 30, '#45474a'); R(g, sx - 1, 64, 32, 2, '#6e7072'); R(g, sx + 6, 76, 18, 12, '#1e1f21');
+    R(g, sx + 24, 19, 4, 45, '#36383a'); R(g, sx + 8, 57, 14, 7, '#6a6f72'); R(g, sx + 8, 57, 14, 1, '#8a9092');
+    const fl = addLight(sx + 15, 82, 40, [255, 130, 60], 'fire', 0.6);
+    addEmissive(sx + 7, 80, 16, 7, [255, 128, 48], fl, 'main', 'fire');
+    R(g, r.x + 168, 42, 64, 2, '#6a5038');                              // полка с банками
+    ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, r.x + 172 + k * 10, 35, 6, 7, c));
+    for (let k = 0; k < 3; k++) { R(g, r.x + 40 + k * 14, 34, 1, 6, '#2a2a2a'); R(g, r.x + 37 + k * 14, 40, 8, 5, '#5c6266'); }
+  },
+  /** Лестничная клетка на месте расчищенного завала: обломки остались у западной стены. */
+  stairwell(g, r) {
+    for (let k = 0; k < 24; k++) {
+      const h = Math.max(0, Math.round(30 - k * 1.3 + (hash(k, 3) - 0.5) * 8));
+      for (let y = 0; y < h; y++) R(g, r.x + 4 + k, 95 - y, 1, 1, rgb([60, 60, 58], 0.55 + hash(k, y) * 0.5 - y / 120));
+    }
+    L(g, r.x + 6, 52, r.x + 24, 92, '#4c5052', 3);                          // обломок балки
+    for (let y = 40; y < 90; y++) R(g, r.x + 30, y, 1, 1, ((y >> 2) % 2) ? '#c8a03c' : '#1a1a1a');   // лента ограждения
+  },
+  workshop(g, r) {
+    R(g, r.x + 20, 78, 136, 5, '#76553e'); R(g, r.x + 20, 78, 136, 1, '#9a7656');
+    R(g, r.x + 24, 83, 3, 13, '#312c2b'); R(g, r.x + 150, 83, 3, 13, '#312c2b');
+    for (let k = 0; k < 6; k++) { R(g, r.x + 30 + k * 20, 46, 1, 20, '#b9b2a0'); R(g, r.x + 26 + k * 20, 54, 9, 2, '#8b958c'); }
+    R(g, r.x + 62, 72, 14, 6, '#4a5258'); R(g, r.x + 66, 69, 6, 3, '#6a7278');
+    R(g, r.x + 176, 72, 32, 24, '#6e5236'); R(g, r.x + 176, 72, 32, 1, '#8e7050'); R(g, r.x + 176, 83, 32, 1, '#4e3a26');
+    const mx = r.x + r.w - 64;
+    R(g, mx, 60, 32, 24, '#2a3237'); R(g, mx + 14, 84, 4, 12, '#2a3237');
+    const l = addLight(mx + 15, 70, 34, [110, 200, 180], 'screen', 0.55);
+    addEmissive(mx + 3, 63, 26, 15, [120, 196, 176], l, 'main', 'screen');
+  },
+  medbay(g, r) {
+    const cx = Math.round(r.x + r.w / 2);
+    R(g, cx - 2, 36, 5, 15, '#9a3b34'); R(g, cx - 7, 41, 15, 5, '#9a3b34');
+    R(g, r.x + 12, 80, 58, 4, '#d0cfc4'); R(g, r.x + 12, 84, 58, 2, '#7e8a8c'); R(g, r.x + 14, 86, 2, 10, '#5e6a6c');
+    R(g, r.x + 66, 86, 2, 10, '#5e6a6c'); R(g, r.x + 14, 77, 12, 3, '#e6e4da');
+    R(g, r.x + 74, 50, 1, 46, '#9aa4a6'); R(g, r.x + 71, 52, 7, 9, '#b8d0cc');
+    R(g, r.x + r.w - 36, 54, 24, 42, '#b8bcb4'); R(g, r.x + r.w - 33, 58, 18, 16, '#6c9090'); R(g, r.x + r.w - 33, 78, 18, 14, '#9ca09a');
+  },
+  power(g, r) {
+    const gx = r.x + 18;
+    R(g, gx, 62, 100, 34, '#4a5456'); R(g, gx, 62, 100, 2, '#6e7a7c'); R(g, gx, 94, 100, 2, '#2a3032');
+    for (let k = 0; k < 5; k++) { R(g, gx + 8 + k * 17, 55, 11, 8, '#5c686a'); R(g, gx + 8 + k * 17, 55, 11, 1, '#7e8a8c'); }
+    disc(g, gx + 112, 78, 15, '#3a4244'); disc(g, gx + 112, 78, 11, '#576064'); disc(g, gx + 112, 78, 3, '#2a3032');
+    R(g, gx + 20, 19, 6, 36, '#3a4244'); R(g, gx + 20, 19, 1, 36, '#5a6264');
+    const px = r.x + r.w - 54;
+    R(g, px, 50, 44, 46, '#3e4a50'); R(g, px, 50, 44, 1, '#5e6a70');
+    for (let k = 0; k < 3; k++) { disc(g, px + 9 + k * 13, 62, 4, '#c8c4b0'); R(g, px + 9 + k * 13, 59, 1, 3, '#2a2a2a'); }
+    for (let k = 0; k < 4; k++) addEmissive(px + 7 + k * 9, 78, 3, 2, k === 2 ? [255, 170, 60] : [110, 230, 120], null, 'main', 'blink');
+    for (let k = 0; k < r.w - 8; k++) R(g, r.x + 4 + k, 92, 1, 4, ((k >> 2) % 2) ? '#b8922e' : '#1c1c1c');
+  },
+  /** Шлюз: гермоворота в задней стене (створки рисуются в кадре — они открываются), оружейная стойка. */
+  gate(g, r) {
+    const gx = Math.round(r.x + r.w / 2);
+    R(g, gx - 28, 40, 56, 56, '#262b2e'); R(g, gx - 28, 40, 56, 1, '#4a5054'); R(g, gx - 28, 40, 2, 56, '#3a4044');
+    R(g, gx - 23, 44, 46, 52, '#07080a');                                       // проём за створками
+    for (let y = 44; y < 60; y++) R(g, gx - 23, y, 46, 1, rgb([60, 66, 70], 0.5 - (y - 44) / 40));   // ступени эскалатора в глубине
+    for (let x = gx - 28; x < gx + 28; x++) R(g, x, 92, 1, 4, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
+    R(g, r.x + 10, 52, 22, 32, '#3a3430'); R(g, r.x + 10, 52, 22, 1, '#5a5048');            // оружейная стойка
+    for (let k = 0; k < 4; k++) { L(g, r.x + 14 + k * 5, 55, r.x + 14 + k * 5, 80, '#1c1e20'); R(g, r.x + 13 + k * 5, 76, 3, 5, '#4a3a2a'); }
+    crate(g, r.x + r.w - 36, 80, 26, 16); crate(g, r.x + r.w - 30, 68, 18, 12);
+    addEmissive(gx - 1, 36, 3, 2, [255, 70, 50], null, 'main', 'blink');
+    WORLD.gate = { x: gx, open: 0 };
+  },
+  pumps(g, r) {
+    R(g, r.x + 4, 48, r.w - 8, 9, '#566c74'); R(g, r.x + 4, 48, r.w - 8, 2, '#7a929a'); R(g, r.x + 4, 56, r.w - 8, 1, '#34444a');
+    R(g, r.x + 20, 48, 9, 48, '#566c74'); R(g, r.x + 20, 48, 2, 48, '#7a929a'); R(g, r.x + 18, 60, 13, 3, '#3e5058'); R(g, r.x + 18, 82, 13, 3, '#3e5058');
+    R(g, r.x + 36, 72, 46, 24, '#47595f'); R(g, r.x + 36, 72, 46, 1, '#6a7e84'); R(g, r.x + 82, 76, 18, 20, '#3a4448');
+    disc(g, r.x + 60, 64, 7, '#8a3a30'); disc(g, r.x + 60, 64, 5, '#3a4a50'); disc(g, r.x + 60, 64, 1, '#8a3a30');
+    R(g, r.x + r.w - 36, 36, 30, 60, '#3f5258'); R(g, r.x + r.w - 36, 36, 30, 1, '#5e747a');
+    R(g, r.x + r.w - 25, 46, 6, 40, '#1e282c'); addEmissive(r.x + r.w - 24, 62, 4, 23, [80, 150, 180], null, 'main', 'water');
+  },
+};
+
+/* ---------- MAIN: аркада и колонны зала ---------- */
+function drawArcade(g) {
+  for (let x = 36; x < 1966; x++) {
+    let bottom = 131;
+    if (x >= COLUMNS[0] && x <= COLUMNS[COLUMNS.length - 1]) {
+      const left = COLUMNS[0] + Math.floor((x - COLUMNS[0]) / 160) * 160, t = ((x - left) / 160) * 2 - 1;
+      bottom = 122 + Math.round(9 * t * t);
+    }
+    for (let y = 122; y < bottom; y++) R(g, x, y, 1, 1, rgb([62, 66, 68], 0.92 + hash(x, y) * 0.16));
+    if (bottom > 122) { R(g, x, bottom - 1, 1, 1, '#8c928e'); R(g, x, bottom, 1, 1, 'rgba(0,0,0,.35)'); }
+  }
+}
+const COLUMN_RAMP = [[150,156,148],[134,142,134],[122,130,123],[116,124,118],[112,120,114],[108,116,110],
+  [104,112,106],[100,108,102],[94,102,97],[88,96,91],[82,89,85],[74,80,77],[62,67,65],[46,50,49]];
+function drawColumn(g, cx, idx) {
+  for (let dx = 0; dx < 14; dx++) R(g, cx - 7 + dx, 131, 1, 75, rgb(COLUMN_RAMP[dx]));
+  for (let k = 0; k < 7; k++) {                                         // прожилки мрамора
+    let vx = cx - 6 + ((hash(idx, k) * 12) | 0), vy = 134 + ((hash(k, idx) * 60) | 0);
+    for (let s = 0; s < 10; s++) { R(g, vx, vy, 1, 1, 'rgba(40,46,44,.35)'); vy++; if (hash(vx, vy) > 0.6) vx += hash(vy, vx) > 0.5 ? 1 : -1; vx = clamp(vx, cx - 6, cx + 5); }
+  }
+  for (let y = 176; y < 206; y++) for (let dx = 0; dx < 14; dx++)    // грязь внизу
+    if (dither(cx + dx, y) < (y - 176) / 44) R(g, cx - 7 + dx, y, 1, 1, 'rgba(18,20,22,.38)');
+  R(g, cx - 9, 127, 18, 4, '#7e8680'); R(g, cx - 9, 127, 18, 1, '#aab2aa'); R(g, cx - 8, 131, 16, 1, '#454b49');
+  R(g, cx - 9, 206, 18, 8, '#5a605c'); R(g, cx - 9, 206, 18, 1, '#8a908a'); R(g, cx - 9, 213, 18, 1, '#2a2e2c');
+  if (cx < 740) {                                                       // жилой сектор: ткань и записки
+    R(g, cx - 7, 150, 14, 9, '#7a3b34'); R(g, cx - 7, 150, 14, 1, '#9a5448');
+    for (let k = 0; k < 14; k += 4) R(g, cx - 7 + k, 154, 2, 1, '#c09a5a');
+    R(g, cx - 4, 168, 7, 9, '#b8b098'); R(g, cx - 3, 170, 5, 1, '#6a6458'); R(g, cx - 3, 172, 4, 1, '#6a6458');
+  } else if (cx > 1300) {                                               // техзона: кабели, полосы
+    R(g, cx + 3, 131, 2, 75, '#17191b'); R(g, cx + 5, 131, 1, 75, '#2a2e30');
+    for (let y = 196; y < 206; y++) for (let dx = 0; dx < 14; dx++)
+      R(g, cx - 7 + dx, y, 1, 1, ((dx + y) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
+  }
+  if (idx === 6) {                                                      // скол — сквозь него видна стена
+    g.clearRect(cx + 2, 158, 5, 10); g.clearRect(cx + 4, 157, 3, 13);
+    L(g, cx + 3, 157, cx + 6, 170, '#7a4a30'); L(g, cx + 5, 156, cx + 5, 171, '#6a3e28');
+  }
+}
+const HALL_LAMPS = [                                                     // лампы зала: состояние задаёт характер участков
+  [260, 'steady'], [420, 'steady'], [580, 'flicker'], [708, 'steady'], [900, 'steady'],
+  [1060, 'steady'], [1220, 'steady'], [1380, 'dead'], [1540, 'flicker'], [1700, 'steady'],
+];
+function drawHallLamps(g) {
+  HALL_LAMPS.forEach(([lx, mode]) => {
+    const cold = lx > 1300, col = cold ? [200, 224, 236] : [255, 206, 140];
+    R(g, lx, 122, 1, 9, '#1c1e20');
+    R(g, lx - 4, 131, 9, 1, '#3a3e40'); R(g, lx - 5, 132, 11, 2, '#545a5c'); R(g, lx - 5, 132, 11, 1, '#70767a');
+    const l = addLight(lx, 138, 92, col, mode, 1);
+    l.pool = true;
+    addEmissive(lx - 2, 134, 5, 1, cold ? [230, 246, 255] : [255, 236, 190], l);
+  });
+}
+
+/* ---------- MAIN: торцы станции ---------- */
+function drawEnds(g) {
+  // Запад: торцевая стена и баррикада у засыпанного тоннеля.
+  paintRegion(g, 0, 122, 38, 92, (x, y, o) => setC(o, 44, 46, 48, (hash(x, y) - 0.5) * 12 + (x === 37 ? 18 : 0)));
+  for (let k = 0; k < 9; k++) {                                         // листы железа
+    const sx = 40 + k * 11, top = 140 + ((hash(k, 9) * 14) | 0);
+    R(g, sx, top, 11, 214 - top, k % 2 ? '#4c5254' : '#5a6062');
+    for (let y = top; y < 214; y += 3) R(g, sx, y, 11, 1, 'rgba(0,0,0,.18)');
+    R(g, sx + 3, top + 6, 4, 10 + ((hash(9, k) * 20) | 0), 'rgba(122,70,40,.55)');
+  }
+  for (let row = 0; row < 4; row++) for (let k = 0; k < 7 - (row >> 1); k++) {   // мешки с песком
+    const bx = 42 + k * 14 + (row % 2) * 7, by = 207 - row * 6;
+    R(g, bx, by, 13, 6, '#776c52'); R(g, bx + 1, by, 11, 1, '#9a8e6c'); R(g, bx, by + 5, 13, 1, '#4a4232');
+  }
+  for (let k = 0; k < 10; k++) { const bx = 42 + k * 10; L(g, bx, 140, bx + 6, 134, '#6a6a68'); L(g, bx + 6, 134, bx + 10, 140, '#6a6a68'); }
+  plate(g, 92, 160, 'СТОЙ', '#5a2a22', '#e8c8a0', '#8a4a3a');
+  // Восток: гермозатвор.
+  R(g, 1878, 122, 92, 92, '#2c3134'); R(g, 1878, 122, 92, 1, '#4a5054');
+  R(g, 1886, 130, 76, 84, '#566064'); R(g, 1886, 130, 76, 1, '#7a868a'); R(g, 1886, 130, 2, 84, '#6c787c');
+  for (let y = 136; y < 196; y += 12) for (let x = 1892; x < 1958; x += 10) R(g, x, y, 1, 1, '#3a4246');
+  for (let y = 196; y < 206; y++) for (let x = 1886; x < 1962; x++) R(g, x, y, 1, 1, ((x + y) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
+  disc(g, 1924, 168, 11, '#3a4246'); disc(g, 1924, 168, 9, '#6a767a'); disc(g, 1924, 168, 7, '#3a4246');
+  L(g, 1915, 168, 1933, 168, '#6a767a'); L(g, 1924, 159, 1924, 177, '#6a767a');
+  R(g, 1962, 130, 6, 84, '#0c0e10');                                   // щель приоткрытой створки
+  paintRegion(g, 1970, 122, 30, 92, (x, y, o) => setC(o, 40, 42, 44, (hash(x, y) - 0.5) * 12));
+  plate(g, 1924, 140, 'ГЕРМОЗАТВОР 2', '#22282a', '#d8c08a', '#4a5254');
+  R(g, 1920, 124, 9, 4, '#2a1a18');
+  const red = addLight(1924, 128, 70, [255, 60, 40], 'pulse', 0.9);
+  addEmissive(1921, 125, 7, 2, [255, 70, 50], red);
+}
+
+/* ---------- MAIN: обстановка на платформе по зонам ---------- */
+function tent(g, x, w, h, cloth) {
+  for (let k = 0; k <= h; k++) {
+    const half = Math.round((w / 2) * (k / h)), y = 214 - h + k;
+    R(g, x + w / 2 - half, y, half, 1, rgb(cloth, 0.78)); R(g, x + w / 2, y, half, 1, rgb(cloth));
+  }
+  for (let k = 0; k < h * 0.55; k++) { const half = Math.round(5 * (k / (h * 0.55))); R(g, x + w / 2 - half + 2, 214 - h * 0.55 + k, half * 2, 1, '#1c1a16'); }
+  R(g, x + w / 2 + 6, 214 - h * 0.6, 7, 5, '#8a6a42');
+  L(g, x + w / 2, 214 - h - 3, x + w / 2, 214 - h, '#3a3a36'); L(g, x - 4, 214, x + 4, 214 - h * 0.6, '#5a5446');
+}
+function crate(g, x, y, w, h) {
+  R(g, x, y, w, h, '#6e5236'); R(g, x, y, w, 1, '#94744e'); R(g, x, y + h - 1, w, 1, '#3e2c1c');
+  R(g, x, y, 1, h, '#4e3a26'); R(g, x + w - 1, y, 1, h, '#4e3a26'); L(g, x + 1, y + 1, x + w - 2, y + h - 2, '#5a4228');
+}
+function barrel(g, x, y, c = [74, 66, 58]) {
+  R(g, x, y, 12, 16, rgb(c)); R(g, x, y, 2, 16, rgb(c, 1.25)); R(g, x + 10, y, 2, 16, rgb(c, 0.7));
+  R(g, x, y + 3, 12, 1, '#7a4a2e'); R(g, x, y + 11, 12, 1, '#7a4a2e'); R(g, x, y, 12, 1, rgb(c, 1.4));
+}
+function bench(g, x) {
+  R(g, x, 197, 44, 3, '#6a4e34'); R(g, x, 197, 44, 1, '#8c6c4c'); R(g, x, 189, 44, 2, '#6a4e34'); R(g, x, 189, 44, 1, '#8c6c4c');
+  R(g, x + 3, 191, 2, 6, '#2e3032'); R(g, x + 39, 191, 2, 6, '#2e3032');
+  R(g, x + 3, 200, 2, 14, '#2e3032'); R(g, x + 39, 200, 2, 14, '#2e3032');
+}
+function drawProps(g) {
+  // --- Жилой сектор ---
+  tent(g, 196, 52, 34, [104, 112, 82]);
+  R(g, 262, 208, 38, 6, '#8c7b60'); R(g, 270, 205, 30, 4, '#7a3b34'); R(g, 263, 205, 7, 3, '#c0b69c');
+  crate(g, 312, 198, 18, 16); crate(g, 330, 202, 14, 12); crate(g, 316, 186, 14, 12);
+  cable(g, COLUMNS[1], COLUMNS[2], 150, 10, '#2a2a28');                  // бельевая верёвка
+  [[366, 20, '#8a8070'], [388, 14, '#5a6a7a'], [414, 18, '#9a5a4a'], [440, 12, '#c8c0a8'], [464, 16, '#6a7a5a']].forEach(([cx, h, c]) => {
+    const t = (cx - COLUMNS[1]) / 160, y = 151 + Math.round(40 * t * (1 - t));
+    R(g, cx - 5, y, 11, h, c); R(g, cx - 5, y, 11, 1, rgb([230, 220, 200], 0.6));
+  });
+  for (let k = 0; k < 6; k++) R(g, 628 + k * 9, 140, 9, 68 + (k % 2) * 4, k % 2 ? '#6a4038' : '#7a4a40');   // занавес
+  R(g, 626, 139, 58, 2, '#3a3a36');
+  R(g, 540, 200, 34, 3, '#7a5a3e'); R(g, 543, 203, 2, 11, '#3e2e20'); R(g, 569, 203, 2, 11, '#3e2e20');      // столик
+  R(g, 548, 196, 6, 4, '#5c6266'); R(g, 562, 196, 2, 4, '#e8e0c8');
+  const candle = addLight(563, 194, 26, [255, 180, 100], 'fire', 0.55);
+  addEmissive(563, 194, 1, 2, [255, 210, 120], candle, 'main', 'fire');
+  barrel(g, 598, 198, [54, 80, 104]); barrel(g, 612, 200, [54, 80, 104]);
+  // --- Центральная платформа ---
+  bench(g, 790); bench(g, 1170);
+  R(g, 930, 204, 18, 10, '#5a4a3a'); R(g, 930, 204, 18, 1, '#7a6a52'); R(g, 934, 196, 14, 8, '#4a5a6a'); R(g, 937, 194, 6, 2, '#2a2a2a');
+  R(g, 960, 206, 10, 8, '#22262a'); R(g, 962, 204, 8, 4, '#2e3236');                                       // мешки с мусором
+  barrel(g, 1034, 198, [70, 58, 50]);
+  WORLD.fire = { x: 1040, y: 198, light: addLight(1040, 190, 84, [255, 140, 60], 'fire', 1.15) };
+  crate(g, 1086, 200, 16, 14);
+  // --- Техническая зона ---
+  disc(g, 1374, 204, 10, '#4a3a2a'); disc(g, 1374, 204, 7, '#262a2c'); disc(g, 1374, 204, 2, '#6a5a3a');   // кабельный барабан
+  R(g, 1440, 170, 24, 44, '#46525a'); R(g, 1440, 170, 24, 1, '#66727a'); R(g, 1451, 171, 1, 43, '#2e383e');  // электрошкаф
+  for (let k = 0; k < 3; k++) addEmissive(1444 + k * 6, 176, 2, 1, k === 1 ? [255, 90, 60] : [110, 230, 120], null, 'main', 'blink');
+  [1648, 1662].forEach(px => { R(g, px, 122, 6, 92, '#4e5a5e'); R(g, px, 122, 2, 92, '#6e7a7e');
+    R(g, px - 2, 150, 10, 3, '#3a4448'); R(g, px - 2, 190, 10, 3, '#3a4448'); });
+  disc(g, 1651, 172, 5, '#8a3a30'); disc(g, 1651, 172, 3, '#4e5a5e');
+  for (let x = 1580; x < 1626; x++) R(g, x, 196, 1, 4, ((x >> 2) % 2) ? '#c8a03c' : '#1a1a1a');            // ограждение
+  R(g, 1582, 200, 2, 14, '#3a3a38'); R(g, 1622, 200, 2, 14, '#3a3a38');
+  barrel(g, 1690, 198, [90, 62, 44]); barrel(g, 1704, 199, [80, 70, 54]);
+  R(g, 1730, 206, 16, 8, '#6a2a24'); R(g, 1730, 206, 16, 1, '#8a3a30');                                     // ящик с инструментом
+  L(g, 1772, 122, 1776, 150, '#1a1a1a', 2);                                                                 // оборванный кабель
+  WORLD.spark = { x: 1776, y: 151, timer: 2, flash: addLight(1776, 152, 60, [170, 210, 255], 'spark', 1) };
+}
+
+/* ---------- BACK: дальняя стена зала ---------- */
+function backTexel(x, y, o) {
+  if (y < 122 || y >= 214) return false;
+  const mx = (x - 25) / CONFIG.PARALLAX.BACK, n = (hash(x, y) - 0.5) * 9;
+  if (y < 128) return setC(o, 24, 27, 30, n * 0.6);
+  if (y >= 196) {                                                       // гранитный цоколь
+    if (y === 196) return setC(o, 78, 80, 78, n);
+    if (y === 213) return setC(o, 18, 20, 22);
+    return setC(o, 46, 48, 50, n + (hash(x >> 3, y >> 2) > 0.8 ? 6 : 0));
+  }
+  const grime = dither(x, y) < (y - 160) / 60 ? 0.8 : 1;
+  const streak = hash(x >> 1, 11) > 0.92 && y < 128 + hash(x >> 1, 12) * 60 ? 0.84 : 1;
+  const shadowTop = y < 132 ? 0.75 : 1;
+  const k = grime * streak * shadowTop;
+  if (mx < 740) {                                                       // жилой сектор: штукатурка, местами плитка
+    const tile = y > 150 && ((x % 12 === 0) || (y % 8 === 0));
+    return setC(o, (tile ? 70 : 82) * k, (tile ? 70 : 80) * k, (tile ? 64 : 70) * k, n);
+  }
+  if (mx < 1300) {                                                      // платформа: мраморные панели
+    const panel = (x / 30) | 0, seam = x % 30 === 0 || y === 162;
+    const base = panel % 2 ? [84, 98, 96] : [78, 92, 89];
+    const vein = Math.sin(x * 0.19 + y * 0.31 + panel * 1.7) + Math.sin(x * 0.05 - y * 0.12 + panel) * 0.6 > 1.42 ? 1.16 : 1;
+    const kk = k * vein * (seam ? 0.74 : 1);
+    return setC(o, base[0] * kk, base[1] * kk, base[2] * kk, n);
+  }
+  const seam = x % 48 === 0 || (y - 128) % 24 === 0;                    // техзона: бетон с опалубкой
+  const rust = hash(x >> 2, 13) > 0.9 && y > 140 && y < 140 + hash(x >> 2, 14) * 50 ? [1.18, 0.92, 0.8] : [1, 1, 1];
+  return setC(o, 66 * k * rust[0] * (seam ? 0.78 : 1), 68 * k * rust[1] * (seam ? 0.78 : 1), 66 * k * rust[2] * (seam ? 0.78 : 1), n);
+}
+function drawBackDecor(g) {
+  // Жилой сектор: ковры, полки, гирлянда.
+  [[260, '#8a3a30', '#c09a5a'], [560, '#3a4a6a', '#b88a4a']].forEach(([mx, field, ornament]) => {
+    const x = toBack(mx);
+    R(g, x - 26, 138, 52, 2, '#3a3a36');
+    R(g, x - 24, 140, 48, 34, '#4a2420'); R(g, x - 22, 142, 44, 30, field);
+    for (let k = 0; k < 4; k++) { const cx = x - 15 + k * 10; R(g, cx, 152, 2, 2, ornament); R(g, cx - 2, 154, 6, 2, ornament); R(g, cx, 156, 2, 2, ornament); }
+    for (let k = 0; k < 44; k += 3) { R(g, x - 22 + k, 144, 2, 1, ornament); R(g, x - 22 + k, 169, 2, 1, ornament); }
+  });
+  const sx = toBack(410);
+  R(g, sx - 22, 160, 44, 2, '#5a4430');
+  ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#7a5a4a', '#6a7a8a'].forEach((c, k) => R(g, sx - 18 + k * 8, 153, 5, 7, c));
+  const g0 = toBack(150), g1 = toBack(720);
+  cable(g, g0, g1, 133, 3, '#2a2a28');
+  for (let x = g0 + 6, k = 0; x < g1; x += 11, k++) {
+    const t = (x - g0) / (g1 - g0), y = 134 + Math.round(12 * t * (1 - t) * ((x / 110) % 1));
+    const c = [[255, 190, 90], [255, 120, 80], [180, 230, 120], [255, 220, 140]][k % 4];
+    addEmissive(x, y, 1, 2, c, null, 'back', 'garland');
+  }
+  [220, 450, 660].forEach(mx => addLight(toBack(mx), 140, 46, [255, 180, 110], 'garland', 0.38, 'back'));
+  // Платформа: ниши, таблички с названием, табло.
+  [900, 1060, 1220].forEach((mx, k) => {
+    const x = toBack(mx);
+    for (let y = 0; y < 50; y++) {
+      const half = y < 12 ? Math.round(Math.sqrt(144 - (12 - y) * (12 - y)) * 2.5) : 30;
+      R(g, x - half, 140 + y, half * 2, 1, rgb([58, 68, 68], 0.9 + hash(k, y) * 0.1));
+    }
+    R(g, x - 30, 190, 60, 1, '#8a948e');
+    if (k === 0 || k === 1) plate(g, x, 158, 'ГАГАРИНСКАЯ', '#2f5660', '#dfe6d6', '#6f9a98');   // ниша у лестницы (k=2) — схема
+    if (k === 2) {
+      R(g, x - 22, 150, 44, 28, '#1e2628'); R(g, x - 21, 151, 42, 26, '#c8c2ac');
+      for (let i = 0; i < 6; i++) { R(g, x - 16 + i * 7, 166, 3, 3, i === 3 ? '#a03a30' : '#3a3a3a'); }
+      R(g, x - 16, 167, 38, 1, '#3a3a3a');
+      drawText(g, 'СХЕМА', x - 14, 155, '#3a3a3a');
+      g.fillStyle = 'rgba(40,36,30,.35)'; for (let i = 0; i < 40; i++) g.fillRect(x - 21 + ((hash(i, 2) * 42) | 0), 151 + ((hash(2, i) * 26) | 0), 2, 1);
+    }
+  });
+  // Техзона: трубы, щиты, «ОПАСНО».
+  const t0 = toBack(1300), t1 = toBack(1880);
+  [[136, 6, '#4e5a60'], [146, 4, '#5a4a3a']].forEach(([y, h, c]) => {
+    R(g, t0, y, t1 - t0, h, c); R(g, t0, y, t1 - t0, 1, 'rgba(255,255,255,.12)'); R(g, t0, y + h - 1, t1 - t0, 1, 'rgba(0,0,0,.3)');
+    for (let x = t0 + 20; x < t1; x += 60) R(g, x, y - 1, 3, h + 2, '#3a4448');
+  });
+  [1400, 1620].forEach(mx => { const x = toBack(mx); R(g, x, 160, 26, 34, '#4a545a'); R(g, x, 160, 26, 1, '#6a747a');
+    R(g, x + 3, 164, 20, 4, '#b8922e'); R(g, x + 12, 170, 2, 20, '#2e363a'); });
+  plate(g, toBack(1500), 170, 'ОПАСНО', '#6a2a22', '#f0d0a8', '#9a4a3a');
+  cable(g, t0, t1, 152, 10, '#151617'); cable(g, t0 + 30, t1, 156, 14, '#1d1e20');
+}
+
+/* ---------- FORE: силуэты переднего плана ---------- */
+function drawFore(g, w) {
+  for (let x = 0; x < w; x += 1) {                                      // щебень у нижнего края
+    const h = Math.max(0, Math.round((noise1(x * 0.06, 41) - 0.55) * 26));
+    if (h > 0) { R(g, x, H - h, 1, h, '#07090b'); R(g, x, H - h, 1, 1, '#1a1e22'); }
+  }
+  [520, 1180, 1640].forEach(mx => {                                     // ближние провисшие кабели под перекрытием
+    const x = toFore(mx); cable(g, x, x + 90, 118, 9, '#0a0c0e'); cable(g, x + 10, x + 70, 119, 6, '#121518');
+  });
+}
+
+/* ---------- MAIN: проёмы между комнатами верхнего яруса и лестница ---------- */
+const DOORWAYS = [[856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];          // [левый край, правый край] прохода
+function drawDoorways(g) {
+  DOORWAYS.forEach(([a, b]) => {
+    R(g, a, 50, b - a, 46, '#14171a');                                  // тёмный проём
+    R(g, a - 1, 48, b - a + 2, 3, '#5c6264'); R(g, a - 1, 48, b - a + 2, 1, '#7a8082');   // перемычка
+    R(g, a, 51, 1, 45, '#454b4d'); R(g, b - 1, 51, 1, 45, '#24282a');   // косяки
+    R(g, a, 96, b - a, 4, '#4e463c'); R(g, a, 96, b - a, 1, '#8a8478'); R(g, a, 100, b - a, 1, '#24221f'); // порог
+  });
+}
+/** Высота верха ступени под точкой x (ступни героя на марше). */
+function stairTopY(s, x) {
+  const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1, steps } = s.run;
+  if (x < x0) return yb;
+  if (x >= x1) return yt;
+  return Math.round(yb - (Math.floor((x - x0) / ((x1 - x0) / steps)) + 1) * (yb - yt) / steps);
+}
+/** Бетонный марш (только изображение, маршрут задаёт stairTopY): ступени лежат на наклонной несущей плите
+    толщиной ~10 px; под плитой — просвет со стеной станции. Внизу — опорная тумба, посередине — одна стойка,
+    верхний конец заделан в перекрытие у площадки. */
+function drawStairs(g) {
+  CONFIG.STAIRS.forEach(s => {
+    const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1 } = s.run, [h0, h1] = s.hole;
+    const SLAB = 15;                                                    // от линии кромок ступеней до низа плиты
+    const nosing = x => yb - (x - x0) * (yb - yt) / (x1 - x0);
+    const underside = x => Math.min(yb, Math.round(nosing(x) + SLAB));
+    const conc = (x, y, v) => { const n = (hash(x, y + 404) - 0.5) * 10; R(g, x, y, 1, 1, rgb([v + n, v - 4 + n, v - 10 + n])); };
+    R(g, h0, 96, h1 - h0, 26, '#121417');                               // проём сквозь пол и перекрытие
+    R(g, h0 - 1, 96, 1, 26, '#6e706c'); R(g, h0 - 1, 121, h1 - h0 + 1, 1, '#3a3c3e');
+    // Опорная тумба у подножия.
+    for (let x = x0 - 6; x < x0 + 26; x++) for (let y = yb - 14; y < yb; y++)
+      conc(x, y, y === yb - 14 ? 138 : x === x0 - 6 ? 116 : y >= yb - 2 ? 62 : 92);
+    // Стойка под серединой марша.
+    const px = Math.round(x0 + (h0 - x0) * 0.9);
+    for (let x = px; x < px + 6; x++) for (let y = underside(px + 3); y < yb; y++) conc(x, y, x === px ? 120 : x === px + 5 ? 70 : 96);
+    R(g, px - 2, yb - 2, 10, 2, '#4a4844');
+    // Ступени и несущая плита.
+    for (let x = x0; x < x1; x++) {
+      const top = stairTopY(s, x), riser = top !== stairTopY(s, x - 1), bottom = underside(x);
+      for (let y = top; y < bottom; y++) {
+        const v = y === top ? 150 : y === top + 1 ? 124 : y === bottom - 1 ? 58 : y === bottom - 2 ? 74 : riser ? 112 : 98;
+        conc(x, y, v);
+      }
+    }
+    for (let y = stairTopY(s, x1 - 1); y < underside(x1 - 1); y++) R(g, x1, y, 1, 1, '#4a4844');   // торец у площадки
+  });
+}
+/** Перила вдоль марша. Рисуются позади героя, а пока он идёт по маршу — перед ним. */
+function drawRail(g, s, camI, yo) {
+  const { x0, x1 } = s.run, yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y;
+  const railY = x => Math.round(yb - (x - x0) * (yb - yt) / (x1 - x0)) - 15;
+  for (let x = x0; x <= x1; x++) {
+    const y = railY(x) + yo, sx = x - camI;
+    g.fillStyle = '#9a968c'; g.fillRect(sx, y, 1, 1); g.fillStyle = '#4a4844'; g.fillRect(sx, y + 1, 1, 1);
+    if ((x - x0) % 27 === 0 || x === x1) { g.fillStyle = '#6a6862'; g.fillRect(sx, y + 2, 1, stairTopY(s, x) + yo - y - 2); }
+  }
+}
+
+/* ---------- SURFACE: улица над станцией, вестибюль и наклонный ход ---------- */
+/** Наклонный ход эскалатора в разрезе грунта: от вестибюля к потолку шлюза. oy — сдвиг строк канваса. */
+function drawEscalator(g, oy) {
+  const x0 = 1606, y0 = 14, x1 = 1690, y1 = GROUND_Y + 8;
+  for (let x = x0; x <= x1; x++) {
+    const cy = Math.round(y0 + (y1 - y0) * (x - x0) / (x1 - x0)) + oy;
+    R(g, x, cy - 7, 1, 1, '#3e3c38'); R(g, x, cy - 6, 1, 12, '#111315');
+    R(g, x, cy + 4 - ((x >> 1) % 2), 1, 2, '#34383a');                   // ступени
+    R(g, x, cy + 6, 1, 1, '#2a2826');
+  }
+}
+function buildSurface() {
+  // Небо: пыльные сумерки, ступенчатый градиент с дизерингом и полосами облаков.
+  const skyW = 1400, sky = makeCanvas(skyW, SURF_H), gs = sky.getContext('2d', { willReadFrequently: true });
+  paintRegion(gs, 0, 0, skyW, SURF_H, (x, y, o) => {
+    const t = clamp(y / (SURF_H - 70) + (dither(x, y) - 0.5) * 0.09, 0, 1), band = Math.round(t * 9) / 9;
+    const cloud = Math.sin(x * 0.011 + Math.sin(y * 0.08) * 2.2) * Math.sin(y * 0.19) > 0.58 ? 9 : 0;
+    o[0] = 30 + band * 112 + cloud; o[1] = 28 + band * 98 + cloud; o[2] = 30 + band * 66 + cloud * 0.5; return true;
+  });
+  disc(gs, 820, surfRow(-196), 14, 'rgba(236,224,186,.35)'); disc(gs, 820, surfRow(-196), 9, '#e2d8b4');
+  // Дальние руины многоэтажек (параллакс 0.5).
+  const ruins = makeCanvas(W, SURF_H), gr = ruins.getContext('2d');
+  for (let x = -10, i = 0; x < W; i++) {
+    const w = 34 + ((hash(i, 1) * 58) | 0), h = 46 + ((hash(i, 2) * 112) | 0), base = surfRow(GROUND_Y) + 2, top = base - h;
+    const col = hash(i, 3) > 0.5 ? [58, 54, 50] : [50, 48, 46];
+    R(gr, x, top, w, h, rgb(col)); R(gr, x, top, 1, h, rgb(col, 1.18));
+    for (let wy = top + 5; wy < base - 6; wy += 7) for (let wx = x + 4; wx < x + w - 4; wx += 6)
+      R(gr, wx, wy, 3, 4, hash(wx, wy) > 0.985 ? '#7a6a44' : rgb(col, 0.62));
+    for (let k = 0; k < w; k += 3) if (hash(i * 50 + k, 4) > 0.45) gr.clearRect(x + k, top, 3, (hash(k, i) * 18) | 0);   // обломанные этажи
+    x += w + 6 + ((hash(i, 5) * 40) | 0);
+  }
+  // Улица, грунт и вестибюль (параллакс 1).
+  const surf = makeCanvas(W, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
+  const R2 = (x, y, w, h, c) => R(gm, x, surfRow(y), w, h, c);
+  paintRegion(gm, 0, surfRow(GROUND_Y), W, -GROUND_Y, (x, row, o) => {
+    const y = row - SURF_H, n = (hash(x, y + 777) - 0.5) * 10;
+    if (y === GROUND_Y) return setC(o, 104, 100, 90, n);                // бордюр
+    if (y < -50) return setC(o, 56, 55, 52, n + (hash(x >> 1, y) > 0.95 ? -16 : 0));   // асфальт с трещинами
+    if (y < -44) return setC(o, 62, 52, 42, n);                          // подсыпка
+    const st = Math.sin(y * 0.4 + Math.sin(x * 0.02) * 2) * 4, stone = hash(x >> 2, y >> 2) > 0.9 ? 10 : 0, k = 0.9 - (y + 44) / 120;
+    return setC(o, (48 + stone) * k, (40 + stone) * k, (34 + stone) * k, n * 0.6 + st);
+  });
+  for (let x = 0; x < W; x += 1) if (hash(x, 31) > 0.86) R2(x, GROUND_Y - 1 - ((hash(x, 32) * 3) | 0), 1, 2 + ((hash(x, 33) * 2) | 0), '#5a5636');   // сухая трава
+  for (let x = 1020; x < 1140; x++) {                                     // завал из обломков — граница слева
+    const h = Math.max(0, Math.round(64 - Math.abs(x - 1092) * 0.85 + (hash(x, 7) - 0.5) * 12));
+    for (let y = 0; y < h; y++) R2(x, GROUND_Y - y, 1, 1, rgb([70, 66, 60], 0.55 + hash(x, y) * 0.5 - y / 180));
+  }
+  L(gm, 1060, surfRow(GROUND_Y - 40), 1120, surfRow(GROUND_Y - 58), '#4a4440', 3);
+  [[1250, 1], [1888, -1]].forEach(([tx, d]) => {                          // мёртвые деревья
+    L(gm, tx, surfRow(GROUND_Y), tx + d * 2, surfRow(GROUND_Y - 44), '#2a2420', 3);
+    L(gm, tx + d * 2, surfRow(GROUND_Y - 30), tx + d * 14, surfRow(GROUND_Y - 46), '#2a2420', 2);
+    L(gm, tx + d, surfRow(GROUND_Y - 20), tx - d * 10, surfRow(GROUND_Y - 34), '#2a2420', 2);
+    L(gm, tx + d * 2, surfRow(GROUND_Y - 44), tx - d * 4, surfRow(GROUND_Y - 58), '#2a2420', 1);
+  });
+  [[1330, 1], [1774, -1]].forEach(([lx, d]) => {                          // погнутые фонари
+    R2(lx, GROUND_Y - 44, 2, 44, '#3a3c3c'); L(gm, lx, surfRow(GROUND_Y - 44), lx + d * 10, surfRow(GROUND_Y - 52), '#3a3c3c', 2);
+    R2(lx + d * 10 - 3, GROUND_Y - 52, 7, 2, '#4a4c4c');
+  });
+  const cx = 1420;                                                        // сгоревшая машина
+  R2(cx, GROUND_Y - 13, 46, 9, '#4e3a2e'); R2(cx + 9, GROUND_Y - 21, 24, 8, '#3e3028'); R2(cx + 12, GROUND_Y - 19, 8, 5, '#16181a'); R2(cx + 22, GROUND_Y - 19, 8, 5, '#16181a');
+  R2(cx, GROUND_Y - 13, 46, 1, '#6a5040'); for (let k = 0; k < 8; k++) R2(cx + 3 + k * 5, GROUND_Y - 10, 3, 2, '#6a3e26');
+  disc(gm, cx + 9, surfRow(GROUND_Y - 3), 4, '#1a1a1a'); disc(gm, cx + 37, surfRow(GROUND_Y - 3), 4, '#1a1a1a');
+  for (let k = 0; k < 6; k++) R2(1980 + (k % 2), GROUND_Y - 30 + k * 5, 18, 1, '#4a4844');   // забор у края
+  R2(1984, GROUND_Y - 32, 2, 32, '#3a3836'); R2(1996, GROUND_Y - 32, 2, 32, '#3a3836');
+  // Вестибюль станции.
+  const px0 = 1592, px1 = 1708, top = GROUND_Y - 51;
+  R2(px0, top, px1 - px0, 51, '#5e5c56');
+  for (let x = px0; x < px1; x += 12) R2(x, top, 1, 51, '#4e4c48');
+  for (let k = 0; k < 14; k++) { const sx = px0 + ((hash(k, 61) * (px1 - px0)) | 0); R2(sx, top + 2, 1, 10 + ((hash(61, k) * 30) | 0), 'rgba(30,26,22,.35)'); }
+  R2(px0 - 6, top - 6, px1 - px0 + 12, 6, '#6e6c66'); R2(px0 - 6, top - 6, px1 - px0 + 12, 1, '#8a8882'); R2(px0 - 6, top - 1, px1 - px0 + 12, 1, '#3a3836');
+  [[px0 + 8, 38], [1664, 36]].forEach(([wx, ww]) => {
+    R2(wx, GROUND_Y - 36, ww, 22, '#1a2022'); R2(wx, GROUND_Y - 36, ww, 1, '#3a4448');
+    for (let k = 9; k < ww; k += 9) R2(wx + k, GROUND_Y - 36, 1, 22, '#3a3a38');
+    L(gm, wx + 3, surfRow(GROUND_Y - 35), wx + 12, surfRow(GROUND_Y - 22), '#4a5a5e');
+  });
+  R2(1640, GROUND_Y - 32, 20, 32, '#3e4244'); R2(1642, GROUND_Y - 30, 16, 30, '#0b0d0f');           // двери
+  for (let x = 1586; x < 1716; x += 4) { R2(x, top - 9, 3, 1, '#5a5a58'); R2(x + 1, top - 8, 1, 2, '#5a5a58'); }   // колючая проволока
+  plate(gm, 1650, surfRow(top + 4), 'ГАГАРИНСКАЯ', '#2f5660', '#dfe6d6', '#6f9a98');
+  R2(1649, top - 18, 2, 12, '#3a3a38'); R2(1640, top - 38, 20, 20, '#8a2a24'); R2(1640, top - 38, 20, 1, '#aa4038');
+  drawText(gm, 'М', 1645, surfRow(top - 35), '#ece4d2', 'rgba(0,0,0,.4)', 2);
+  for (let k = 0; k < 4; k++) { const sx = k < 2 ? 1612 + k * 12 : 1664 + (k - 2) * 12;          // мешки у входа
+    R2(sx, GROUND_Y - 6, 13, 6, '#776c52'); R2(sx + 1, GROUND_Y - 6, 11, 1, '#9a8e6c'); }
+  const lamp = addLight(1650, GROUND_Y - 34, 44, [255, 200, 140], 'flicker', 0.8);
+  lamp.clip = SURF_CLIP;
+  addEmissive(1649, GROUND_Y - 34, 3, 1, [255, 226, 170], lamp);
+  R2(1647, GROUND_Y - 36, 7, 2, '#4a4a48');
+  drawEscalator(gm, SURF_H);
+  WORLD.sky = sky; WORLD.ruins = ruins; WORLD.surface = surf;
+}
+
+function buildWorld() {
+  const main = makeCanvas(W, H), gm = main.getContext('2d', { willReadFrequently: true });
+  paintRegion(gm, 0, 0, W, H, mainTexel);
+  ROOMS.forEach(r => drawRoom(gm, r));
+  drawDoorways(gm);
+  drawArcade(gm);
+  COLUMNS.forEach((cx, i) => drawColumn(gm, cx, i));
+  drawHallLamps(gm);
+  drawEnds(gm);
+  drawProps(gm);
+  drawStairs(gm);
+  const back = makeCanvas(W, H), gb = back.getContext('2d', { willReadFrequently: true });
+  paintRegion(gb, 0, 122, W, 92, backTexel);
+  drawBackDecor(gb);
+  const fw = Math.ceil(W * CONFIG.PARALLAX.FORE) + 40, fore = makeCanvas(fw, H), gf = fore.getContext('2d');
+  drawFore(gf, fw);
+  buildSurface(); drawEscalator(gm, 0);
+  WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
+  WORLD.lights.forEach(l => { if (!l.clip) l.clip = HALL_CLIP; });
+  WORLD.drips = [470, 1238, 1560].map((x, i) => ({ x, y: 0, v: 0, wait: 0.5 + i * 0.9, active: false }));
+}
+
+/* ============================ PLAYER_SPRITE ===============================
+   Персонаж рисуется кодом в кадры 26×42 (лицом вправо), затем к силуэту
+   добавляется тёмный контур для читаемости на любом фоне. */
+const SPRITE_W = 26, SPRITE_H = 42;
+const HERO_PAL = {
+  skin: '#c99878', skinSh: '#9c6c52', hair: '#3f322b', hairHi: '#5a473b', eye: '#1d1a18',
+  scarf: '#a85343', scarfSh: '#7d3a30', jacket: '#5d6a58', jacketHi: '#76846e', jacketSh: '#44503f', zip: '#8d9a86',
+  belt: '#2e2a26', buckle: '#b39a62', pack: '#4f574a', packHi: '#626b5a', packSh: '#3a4136', roll: '#7e725a', rollSh: '#5f5644',
+  pants: '#39404c', pantsSh: '#2a2f39', boot: '#1f2024', bootHi: '#3a3a40', glove: '#8a7a64', outline: '#0b0d10',
+};
+function drawPersonFrame(o, PAL = HERO_PAL) {
+  const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true }), b = o.bob;
+  const leg = (hx, fx, lift, col, colSh) => {
+    const hy = 27 + b, fy = 38 - lift, kx = Math.round((hx + fx) / 2 + 1 + (lift ? 1 : 0)), ky = Math.round((hy + fy) / 2);
+    L(g, hx, hy, kx, ky, col, 3); L(g, kx, ky, fx, fy, col, 3); R(g, fx - 1, fy - 2, 1, 2, colSh);
+    R(g, fx - 1, fy + 1, 5, 2, PAL.boot); R(g, fx - 1, fy + 1, 5, 1, PAL.bootHi);
+  };
+  const arm = (hx, col) => {
+    const sx = 13, sy = 16 + b, ex = 13 + Math.round(hx / 2), ey = 21 + b, wx = 13 + hx, wy = 25 + b;
+    L(g, sx, sy, ex, ey, col, 3); L(g, ex, ey, wx, wy, col, 3); R(g, wx - 1, wy + 1, 3, 2, PAL.glove);
+  };
+  arm(o.armBack, PAL.jacketSh);                                          // дальняя рука
+  leg(12, 12 + o.legBack.f, o.legBack.lift, PAL.pantsSh, PAL.boot);      // дальняя нога
+  if (!o.noPack) {
+  R(g, 3, 11 + b, 8, 4, PAL.roll); R(g, 3, 11 + b, 1, 4, PAL.rollSh); R(g, 10, 11 + b, 1, 4, PAL.rollSh); R(g, 3, 11 + b, 8, 1, '#9a8e72');
+  R(g, 4, 15 + b, 6, 12, PAL.pack); R(g, 4, 15 + b, 6, 3, PAL.packHi); R(g, 9, 15 + b, 1, 12, PAL.packSh); R(g, 4, 26 + b, 6, 1, PAL.packSh);
+  }
+  R(g, 9, 14 + b, 9, 14, PAL.jacket); R(g, 9, 14 + b, 9, 2, PAL.jacketHi); R(g, 17, 16 + b, 1, 11, PAL.jacketSh);
+  R(g, 15, 16 + b, 1, 9, PAL.zip); R(g, 13, 21 + b, 2, 2, PAL.jacketSh);
+  R(g, 9, 25 + b, 9, 2, PAL.belt); R(g, 15, 25 + b, 2, 2, PAL.buckle); R(g, 9, 27 + b, 9, 1, PAL.jacketSh);
+  if (!o.noPack) R(g, 10, 15 + b, 1, 10, PAL.packSh);                   // лямка рюкзака
+  leg(14, 14 + o.legFront.f, o.legFront.lift, PAL.pants, PAL.pantsSh);  // ближняя нога
+  R(g, 10, 12 + b, 8, 3, PAL.scarf); R(g, 10, 14 + b, 8, 1, PAL.scarfSh); R(g, 8 - o.tail, 14 + b, 2, 6, PAL.scarf); R(g, 8 - o.tail, 19 + b, 2, 1, PAL.scarfSh);
+  R(g, 11, 4 + b, 7, 8, PAL.skin); R(g, 11, 11 + b, 7, 1, PAL.skinSh); R(g, 18, 8 + b, 1, 2, PAL.skin);
+  R(g, 10, 2 + b, 8, 3, PAL.hair); R(g, 10, 5 + b, 2, 5, PAL.hair); R(g, 13, 2 + b, 3, 1, PAL.hairHi); R(g, 17, 4 + b, 1, 1, PAL.hair);
+  R(g, 13, 8 + b, 1, 2, PAL.skinSh);                                    // ухо
+  if (o.blink) R(g, 16, 7 + b, 2, 1, PAL.skinSh); else { R(g, 16, 7 + b, 1, 1, PAL.eye); R(g, 16, 6 + b, 2, 1, PAL.hair); }
+  R(g, 17, 10 + b, 1, 1, PAL.skinSh);
+  if (o.hat) { R(g, 9, 1 + b, 10, 4, o.hat); R(g, 9, 1 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + b, 10, 1, 'rgba(0,0,0,.35)'); }
+  arm(o.armFront, PAL.jacket);                                          // ближняя рука
+  if (o.gun) { L(g, 8, 27 + b, 21, 14 + b, '#222426', 2); R(g, 6, 26 + b, 4, 3, '#4a3a2a'); R(g, 15, 21 + b, 2, 4, '#222426'); R(g, 20, 13 + b, 2, 1, '#55595c'); }
+  outline(g);
+  return c;
+}
+function outline(g, SW = SPRITE_W, SH = SPRITE_H) {
+  const img = g.getImageData(0, 0, SW, SH), d = img.data, a = i => d[i * 4 + 3] > 0;
+  const add = [];
+  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
+    const i = y * SW + x; if (a(i)) continue;
+    if ((x > 0 && a(i - 1)) || (x < SW - 1 && a(i + 1)) || (y > 0 && a(i - SW)) || (y < SH - 1 && a(i + SW))) add.push(i);
+  }
+  add.forEach(i => { d[i * 4] = 11; d[i * 4 + 1] = 13; d[i * 4 + 2] = 16; d[i * 4 + 3] = 255; });
+  g.putImageData(img, 0, 0);
+}
+/** Герой со спины (уходит в гермоворота). */
+function drawBackFrame(PAL = HERO_PAL) {
+  const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true });
+  const upL = false, upR = false;
+  const leg = (hx, raised) => {
+    if (raised) { L(g, hx, 27, hx, 32, PAL.pants, 3); R(g, hx - 2, 33, 4, 2, PAL.boot); }
+    else { L(g, hx, 27, hx, 37, PAL.pants, 3); R(g, hx - 2, 38, 4, 2, PAL.boot); R(g, hx - 2, 38, 4, 1, PAL.bootHi); }
+  };
+  leg(11, upR); leg(15, upL);                                            // нога поднимается против руки
+  R(g, 9, 14, 9, 14, PAL.jacket); R(g, 9, 14, 9, 2, PAL.jacketHi); R(g, 9, 25, 9, 2, PAL.belt); R(g, 9, 27, 9, 1, PAL.jacketSh);
+  const arm = (sx, hx, up) => { const hy = up ? 2 : 13; L(g, sx, 15, hx, hy, PAL.jacket, 3); R(g, hx - 1, hy - 1, 3, 2, PAL.glove); };
+  arm(9, upL ? 8 : 6, upL); arm(17, upR ? 18 : 20, upR);
+  R(g, 8, 13, 11, 13, PAL.pack); R(g, 8, 13, 11, 3, PAL.packHi); R(g, 8, 25, 11, 1, PAL.packSh);
+  R(g, 10, 18, 7, 5, PAL.packSh); R(g, 10, 18, 7, 1, '#6c7562');
+  R(g, 7, 10, 13, 4, PAL.roll); R(g, 7, 10, 13, 1, '#9a8e72'); R(g, 7, 10, 1, 4, PAL.rollSh); R(g, 19, 10, 1, 4, PAL.rollSh);
+  R(g, 10, 2, 7, 8, PAL.hair); R(g, 12, 2, 3, 1, PAL.hairHi); R(g, 9, 6, 1, 2, PAL.skinSh); R(g, 17, 6, 1, 2, PAL.skinSh);
+  R(g, 16, 14, 2, 6, PAL.scarf); R(g, 16, 19, 2, 1, PAL.scarfSh);
+  outline(g);
+  return c;
+}
+const SPRITES = { walk: [], idle: [], blink: null, back: null };
+/* Палитры жителей: та же фигура, другая одежда. */
+const GUARD_PAL  = { ...HERO_PAL, jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d',
+  pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' };
+const WORKER_PAL = { ...HERO_PAL, jacket: '#8a6a3a', jacketHi: '#a3824e', jacketSh: '#6a5030', zip: '#5a4228', scarf: '#4a5a6a', scarfSh: '#36424e',
+  pants: '#4a4030', pantsSh: '#3a3226', hair: '#3a2a20' };
+const WORKER2_PAL = { ...HERO_PAL, jacket: '#3e5a6a', jacketHi: '#527484', jacketSh: '#2e4450', zip: '#9aa4a8', scarf: '#8a6a3a', scarfSh: '#6a5030',
+  pants: '#3a3e44', pantsSh: '#2c2f34', skin: '#a87a5c', skinSh: '#7c5640', hair: '#1e1a18' };
+const MEDIC_PAL  = { ...HERO_PAL, jacket: '#c4c6bc', jacketHi: '#dcded4', jacketSh: '#9a9c92', zip: '#8a8c84', scarf: '#c4c6bc', scarfSh: '#9a9c92',
+  pants: '#3a4048', pantsSh: '#2c3138', hair: '#6a5040', skin: '#d4a484' };
+const RES_A_PAL  = { ...HERO_PAL, jacket: '#6a5a4a', jacketHi: '#7e6c5a', jacketSh: '#4e4236', zip: '#4e4236', scarf: '#7a7a6a', scarfSh: '#5a5a4e', hair: '#5a4030' };
+const RES_B_PAL  = { ...HERO_PAL, jacket: '#4a5a6a', jacketHi: '#5e7080', jacketSh: '#384450', zip: '#384450', scarf: '#a08a5a', scarfSh: '#7a6a44',
+  hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' };
+const RES_C_PAL  = { ...HERO_PAL, jacket: '#7a4a4a', jacketHi: '#905a58', jacketSh: '#5a3636', zip: '#5a3636', scarf: '#b8a888', scarfSh: '#8a7c64',
+  hair: '#8a6a4a', hairHi: '#a88a62', skin: '#d8a888' };
+
+/** Сидящий житель: табурет, согнутые ноги, руки на коленях. b — дыхание. */
+function drawSitFrame(PAL, b, o = {}) {
+  const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true });
+  R(g, 7, 34, 12, 2, '#5e4630'); R(g, 7, 34, 12, 1, '#7a5c40'); R(g, 8, 36, 2, 5, '#3e2e20'); R(g, 16, 36, 2, 5, '#3e2e20');
+  R(g, 11, 31, 9, 3, PAL.pantsSh); R(g, 18, 31, 3, 8, PAL.pantsSh); R(g, 18, 39, 5, 2, PAL.boot);
+  L(g, 12, 22 + b, 18, 29, PAL.jacketSh, 3);                            // дальняя рука
+  R(g, 9, 20 + b, 9, 13 - b, PAL.jacket); R(g, 9, 20 + b, 9, 2, PAL.jacketHi); R(g, 15, 22 + b, 1, 8 - b, PAL.zip); R(g, 9, 31, 9, 2, PAL.belt);
+  R(g, 12, 32, 10, 3, PAL.pants); R(g, 19, 32, 3, 7, PAL.pants); R(g, 19, 39, 5, 2, PAL.boot); R(g, 19, 39, 5, 1, PAL.bootHi);
+  R(g, 10, 18 + b, 8, 3, PAL.scarf); R(g, 10, 20 + b, 8, 1, PAL.scarfSh);
+  R(g, 11, 10 + b, 7, 8, PAL.skin); R(g, 11, 17 + b, 7, 1, PAL.skinSh); R(g, 18, 14 + b, 1, 2, PAL.skin);
+  R(g, 10, 8 + b, 8, 3, PAL.hair); R(g, 10, 11 + b, 2, 5, PAL.hair); R(g, 13, 8 + b, 3, 1, PAL.hairHi); R(g, 13, 14 + b, 1, 2, PAL.skinSh);
+  if (o.blink) R(g, 16, 13 + b, 2, 1, PAL.skinSh); else { R(g, 16, 13 + b, 1, 1, PAL.eye); R(g, 16, 12 + b, 2, 1, PAL.hair); }
+  R(g, 17, 16 + b, 1, 1, PAL.skinSh);
+  if (o.hat) { R(g, 9, 7 + b, 10, 4, o.hat); R(g, 9, 7 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 11 + b, 10, 1, 'rgba(0,0,0,.35)'); }
+  L(g, 13, 22 + b, 16, 27, PAL.jacket, 3); L(g, 16, 27, 19, 30, PAL.jacket, 3); R(g, 18, 30, 3, 2, PAL.glove);   // ближняя рука на колене
+  if (o.gun) { R(g, 6, 29, 17, 2, '#222426'); R(g, 4, 29, 3, 3, '#4a3a2a'); }
+  outline(g);
+  return c;
+}
+/** Границы непрозрачной части канваса. */
+function alphaBox(c) {
+  const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
+  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++)
+    if (d[(y * c.width + x) * 4 + 3]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+}
+/** Спящий: кадр стоя с закрытыми глазами, повёрнутый на 90° (голова слева), под одеялом. rise — дыхание одеяла. */
+function makeLying(PAL, rise, blanket) {
+  const src = drawPersonFrame({ legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
+  const c = makeCanvas(SPRITE_H, SPRITE_W), g = c.getContext('2d', { willReadFrequently: true });
+  g.imageSmoothingEnabled = false; g.translate(0, SPRITE_W); g.rotate(-Math.PI / 2); g.drawImage(src, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
+  const bb = alphaBox(c), bx = bb.x + Math.round(bb.w * 0.34);
+  R(g, bx, bb.y + 1 - rise, bb.x + bb.w - bx, bb.h - 1 + rise, blanket); R(g, bx, bb.y + 1 - rise, bb.x + bb.w - bx, 1, 'rgba(255,255,255,.16)');
+  R(g, bx, bb.y + 1 - rise, 1, bb.h - 1 + rise, '#0b0d10');
+  return { c, bb: alphaBox(c) };
+}
+/** Мутант: сгорбленный, длинные руки до земли. 6 кадров походки, лицом вправо. */
+const MUT_W = 34, MUT_H = 40;
+function drawMutantFrame(i) {
+  const c = makeCanvas(MUT_W, MUT_H), g = c.getContext('2d', { willReadFrequently: true }), p = (i / 6) * Math.PI * 2;
+  const skin = '#8a9578', sh = '#5f6b55', dark = '#2e352b', rag = '#4a3e34', ragSh = '#352c24';
+  const leg = (hx, ff, lift, col) => { const fy = 37 - lift; R(g, hx - 1, 26, 3, 5, col); L(g, hx, 30, hx + ff, fy, col, 3); R(g, hx + ff - 1, fy + 1, 5, 2, dark); };
+  const f = Math.round(Math.sin(p) * 5);
+  leg(13, -f, Math.cos(p + Math.PI) > 0.3 ? 1 : 0, sh);
+  for (let y = 11; y <= 28; y++) { const t = (y - 11) / 17, cx = Math.round(23 - t * 9), half = Math.round(4 + Math.sin(t * Math.PI) * 2.5);
+    R(g, cx - half, y, half * 2, 1, y < 22 ? skin : rag); }
+  for (let k = 0; k < 4; k++) R(g, 18 - k * 2, 12 + k * 3, 1, 1, sh);   // позвонки
+  R(g, 11, 24, 12, 1, ragSh);
+  disc(g, 27, 15, 4, skin); R(g, 27, 18, 5, 2, sh); R(g, 29, 19, 3, 1, '#1a1a14'); R(g, 28, 13, 1, 1, '#1a1a14');
+  leg(16, f, Math.cos(p) > 0.3 ? 1 : 0, skin);
+  const sw = Math.round(-Math.sin(p) * 3);
+  L(g, 22, 15, 24 + sw, 25, skin, 2); L(g, 24 + sw, 25, 26 + sw, 34, skin, 2); R(g, 25 + sw, 35, 3, 2, dark);
+  outline(g, MUT_W, MUT_H);
+  return c;
+}
+/** Набор кадров одного персонажа: ходьба, дыхание, моргание; по запросу — сидя и лёжа. */
+function personSet(pal, o = {}) {
+  const set = { walk: [], idle: [], blink: null, sit: [], lie: [] };
+  for (let i = 0; i < 8; i++) {                                          // 8 кадров ходьбы
+    const p = (i / 8) * Math.PI * 2, lift = q => (Math.cos(q) > 0.3 ? (Math.cos(q) > 0.8 ? 2 : 1) : 0);
+    set.walk.push(drawPersonFrame({ ...o, legFront: { f: Math.round(Math.sin(p) * 5), lift: lift(p) }, legBack: { f: Math.round(Math.sin(p + Math.PI) * 5), lift: lift(p + Math.PI) },
+      armFront: Math.round(-Math.sin(p) * 4), armBack: Math.round(Math.sin(p) * 4), bob: Math.abs(Math.sin(p)) > 0.6 ? 1 : 0, tail: 1, blink: false }, pal));
+  }
+  const stand = { ...o, legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: o.gun ? 3 : 0, armBack: 1, tail: 0 };
+  set.idle.push(drawPersonFrame({ ...stand, bob: 0, blink: false }, pal), drawPersonFrame({ ...stand, bob: 1, blink: false }, pal));
+  set.blink = drawPersonFrame({ ...stand, bob: 0, blink: true }, pal);
+  if (o.sit) set.sit.push(drawSitFrame(pal, 0, o), drawSitFrame(pal, 1, o));
+  if (o.blanket) set.lie.push(makeLying(pal, 0, o.blanket), makeLying(pal, 1, o.blanket));
+  return set;
+}
+const SETS = {};
+function buildSprites() {
+  Object.assign(SPRITES, personSet(HERO_PAL));
+  SPRITES.back = drawBackFrame();
+  SETS.guard   = personSet(GUARD_PAL,   { hat: '#3e4636', gun: true, noPack: true, sit: true });
+  SETS.worker  = personSet(WORKER_PAL,  { hat: '#c8a03c', noPack: true });
+  SETS.worker2 = personSet(WORKER2_PAL, { hat: '#b8b8b0', noPack: true });
+  SETS.medic   = personSet(MEDIC_PAL,   { noPack: true });
+  SETS.resA    = personSet(RES_A_PAL,   { noPack: true, sit: true, blanket: '#7a3b34' });
+  SETS.resB    = personSet(RES_B_PAL,   { noPack: true, sit: true, blanket: '#465a6c' });
+  SETS.resC    = personSet(RES_C_PAL,   { noPack: true, sit: true });
+  SETS.mutant  = { walk: [0, 1, 2, 3, 4, 5].map(drawMutantFrame) };
+}
+
+/* ================================ ACTORS ==================================
+   Жители, охрана и мутанты — только анимация и блуждание в своих границах.
+   kind: guard (стоит, оглядывается) · idle (стоит) · walker (ходит от точки к точке) ·
+         sitter / sitguard (сидит) · sleeper (лежит) · mutant (бродит по улице). */
+const ACTORS = [];
+function actor(kind, set, x, y, o = {}) {
+  ACTORS.push({ kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
+    wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed });
+}
+function placeActors() {
+  const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
+  actor('guard', 'guard', 158, P, { facing: -1 }); actor('guard', 'guard', 118, P, { facing: 1 });          // западная баррикада
+  actor('guard', 'guard', 1864, P, { facing: 1 }); actor('sitguard', 'guard', 1884, P, { facing: -1 });     // гермозатвор
+  actor('guard', 'guard', 1600, U, { facing: 1 }); actor('guard', 'guard', 1670, U, { facing: -1 });       // шлюз на поверхность
+  actor('walker', 'worker', 1000, U, { minX: 900, maxX: 1100, speed: 22 });                                // мастерская
+  actor('walker', 'medic', 1200, U, { minX: 1172, maxX: 1232, speed: 16 });                                // медпункт
+  actor('walker', 'worker2', 1430, U, { minX: 1340, maxX: 1520, speed: 24 });                              // энергоблок
+  actor('walker', 'worker', 1800, U, { minX: 1748, maxX: 1852, speed: 18 });                               // насосная
+  actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+  actor('sitter', 'resC', 382, U, { facing: -1 });                                                          // жилой блок
+  actor('sitter', 'resA', 492, U, { facing: 1 }); actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
+  actor('idle', 'resA', 648, U, { facing: 1 });                                                             // повар у буржуйки
+  actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
+  actor('walker', 'resC', 400, P, { minX: 240, maxX: 630, speed: 20 });   // не заходит на марш                                    // жилой сектор
+  actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
+  actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
+  actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+}
+function updateActors(dt) {
+  for (const a of ACTORS) {
+    a.t += dt; a.blinkT -= dt; if (a.blinkT < -0.12) a.blinkT = 2 + rand() * 4;
+    if (a.kind === 'guard' || a.kind === 'idle') { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = (a.kind === 'guard' ? 3 : 6) + rand() * 5; } }
+    if (a.kind !== 'walker' && a.kind !== 'mutant') continue;
+    if (a.wait > 0) { a.wait -= dt; a.moving = false; continue; }
+    const d = a.tx - a.x;
+    if (Math.abs(d) < 1) { a.wait = (a.kind === 'mutant' ? 0.8 : 1.5) + rand() * 3; a.tx = a.minX + rand() * (a.maxX - a.minX); a.moving = false; continue; }
+    const step = Math.min(Math.abs(d), a.speed * dt);
+    a.x += Math.sign(d) * step; a.facing = Math.sign(d); a.walkDist += step; a.moving = true;
+  }
+}
+function actorSprite(a) {
+  const s = SETS[a.set];
+  if (a.kind === 'mutant') return s.walk[a.moving ? Math.floor(a.walkDist / 3) % 6 : 0];
+  if (a.kind === 'sitter' || a.kind === 'sitguard') return s.sit[Math.floor(a.t / 0.9) % 2];
+  if (a.kind === 'sleeper') return s.lie[Math.floor(a.t / 1.6) % 2];
+  if (a.moving) return s.walk[Math.floor(a.walkDist / CONFIG.PLAYER.STRIDE) % 8];
+  if (a.blinkT < 0) return s.blink;
+  return s.idle[Math.floor(a.t / 0.75) % 2];
+}
+/** Рисует спрайт с отражением по направлению; half — x оси персонажа внутри спрайта. */
+function blit(g, spr, cx, top, facing, half) {
+  if (facing >= 0) { g.drawImage(spr, cx - half, top); return; }
+  const left = cx - (spr.width - half - 1);
+  g.save(); g.translate(left + spr.width, top); g.scale(-1, 1); g.drawImage(spr, 0, 0); g.restore();
+}
+
+/* ================================ INPUT ===================================
+   Направление = последнее нажатое из удерживаемых (клавиши и касания).
+   Любая потеря фокуса/сворачивание сбрасывает всё — клавиши не залипают. */
+const Input = {
+  held: [],                                // стек источников: {id, dir}
+  action: null,                            // одноразовое действие: 'up' | 'down' | 'use'
+  onFirstInput: null,
+  dir() { return this.held.length ? this.held[this.held.length - 1].dir : 0; },
+  press(id, dir) { this.release(id); this.held.push({ id, dir }); if (this.onFirstInput) { this.onFirstInput(); this.onFirstInput = null; } },
+  release(id) { this.held = this.held.filter(h => h.id !== id); },
+  queue(a) { this.action = a; if (this.onFirstInput) { this.onFirstInput(); this.onFirstInput = null; } },
+  takeAction() { const a = this.action; this.action = null; return a; },
+  clear() { this.held.length = 0; this.action = null; },
+  init(touchEl, onReset) {
+    const KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 };
+    const ACTIONS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down' };
+    addEventListener('keydown', e => {
+      if (e.code in KEYS) { e.preventDefault(); if (!e.repeat) this.press('k' + e.code, KEYS[e.code]); }
+      else if (e.code in ACTIONS) { e.preventDefault(); if (!e.repeat) this.queue(ACTIONS[e.code]); }
+      else if (e.code === 'KeyR') onReset();
+      else if (e.code === 'Backquote' || e.code === 'F3') { e.preventDefault(); Debug.toggle(); }
+    });
+    addEventListener('keyup', e => { if (e.code in KEYS) { e.preventDefault(); this.release('k' + e.code); } });
+    const side = e => (e.clientX < innerWidth / 2 ? -1 : 1);
+    touchEl.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      try { touchEl.setPointerCapture(e.pointerId); } catch (_) { /* capture не обязателен */ }
+      this.press('p' + e.pointerId, side(e));
+    });
+    touchEl.addEventListener('pointermove', e => {                       // палец переполз на другую половину
+      const h = this.held.find(x => x.id === 'p' + e.pointerId);
+      if (h && h.dir !== side(e)) this.press(h.id, side(e));
+    });
+    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => touchEl.addEventListener(t, e => this.release('p' + e.pointerId)));
+    addEventListener('blur', () => this.clear());
+    addEventListener('pagehide', () => this.clear());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
+    ['gesturestart', 'gesturechange', 'contextmenu', 'dblclick'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  },
+};
+
+/* ================================ PLAYER ================================== */
+const Player = {
+  floor: 'platform', state: 'walk',      // state: 'walk' | 'stairs' | 'gate'
+  x: CONFIG.PLAYER.START_X, prevX: CONFIG.PLAYER.START_X,
+  y: CONFIG.FLOORS.platform.y, prevY: CONFIG.FLOORS.platform.y,
+  vx: 0, facing: 1, path: null, gate: null, alpha: 1,
+  walkDist: 0, frame: 0, idleT: 0, blinkT: 3, onStep: null,
+  reset() {
+    this.floor = 'platform'; this.state = 'walk'; this.path = null; this.gate = null; this.alpha = 1;
+    this.x = this.prevX = CONFIG.PLAYER.START_X; this.y = this.prevY = CONFIG.FLOORS.platform.y;
+    this.vx = 0; this.walkDist = 0;
+  },
+  /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
+  interaction() {
+    if (this.state !== 'walk') return null;
+    const inside = (x, [a, b]) => x >= a && x <= b;
+    for (const s of CONFIG.STAIRS) {
+      if (this.floor === s.from && inside(this.x, s.bottom.trigger)) return { kind: 'stair', stair: s, dir: 'up' };
+      if (this.floor === s.to && inside(this.x, s.top.trigger)) return { kind: 'stair', stair: s, dir: 'down' };
+    }
+    for (const gt of CONFIG.GATES)
+      for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
+        if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
+    return null;
+  },
+  update(dt, dir, action) {
+    this.prevX = this.x; this.prevY = this.y;
+    if (this.state === 'stairs') { this.updateStairs(dt); return; }      // горизонтальный ввод во время перехода игнорируется
+    if (this.state === 'gate') { this.updateGate(dt); return; }
+    if (action) {
+      const it = this.interaction();
+      if (it && (action === 'use' || action === it.dir)) { if (it.kind === 'stair') this.startStairs(it); else this.startGate(it); return; }
+    }
+    this.updateWalk(dt, dir);
+  },
+  /** Разгон, торможение, разворот и границы текущего этажа. Анимация привязана к пройденному пути — ноги не скользят. */
+  updateWalk(dt, dir) {
+    const P = CONFIG.PLAYER, F = CONFIG.FLOORS[this.floor];
+    if (dir !== 0) {
+      const a = Math.sign(this.vx) === -dir && this.vx !== 0 ? P.TURN : P.ACCEL;
+      this.vx = clamp(this.vx + dir * a * dt, -P.MAX_SPEED, P.MAX_SPEED);
+      this.facing = dir;
+    } else {
+      const s = Math.max(0, Math.abs(this.vx) - P.DECEL * dt); this.vx = Math.sign(this.vx) * s;
+    }
+    this.x += this.vx * dt;
+    if (this.x < F.minX) { this.x = F.minX; this.vx = 0; }
+    if (this.x > F.maxX) { this.x = F.maxX; this.vx = 0; }
+    const moving = Math.abs(this.vx) > 4;
+    if (moving) {
+      this.walkDist += Math.abs(this.vx) * dt;
+      const f = Math.floor(this.walkDist / P.STRIDE) % 8;
+      if (f !== this.frame && (f === 2 || f === 6) && this.onStep) this.onStep(this.x, this.facing, this.y);
+      this.frame = f; this.idleT = 0;
+    } else {
+      this.walkDist = 0; this.frame = 0; this.idleT += dt;
+    }
+    this.blinkT -= dt; if (this.blinkT < -0.12) this.blinkT = 2.5 + Math.random() * 3;
+  },
+  /** Марш: путь из точек — до первой ступени, по диагонали, до площадки другого этажа. */
+  startStairs({ stair: s, dir }) {
+    const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y;
+    const pts = dir === 'up'
+      ? [[this.x, yb], [s.run.x0, yb], [s.run.x1, yt], [s.top.x, yt]]
+      : [[this.x, yt], [s.run.x1, yt], [s.run.x0, yb], [s.bottom.x, yb]];
+    this.state = 'stairs'; this.vx = 0; this.path = { stair: s, pts, seg: 0, to: dir === 'up' ? s.to : s.from };
+  },
+  /** Идём по пути с постоянной горизонтальной скоростью; на марше ступни — на ступенях, анимация — обычная ходьба. */
+  updateStairs(dt) {
+    const P = this.path, last = P.pts.length - 1;
+    let left = CONFIG.STAIR_SPEED * dt;
+    while (left > 0 && P.seg < last) {
+      const [ax, ay] = P.pts[P.seg], [bx, by] = P.pts[P.seg + 1], remaining = Math.abs(bx - this.x);
+      if (remaining <= left) { this.x = bx; this.y = by; left -= remaining; P.seg++; continue; }
+      const dir = Math.sign(bx - ax);
+      this.x += dir * left; this.facing = dir; left = 0;
+      const onRun = Math.min(ax, bx) === P.stair.run.x0 && Math.max(ax, bx) === P.stair.run.x1;
+      this.y = onRun ? stairTopY(P.stair, this.x) : ay + (by - ay) * ((this.x - ax) / (bx - ax));
+    }
+    this.walkDist += CONFIG.STAIR_SPEED * dt * 1.2;                      // по диагонали шаг длиннее
+    this.frame = Math.floor(this.walkDist / CONFIG.PLAYER.STRIDE) % 8;
+    if (P.seg >= last) {
+      this.floor = P.to; this.y = CONFIG.FLOORS[P.to].y;
+      this.state = 'walk'; this.path = null; this.vx = 0; this.walkDist = 0; this.frame = 0; this.idleT = 0;
+    }
+  },
+  startGate({ from, to }) { this.state = 'gate'; this.vx = 0; this.gate = { from, to, phase: 'open', t: 0 }; },
+  /** Проход через ворота: открыть → уйти внутрь (затемнение) → камера едет → выйти с другой стороны. */
+  updateGate(dt) {
+    const s = this.gate; s.t += dt;
+    if (s.phase === 'open' || s.phase === 'enter') this.x += (s.from.x - this.x) * Math.min(1, dt * 10);
+    if (s.phase === 'open' && s.t >= (s.from.floor === 'upper' ? 0.7 : 0.25)) { s.phase = 'enter'; s.t = 0; }
+    else if (s.phase === 'enter') {
+      this.alpha = Math.max(0, 1 - s.t / 0.45);
+      if (s.t >= 0.45) {
+        s.phase = 'travel'; s.t = 0; this.alpha = 0; this.floor = s.to.floor;
+        this.x = this.prevX = s.to.x; this.y = this.prevY = CONFIG.FLOORS[s.to.floor].y;
+      }
+    } else if (s.phase === 'travel' && s.t >= 1.1) { s.phase = 'exit'; s.t = 0; }
+    else if (s.phase === 'exit') {
+      this.alpha = Math.min(1, s.t / 0.45);
+      if (s.t >= 0.45) { this.alpha = 1; this.state = 'walk'; this.gate = null; this.idleT = 0; }
+    }
+  },
+  /** Должны ли быть открыты гермоворота в шлюзе (персонаж проходит через них). */
+  gateOpenTarget() {
+    if (this.state !== 'gate') return 0;
+    const s = this.gate, side = s.phase === 'open' || s.phase === 'enter' ? s.from.floor : s.to.floor;
+    return side === 'upper' ? 1 : 0;
+  },
+  sprite() {
+    if (this.state === 'stairs') return SPRITES.walk[this.frame];
+    if (this.state === 'gate') return this.gate.phase === 'travel' ? null : this.gate.phase === 'exit' ? SPRITES.idle[0] : SPRITES.back;
+    if (Math.abs(this.vx) > 4) return SPRITES.walk[this.frame];
+    if (this.blinkT < 0) return SPRITES.blink;
+    return SPRITES.idle[Math.floor(this.idleT / 0.7) % 2];
+  },
+};
+
+/* ================================ CAMERA ================================== */
+/** Критически демпфированное сглаживание (как SmoothDamp): плавно, без перелёта. */
+function damp(cur, target, state, smoothTime, dt) {
+  const omega = 2 / smoothTime, x = omega * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+  const change = cur - target, temp = (state.v + omega * change) * dt;
+  state.v = (state.v - omega * temp) * e;
+  return target + (change + temp) * e;
+}
+const Camera = {
+  x: 0, prevX: 0, vel: { v: 0 }, look: 0, viewW: 480,
+  y: 0, prevY: 0, velY: { v: 0 }, viewH: 270,
+  /** По X — следование с упреждением; по Y — станция целиком или улица, если герой на поверхности. */
+  update(dt, player) {
+    this.prevX = this.x; this.prevY = this.y;
+    const C = CONFIG.CAMERA, moving = Math.abs(player.vx) > 4;
+    const lookTarget = player.facing * (moving ? C.LOOK_AHEAD : C.LOOK_AHEAD * 0.4);
+    this.look += (lookTarget - this.look) * (1 - Math.exp(-dt * C.LOOK_RATE));
+    this.x = this.clampX(damp(this.x, this.clampX(player.x + this.look - this.viewW / 2), this.vel, C.SMOOTH_TIME, dt));
+    this.y = damp(this.y, this.targetY(player), this.velY, C.SMOOTH_Y, dt);
+  },
+  clampX(x) { return clamp(x, 0, Math.max(0, W - this.viewW)); },
+  targetY(p) {
+    const maxY = H - this.viewH;                                        // низ кадра = низ станции
+    if (p.floor !== 'surface') return maxY;
+    return clamp(CONFIG.FLOORS.surface.y - this.viewH * CONFIG.CAMERA.SURFACE_FEET, -SURF_H, maxY);
+  },
+  snap(player) {
+    this.look = player.facing * CONFIG.CAMERA.LOOK_AHEAD * 0.4;
+    this.x = this.prevX = this.clampX(player.x + this.look - this.viewW / 2); this.vel.v = 0;
+    this.y = this.prevY = this.targetY(player); this.velY.v = 0;
+  },
+};
+
+/* ================================== FX ==================================== */
+const FX = {
+  dust: [], puffs: [], embers: [], sparks: [], splashes: [], ash: [],
+  init() {
+    for (let i = 0; i < 70; i++) this.ash.push({ x: rand() * 600, y: -SURF_H + rand() * (SURF_H + GROUND_Y), vx: 3 + rand() * 4, vy: 5 + rand() * 7, ph: rand() * 6.28 });
+    for (let i = 0; i < 90; i++) this.dust.push({ x: rand() * 600, y: 128 + rand() * 84, vx: (rand() - 0.5) * 3, vy: (rand() - 0.5) * 1.5, ph: rand() * 6.28, a: 0.25 + rand() * 0.45 });
+  },
+  step(x, facing, y) {
+    for (let k = 0; k < 2; k++) this.puffs.push({ x: x - facing * 2 + (rand() - 0.5) * 4, y, vx: -facing * (4 + rand() * 6), vy: -2 - rand() * 3, life: 0.5 });
+  },
+  update(dt, t, camX, viewW) {
+    for (const d of this.dust) {                                        // пыль висит в зале и «заворачивается» в кадр
+      d.x += d.vx * dt + Math.sin(t * 0.4 + d.ph) * 0.06; d.y += d.vy * dt + Math.cos(t * 0.3 + d.ph) * 0.04;
+      const span = viewW + 40;
+      if (d.x < camX - 20) d.x += span; else if (d.x > camX + viewW + 20) d.x -= span;
+      if (d.y < 128) d.y = 211; else if (d.y > 212) d.y = 128;
+    }
+    for (const a of this.ash) {                                         // пепел над улицей
+      a.x += (a.vx + Math.sin(t * 0.7 + a.ph) * 3) * dt; a.y += a.vy * dt;
+      if (a.y > GROUND_Y - 1) { a.y = -SURF_H + rand() * 20; a.x = camX + rand() * viewW; }
+      const span = viewW + 40;
+      if (a.x < camX - 20) a.x += span; else if (a.x > camX + viewW + 20) a.x -= span;
+    }
+    this.puffs = this.puffs.filter(p => (p.life -= dt) > 0 && ((p.x += p.vx * dt), (p.y += p.vy * dt), (p.vx *= 0.92), true));
+    // Огонь в бочке выбрасывает искры.
+    if (rand() < dt * 7) this.embers.push({ x: WORLD.fire.x + (rand() - 0.5) * 8, y: WORLD.fire.y - 4, vx: (rand() - 0.5) * 6, vy: -14 - rand() * 12, life: 1 + rand() });
+    this.embers = this.embers.filter(e => (e.life -= dt) > 0 && ((e.x += e.vx * dt + Math.sin(t * 5 + e.y) * 0.08), (e.y += e.vy * dt), true));
+    // Капли с потолка.
+    for (const d of WORLD.drips) {
+      if (!d.active) { d.wait -= dt; if (d.wait <= 0) { d.active = true; d.y = 132; d.v = 0; } continue; }
+      d.v += 260 * dt; d.y += d.v * dt;
+      if (d.y >= 214) { d.active = false; d.wait = 1.4 + rand() * 2.2;
+        for (let k = 0; k < 3; k++) this.splashes.push({ x: d.x, y: 213, vx: (rand() - 0.5) * 24, vy: -18 - rand() * 14, life: 0.35 }); }
+    }
+    this.splashes = this.splashes.filter(s => (s.life -= dt) > 0 && ((s.vy += 200 * dt), (s.x += s.vx * dt), (s.y += s.vy * dt), true));
+    // Оборванный кабель искрит.
+    const sp = WORLD.spark; sp.timer -= dt;
+    if (sp.timer <= 0) {
+      sp.timer = 2 + rand() * 4; sp.flash.i = 1;
+      for (let k = 0; k < 14; k++) this.sparks.push({ x: sp.x, y: sp.y, vx: (rand() - 0.5) * 70, vy: -10 - rand() * 40, life: 0.3 + rand() * 0.5 });
+    }
+    sp.flash.i = Math.max(0, sp.flash.i - dt * 7);
+    this.sparks = this.sparks.filter(s => (s.life -= dt) > 0 && ((s.vy += 160 * dt), (s.x += s.vx * dt), (s.y = Math.min(213, s.y + s.vy * dt)), true));
+  },
+};
+
+/** Яркость источника в момент t по его режиму. */
+function lightIntensity(l, t) {
+  switch (l.mode) {
+    case 'steady':  return 1 - noise1(t * 3, l.seed) * 0.05;
+    case 'flicker': { const slow = noise1(t * 0.5, l.seed) < 0.3 ? 0.08 : 1; return (noise1(t * 9, l.seed + 1) > 0.3 ? 1 : 0.18) * slow; }
+    case 'dead':    return 0;
+    case 'fire':    return 0.78 + noise1(t * 9, l.seed) * 0.3 + Math.sin(t * 23 + l.seed) * 0.04;
+    case 'pulse':   return 0.2 + 0.8 * Math.pow(Math.max(0, Math.sin(t * 3.1)), 2);
+    case 'screen':  return 0.8 + (noise1(t * 14, l.seed) > 0.85 ? -0.4 : 0) + Math.sin(t * 40) * 0.03;
+    case 'garland': return 0.75 + Math.sin(t * 1.2 + l.seed) * 0.25;
+    case 'spark':   return l.i;
+    default:        return 1;
+  }
+}
+
+/* ================================ RENDER ==================================
+   Сцена рисуется в маленький буфер (viewW+1 × viewH игровых пикселей), потом
+   растягивается на экран с ЦЕЛЫМ коэффициентом и сдвигом на дробную часть камеры —
+   пиксели одинаковые и чёткие, а прокрутка плавная. */
+const Render = {
+  canvas: null, ctx: null, buf: null, g: null, light: null, gl: null, vignette: null, fireLayer: null, occ: [],
+  scale: 1, viewW: 480, viewH: 270, yoff: 0, devW: 0, devH: 0, dpr: 1, drawnLights: 0,
+  init(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d', { alpha: false }); this.fireLayer = makeCanvas(64, 100); this.resize(); },
+  /** Подбор целочисленного масштаба под экран; вызывается при повороте/изменении размера. */
+  resize() {
+    const vv = window.visualViewport, cssW = Math.round(vv ? vv.width : innerWidth), cssH = Math.round(vv ? vv.height : innerHeight);
+    this.dpr = Math.min(window.devicePixelRatio || 1, 3);
+    this.devW = Math.round(cssW * this.dpr); this.devH = Math.round(cssH * this.dpr);
+    this.canvas.width = this.devW; this.canvas.height = this.devH;
+    this.canvas.style.width = cssW + 'px'; this.canvas.style.height = cssH + 'px';
+    this.scale = Math.max(1, Math.floor(this.devH / H));
+    this.viewH = Math.ceil(this.devH / this.scale) + 1;                 // +1 строка под дробный сдвиг камеры по Y
+    this.viewW = Math.min(W, Math.ceil(this.devW / this.scale));
+    this.buf = makeCanvas(this.viewW + 1, this.viewH); this.g = this.buf.getContext('2d');
+    this.light = makeCanvas(this.viewW + 1, this.viewH); this.gl = this.light.getContext('2d');
+    this.vignette = this.makeVignette();
+    Camera.viewW = this.viewW; Camera.viewH = this.devH / this.scale;
+    this.ctx.imageSmoothingEnabled = false;
+  },
+  makeVignette() {
+    const c = makeCanvas(this.viewW + 1, this.viewH), g = c.getContext('2d'), w = c.width, h = c.height;
+    const grd = g.createRadialGradient(w / 2, h * 0.55, h * 0.35, w / 2, h * 0.55, Math.max(w, h) * 0.72);
+    grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(0,0,0,0.55)');
+    g.fillStyle = grd; g.fillRect(0, 0, w, h); return c;
+  },
+  /** Перевод мировой координаты в координату буфера для слоя с параллаксом p. */
+  sx(x, p, camX, frac) { return Math.round(x - camX * p + frac); },
+  frame(alpha, t) {
+    const g = this.g, camX = Camera.prevX + (Camera.x - Camera.prevX) * alpha, camY = Camera.prevY + (Camera.y - Camera.prevY) * alpha;
+    const camI = Math.floor(camX), frac = camX - camI, camYI = Math.floor(camY), fracY = camY - camYI;
+    const yo = this.yoff = -camYI, vw = this.viewW + 1, vh = this.viewH;
+    const PB = CONFIG.PARALLAX.BACK, PF = CONFIG.PARALLAX.FORE;
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.fillStyle = '#16181b'; g.fillRect(0, 0, vw, vh);
+    // 1. Поверхность: небо, дальние руины, улица с вестибюлем (видна, когда камера поднята).
+    if (yo > 0) {
+      g.drawImage(WORLD.sky, this.sx(0, CONFIG.PARALLAX.SKY, camX, frac), yo - SURF_H);
+      g.drawImage(WORLD.ruins, this.sx(0, CONFIG.PARALLAX.RUINS, camX, frac), yo - SURF_H);
+      g.drawImage(WORLD.surface, -camI, yo - SURF_H);
+    }
+    // 2. Станция и створки гермоворот.
+    g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
+    g.drawImage(WORLD.main, -camI, yo);
+    this.drawGate(g, camI, yo);
+    // 3. Динамика под освещением (освещается картой света).
+    g.fillStyle = 'rgb(222,212,190)';
+    for (const d of FX.dust) { g.globalAlpha = d.a; g.fillRect(Math.round(d.x - camI), Math.round(d.y + yo), 1, 1); }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(170,200,215,.85)';
+    for (const d of WORLD.drips) if (d.active) g.fillRect(d.x - camI, Math.round(d.y) + yo, 1, 2);
+    for (const s of FX.splashes) g.fillRect(Math.round(s.x - camI), Math.round(s.y) + yo, 1, 1);
+    g.fillStyle = 'rgba(150,140,120,.5)';
+    for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
+    g.globalAlpha = 1;
+    if (yo > 0) { g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1); }
+    // 4. Перила (позади героя), жители, охрана, мутанты, затем герой.
+    const onStairs = Player.state === 'stairs';
+    if (!onStairs) CONFIG.STAIRS.forEach(st => drawRail(g, st, camI, yo));
+    this.occ.length = 0;
+    this.drawActors(g, camI, yo);
+    const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
+    const fy = Math.round(Player.prevY + (Player.y - Player.prevY) * alpha) + yo;
+    if (Player.state === 'walk') {
+      g.fillStyle = 'rgba(0,0,0,.42)'; g.fillRect(px - 8, fy, 17, 1); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(px - 6, fy + 1, 13, 1);
+    }
+    const spr = Player.sprite();
+    const pFacing = Player.state === 'gate' ? 1 : Player.facing;
+    if (spr) {
+      g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
+      this.occ.push({ spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha });
+    }
+    if (onStairs) drawRail(g, Player.path.stair, camI, yo);
+    // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
+    this.drawLightmap(camX, frac, t, px, fy);
+    g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    // 6. Светящиеся элементы поверх темноты.
+    this.drawEmissive(camX, frac, t);
+    // 7. Передний план и виньетка.
+    g.drawImage(WORLD.fore, this.sx(0, PF, camX, frac), yo);
+    g.drawImage(this.vignette, 0, 0);
+    // 8. На экран: целый масштаб, сдвиг на дробные части камеры по X и Y.
+    const s = this.scale;
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
+  },
+  /** Створки гермоворот шлюза: уезжают в стены по мере открытия. */
+  drawGate(g, camI, yo) {
+    const G = WORLD.gate, x = G.x - camI;
+    if (x < -40 || x > this.viewW + 40) return;
+    const lw = Math.round(23 * (1 - G.open * 0.9)), top = 44 + yo;
+    const leaf = (lx) => {
+      R(g, lx, top, lw, 52, '#566064'); R(g, lx, top, lw, 1, '#7a868a');
+      for (let y = top + 6; y < top + 44; y += 10) R(g, lx + 2, y, Math.max(0, lw - 4), 1, '#46505a');
+      for (let yy = top + 44; yy < top + 50; yy++) for (let xx = lx; xx < lx + lw; xx++) R(g, xx, yy, 1, 1, ((xx + yy) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
+    };
+    if (lw > 0) { leaf(x - 23); leaf(x + 23 - lw); }
+    if (lw > 10) { disc(g, x + 23 - Math.round(lw / 2), top + 22, 5, '#3a4448'); disc(g, x + 23 - Math.round(lw / 2), top + 22, 3, '#6a767a'); }
+  },
+  drawActors(g, camI, yo) {
+    const vw = this.viewW + 1, vh = this.viewH;
+    for (const a of ACTORS) {
+      const spr = actorSprite(a);
+      if (a.kind === 'sleeper') {
+        const x = a.bed[0] - camI - spr.bb.x, y = a.bed[1] + yo - (spr.bb.y + spr.bb.h);
+        if (x < vw && x + spr.c.width > 0 && y < vh && y + spr.c.height > 0) g.drawImage(spr.c, x, y);
+        continue;
+      }
+      const x = Math.round(a.x) - camI, foot = a.y + yo, top = foot - (a.kind === 'mutant' ? 39 : 40);
+      if (x + 20 < 0 || x - 20 > vw || top > vh || foot < 0) continue;
+      if (a.kind !== 'sitter' && a.kind !== 'sitguard') { g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(x - 8, foot, 17, 1); }
+      const half = a.kind === 'mutant' ? 17 : 13;
+      blit(g, spr, x, top, a.facing, half);
+      this.occ.push({ spr, cx: x, top, facing: a.facing, half, alpha: 1 });
+    }
+  },
+  drawLightmap(camX, frac, t, playerSX, playerFY) {
+    const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, A = CONFIG.AMBIENT;
+    gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
+    gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
+    const gy = Math.min(this.viewH, yo - 50);                           // снаружи — светлее: пыльные сумерки
+    if (gy > 0) { const S = CONFIG.AMBIENT_SURFACE; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }
+    gl.globalCompositeOperation = 'lighter';
+    let n = 0;
+    /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
+    const blob = (x, y, r, c, a, sy = 1, clip = null, p = 1) => {
+      if (a <= 0.01 || x + r < 0 || x - r > vw || y + r < 0 || y - r > this.viewH) return;
+      gl.save();
+      if (clip) {
+        const cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, p, camX, frac) : 0, cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, p, camX, frac) : vw;
+        const cy0 = clip.y0 + yo, cy1 = clip.y1 < 1e9 ? clip.y1 + yo : this.viewH;
+        gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip();
+      }
+      gl.translate(x, y); if (sy !== 1) gl.scale(1, sy);
+      const grd = gl.createRadialGradient(0, 0, 0, 0, 0, r);
+      grd.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`); grd.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},.5)`);
+      grd.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+      gl.globalAlpha = Math.min(1, a); gl.fillStyle = grd; gl.fillRect(-r, -r, r * 2, r * 2); gl.restore(); n++;
+    };
+    for (const l of WORLD.lights) {
+      const p = l.layer === 'back' ? CONFIG.PARALLAX.BACK : 1;
+      const x = this.sx(l.x, p, camX, frac), y = l.y + yo;
+      l.i = lightIntensity(l, t);
+      blob(x, y, l.r, l.c, l.i * l.power * 0.85, 1, l.clip, p);
+      if (l.pool) blob(x, 215 + yo, l.r * 0.75, l.c, l.i * 0.55, 0.22, l.clip, p);  // пятно света на полу
+    }
+    const pClip = Player.state !== 'walk' ? null : Player.floor === 'surface' ? SURF_CLIP : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
+    blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5, 1, pClip);                 // мягкая подсветка героя для читаемости
+    this.drawnLights = n;
+  },
+  drawEmissive(camX, frac, t) {
+    const g = this.g, yo = this.yoff;
+    for (const e of WORLD.emissive) {
+      const p = e.layer === 'back' ? CONFIG.PARALLAX.BACK : 1, x = this.sx(e.x, p, camX, frac);
+      if (x + e.w < 0 || x > this.viewW + 1 || e.y + yo > this.viewH || e.y + yo + e.h < 0) continue;
+      let k = e.light ? e.light.i : 1;
+      if (e.mode === 'blink') k = noise1(t * 1.5, e.seed) > 0.35 ? 1 : 0.25;
+      if (e.mode === 'garland') k = 0.55 + 0.45 * Math.sin(t * 2 + e.seed);
+      if (e.mode === 'water') k = 0.7;
+      if (k < 0.12) continue;
+      g.fillStyle = rgb(e.c, 0.35 + 0.65 * k);
+      g.fillRect(x, e.y + yo, e.w, e.h);
+      if (e.mode === 'screen') { g.fillStyle = 'rgba(10,30,26,.5)'; for (let y = e.y + yo + 1; y < e.y + yo + e.h; y += 2) g.fillRect(x, y, e.w, 1); }
+    }
+    const camI = Math.floor(camX);
+    this.drawFireLayer(camX, frac, t, camI, yo);
+    g.fillStyle = '#dcec78';                                             // глаза мутантов в сумерках
+    for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
+    g.fillStyle = '#d8ecff';
+    for (const s of FX.sparks) g.fillRect(Math.round(s.x - camI), Math.round(s.y) + yo, 1, 1);
+    // Мягкие ореолы ламп и огня.
+    g.globalCompositeOperation = 'lighter';
+    for (const l of WORLD.lights) {
+      if (l.i < 0.2 || l.mode === 'garland' || l === WORLD.fire.light) continue;   // у бочки ореол не рисуем: он лёг бы на героя
+      const p = l.layer === 'back' ? CONFIG.PARALLAX.BACK : 1, x = this.sx(l.x, p, camX, frac), y = l.y - 3 + yo, r = l.mode === 'fire' ? 16 : 10;
+      if (x + r < 0 || x - r > this.viewW + 1) continue;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, `rgba(${l.c[0]},${l.c[1]},${l.c[2]},${0.32 * l.i * l.power})`); grd.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = grd; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    g.globalCompositeOperation = 'source-over';
+  },
+  /** Пламя и искры бочки — в отдельном маленьком слое, из которого вырезаются силуэты героя и жителей:
+      бочка стоит позади персонажей, поэтому огонь никогда не оказывается поверх тела. Свет огня — в карте освещения. */
+  drawFireLayer(camX, frac, t, camI, yo) {
+    const fx = this.sx(WORLD.fire.x, 1, camX, frac), ox = fx - 32, oy = WORLD.fire.y + yo - 92;
+    if (ox > this.viewW + 1 || ox + 64 < 0 || oy > this.viewH || oy + 100 < 0) return;
+    const f = this.fireLayer.getContext('2d');
+    f.globalCompositeOperation = 'source-over'; f.globalAlpha = 1; f.clearRect(0, 0, 64, 100);
+    this.drawFire(f, 32, 92, t);
+    for (const e of FX.embers) { f.fillStyle = e.life > 0.6 ? '#ffd27a' : '#e0703a'; f.fillRect(Math.round(e.x - camI) - ox, Math.round(e.y) + yo - oy, 1, 1); }
+    f.globalCompositeOperation = 'destination-out';
+    for (const o of this.occ) {
+      if (o.cx + 20 < ox || o.cx - 20 > ox + 64 || o.top > oy + 100 || o.top + SPRITE_H < oy) continue;
+      f.globalAlpha = o.alpha; blit(f, o.spr, o.cx - ox, o.top - oy, o.facing, o.half);
+    }
+    f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
+    this.g.drawImage(this.fireLayer, ox, oy);
+  },
+  drawFire(g, x, y, t) {
+    for (let i = -5; i <= 5; i++) {
+      const h = Math.round((3 + noise1(t * 9 + i * 1.7, 77) * 9) * (1 - Math.abs(i) / 6.5));
+      for (let k = 0; k < h; k++) {
+        const r = k / Math.max(1, h);
+        g.fillStyle = r < 0.35 ? '#ffe6a0' : r < 0.7 ? '#ff9a3c' : '#c8461e';
+        g.fillRect(x + i, y - k, 1, 1);
+      }
+    }
+  },
+};
+
+/* ================================ DEBUG =================================== */
+const Debug = {
+  el: null, on: /[?&]debug/.test(location.search), fps: 60,
+  init() { this.el = document.getElementById('debug'); this.el.style.display = this.on ? 'block' : 'none'; },
+  toggle() { this.on = !this.on; this.el.style.display = this.on ? 'block' : 'none'; },
+  update(dt) {
+    if (dt > 0) this.fps += (1 / dt - this.fps) * 0.05;
+    if (!this.on) return;
+    this.el.textContent =
+      `FPS   ${this.fps.toFixed(0)}\nX     ${Player.x.toFixed(1)}  v ${Player.vx.toFixed(1)}\nCAM   ${Camera.x.toFixed(2)} / ${Camera.y.toFixed(1)}\n` +
+      `FLOOR ${Player.floor} · ${Player.state}  Y ${Player.y.toFixed(1)}\n` +
+      `VIEW  ${Render.viewW}×${Render.viewH} ×${Render.scale}\nDPR   ${Render.dpr}  LIGHTS ${Render.drawnLights}\n` +
+      `INPUT ${Input.dir()}  BUILD ${Game.buildMs} мс`;
+  },
+};
+
+/* ================================= GAME =================================== */
+const Game = {
+  t: 0, acc: 0, last: 0, running: true, zone: '', actLabel: '', coarse: true, buildMs: 0,
+  els: {},
+  start() {
+    this.els = { zone: document.getElementById('zone'), hint: document.getElementById('hint'), title: document.getElementById('title'),
+      padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act') };
+    const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
+    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · R — в центр';
+      document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
+    const t0 = performance.now();
+    buildWorld(); buildSprites(); placeActors(); FX.init();
+    this.buildMs = Math.round(performance.now() - t0);
+    Render.init(document.getElementById('screen'));
+    Debug.init();
+    Player.onStep = (x, f, y) => FX.step(x, f, y);
+    const act = this.els.act;
+    act.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); act.classList.add('press'); Input.queue('use'); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => act.addEventListener(t, () => act.classList.remove('press')));
+    Input.init(document.getElementById('touch'), () => { Player.reset(); Camera.snap(Player); });
+    Input.onFirstInput = () => this.hideTitle();
+    this.els.title.addEventListener('pointerdown', e => { e.preventDefault(); this.hideTitle(); });
+    addEventListener('keydown', () => this.hideTitle(), { once: true });
+    document.getElementById('ver').addEventListener('click', () => Debug.toggle());
+    const onResize = () => { Render.resize(); Camera.snap(Player); };
+    addEventListener('resize', onResize);
+    if (window.visualViewport) visualViewport.addEventListener('resize', onResize);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) this.last = performance.now(); });
+    Camera.snap(Player);
+    this.updateZone();
+    this.last = performance.now();
+    requestAnimationFrame(now => this.frame(now));
+  },
+  hideTitle() {
+    if (this.els.title.classList.contains('gone')) return;
+    this.els.title.classList.add('gone');
+    setTimeout(() => this.els.hint.classList.add('gone'), 6000);
+  },
+  /** Главный цикл: логика фиксированным шагом, отрисовка с интерполяцией. */
+  frame(now) {
+    let dt = (now - this.last) / 1000; this.last = now;
+    if (dt > 0.25) dt = 0.25;                                           // после сворачивания не «телепортируемся»
+    this.acc += dt;
+    const STEP = CONFIG.STEP;
+    while (this.acc >= STEP) { this.update(STEP); this.acc -= STEP; }
+    Render.frame(this.acc / STEP, this.t);
+    Debug.update(dt);
+    requestAnimationFrame(n => this.frame(n));
+  },
+  update(dt) {
+    this.t += dt;
+    const dir = Input.dir();
+    Player.update(dt, dir, Input.takeAction());
+    Camera.update(dt, Player);
+    FX.update(dt, this.t, Camera.x, Render.viewW);
+    updateActors(dt);
+    const go = Player.gateOpenTarget();                                 // створки шлюза догоняют нужное положение
+    WORLD.gate.open = clamp(WORLD.gate.open + (go > WORLD.gate.open ? 1 : -1) * dt * 1.8, 0, 1);
+    this.els.padL.classList.toggle('on', dir < 0 && Player.state === 'walk');
+    this.els.padR.classList.toggle('on', dir > 0 && Player.state === 'walk');
+    this.updateZone();
+    this.updateAction();
+  },
+  /** Кнопка действия видна только у лестницы или гермоворот и только когда персонаж стоит на полу. */
+  updateAction() {
+    const it = Player.interaction();
+    let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься') : it.from.label;
+    if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : '  ·  S';
+    if (label === this.actLabel) return;
+    this.actLabel = label;
+    this.els.act.textContent = label;
+    this.els.act.classList.toggle('show', !!label);
+    if (label) this.els.hint.classList.add('gone');
+  },
+  /** Подпись HUD: на платформе — зона, наверху — комната, в пути — «Лестница». */
+  updateZone() {
+    let z;
+    if (Player.state === 'stairs') z = 'Лестница';
+    else if (Player.state === 'gate') z = 'Шлюз';
+    else if (Player.floor === 'surface') z = 'Поверхность · вестибюль';
+    else if (Player.floor === 'upper') {
+      const r = ROOMS.find(r => Player.x >= r.x - 5 && Player.x < r.x + r.w + 5);
+      z = r ? r.label[0] + r.label.slice(1).toLowerCase() : 'Верхний ярус';
+    } else z = CONFIG.ZONES.find(z => Player.x < z.to).name;
+    if (z !== this.zone) { this.zone = z; this.els.zone.textContent = z; }
+  },
+};
+
+Game.start();
+
+/* Офлайн-режим: на обычном хостинге (https) игра кэшируется и потом открывается без интернета.
+   С диска (file://) и во встроенных просмотрщиках регистрация не нужна и тихо пропускается. */
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  navigator.serviceWorker.register('sw.js').catch(() => { /* офлайн-кэш недоступен — игра работает и так */ });
+}
+})();
+</script>
+</body>
+</html>

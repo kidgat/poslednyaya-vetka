@@ -1,0 +1,90 @@
+--- archive/v0.5.1.html	2026-10-26 22:17:08.694184321 +0400
++++ index.html	2026-10-26 22:17:34.819836072 +0400
+@@ -10,7 +10,7 @@
+ <meta name="theme-color" content="#06080a">
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" href="icon-180.png">
+-<title>Последняя ветка 0.5.1</title>
++<title>Последняя ветка 0.5.2</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -67,7 +67,7 @@
+ <div id="touch"></div>
+ <div id="hud">
+   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span></div>
+-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.5.1</button>
++  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.5.2</button>
+ </div>
+ <div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
+ <div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
+@@ -78,7 +78,7 @@
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 0.5<br>
++    <p>Станция «Гагаринская» · прототип 0.5.2<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -87,7 +87,7 @@
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.5
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.5.2
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -98,7 +98,7 @@
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '0.5.1',
++  VERSION: '0.5.2',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+@@ -706,21 +706,34 @@
+   if (x >= x1) return yt;
+   return Math.round(yb - (Math.floor((x - x0) / ((x1 - x0) / steps)) + 1) * (yb - yt) / steps);
+ }
+-/** Бетонный марш: сплошной блок со ступенями, стоит перед колоннами; проём в полу и перекрытии над ним. */
++/** Бетонный марш (только изображение, маршрут задаёт stairTopY): ступени лежат на наклонной несущей плите
++    толщиной ~10 px; под плитой — просвет со стеной станции. Внизу — опорная тумба, посередине — одна стойка,
++    верхний конец заделан в перекрытие у площадки. */
+ function drawStairs(g) {
+   CONFIG.STAIRS.forEach(s => {
+-    const yb = CONFIG.FLOORS[s.from].y, { x0, x1 } = s.run, [h0, h1] = s.hole;
++    const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1 } = s.run, [h0, h1] = s.hole;
++    const SLAB = 15;                                                    // от линии кромок ступеней до низа плиты
++    const nosing = x => yb - (x - x0) * (yb - yt) / (x1 - x0);
++    const underside = x => Math.min(yb, Math.round(nosing(x) + SLAB));
++    const conc = (x, y, v) => { const n = (hash(x, y + 404) - 0.5) * 10; R(g, x, y, 1, 1, rgb([v + n, v - 4 + n, v - 10 + n])); };
+     R(g, h0, 96, h1 - h0, 26, '#121417');                               // проём сквозь пол и перекрытие
+     R(g, h0 - 1, 96, 1, 26, '#6e706c'); R(g, h0 - 1, 121, h1 - h0 + 1, 1, '#3a3c3e');
++    // Опорная тумба у подножия.
++    for (let x = x0 - 6; x < x0 + 26; x++) for (let y = yb - 14; y < yb; y++)
++      conc(x, y, y === yb - 14 ? 138 : x === x0 - 6 ? 116 : y >= yb - 2 ? 62 : 92);
++    // Стойка под серединой марша.
++    const px = Math.round(x0 + (h0 - x0) * 0.9);
++    for (let x = px; x < px + 6; x++) for (let y = underside(px + 3); y < yb; y++) conc(x, y, x === px ? 120 : x === px + 5 ? 70 : 96);
++    R(g, px - 2, yb - 2, 10, 2, '#4a4844');
++    // Ступени и несущая плита.
+     for (let x = x0; x < x1; x++) {
+-      const top = stairTopY(s, x), prevTop = stairTopY(s, x - 1), riser = top !== prevTop;
+-      for (let y = top; y < yb; y++) {
+-        const n = (hash(x, y + 404) - 0.5) * 10, depth = (y - top) / 60;
+-        const v = y === top ? 150 : y === top + 1 ? 124 : riser ? 108 : 96 - Math.min(30, depth * 30);
+-        R(g, x, y, 1, 1, rgb([v + n, v - 4 + n, v - 10 + n]));
++      const top = stairTopY(s, x), riser = top !== stairTopY(s, x - 1), bottom = underside(x);
++      for (let y = top; y < bottom; y++) {
++        const v = y === top ? 150 : y === top + 1 ? 124 : y === bottom - 1 ? 58 : y === bottom - 2 ? 74 : riser ? 112 : 98;
++        conc(x, y, v);
+       }
+     }
+-    for (let y = stairTopY(s, x1 - 1); y < yb; y++) R(g, x1, y, 1, 1, '#4a4844');   // торец марша
++    for (let y = stairTopY(s, x1 - 1); y < underside(x1 - 1); y++) R(g, x1, y, 1, 1, '#4a4844');   // торец у площадки
+   });
+ }
+ /** Перила вдоль марша. Рисуются позади героя, а пока он идёт по маршу — перед ним. */

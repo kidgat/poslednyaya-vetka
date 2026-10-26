@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a1018" />
+<title>ПОСЛЕДНЯЯ ВЕТКА — Прототип 0.1</title>
+<style>
+:root{color-scheme:dark;--gold:#f1bd6a;--muted:#8a9aa6;--line:#2c3943}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:#090e15;color:#e8e4d5;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+body{background:radial-gradient(ellipse at 50% 15%,#1c2730,#090e15 75%);display:flex;align-items:center;justify-content:center;padding:clamp(9px,3vw,24px)}
+.wrap{width:min(1050px,100%);margin:auto}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:0 1px 15px}.eyebrow{font-size:10px;font-weight:800;letter-spacing:.22em;color:var(--gold)}
+h1{font-size:clamp(18px,3.8vw,29px);letter-spacing:.11em;margin:3px 0 0;font-weight:900}.version{white-space:nowrap;text-align:right;color:var(--muted);font-size:11px;line-height:1.5}
+.frame{border:1px solid #58606a;box-shadow:0 0 0 4px #0b121a,0 0 0 5px #25303c,0 23px 70px #000b;position:relative;overflow:hidden;background:#05090d}
+.frame::before{position:absolute;content:"";inset:0;pointer-events:none;border:8px solid #0b101950;z-index:3}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/9;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none}
+.hud{position:absolute;top:15px;left:18px;right:18px;display:flex;justify-content:space-between;gap:12px;z-index:2;pointer-events:none;text-shadow:0 2px #080b10}
+.hud>div{background:#0b121dc9;border:1px solid #4f554b;padding:7px 10px;backdrop-filter:blur(2px)}
+.hud strong{font-size:clamp(9px,1.4vw,13px);color:#f5c87c;display:block}.hud small{font-size:clamp(7px,1vw,10px);color:#adbbb9;display:block;margin-top:3px}.hud .hudright{text-align:right}
+.scan{position:absolute;z-index:2;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,#0000 0 3px,#0000000c 4px 5px);opacity:.4}
+.controlbar{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:19px}
+.buttons{display:flex;gap:14px}
+.move{touch-action:none;user-select:none;display:flex;align-items:center;justify-content:center;width:90px;height:65px;background:linear-gradient(#25323b,#131d26);border:1px solid #667277;border-bottom:4px solid #465057;color:#efc37c;font-size:28px;font-weight:bold;border-radius:4px;cursor:pointer;box-shadow:inset 0 1px #6b7b7660;outline-offset:5px}
+.move:active,.move.held{transform:translateY(2px);border-bottom-width:2px;background:#3a4140}
+.status{margin-left:auto;text-align:right}.status .primary{color:#d6e0d8;font-size:12px}.status .secondary{margin-top:6px;color:#80929b;font-size:11px}
+.note{margin-top:20px;border-top:1px solid #27333b;padding-top:13px;display:flex;justify-content:space-between;gap:16px;font-size:11px;color:#8797a0;line-height:1.6}
+.note em{color:#e2b473;font-style:normal}
+@media(max-width:650px){body{padding:12px}.top{margin-bottom:12px}.version{font-size:9px}.hud{top:7px;left:8px;right:8px}.hud>div{padding:5px 7px}.move{width:74px;height:62px}.controlbar{margin-top:13px}.status .primary{font-size:10px}.status .secondary{font-size:9px}.note{font-size:10px}}
+@media(max-width:390px){.move{width:62px;height:56px}.status .secondary{display:none}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top"><div><div class="eyebrow">SAMARA / 2055 / ПРОТОТИП № 01</div><h1>ПОСЛЕДНЯЯ ВЕТКА</h1></div><div class="version">СБОРОЧНЫЙ ОБРАЗЕЦ<br>v0.1 • одна станция</div></header>
+<section class="frame" aria-label="Игровое поле: персонаж на станции метро">
+<canvas id="game" width="480" height="270" tabindex="0" aria-label="Перемещайте персонажа по платформе стрелками на экране или клавишами A и D"></canvas>
+<div class="hud"><div><strong id="zone">ГАГАРИНСКАЯ</strong><small>Станция / жилой узел</small></div><div class="hudright"><strong>ДЕНЬ 001</strong><small>СИСТЕМА: АВТОНОМНАЯ</small></div></div><div class="scan"></div>
+</section>
+<section class="controlbar" aria-label="Управление персонажем"><div class="buttons"><button class="move" id="left" aria-label="Идти влево">◀</button><button class="move" id="right" aria-label="Идти вправо">▶</button></div><div class="status"><div class="primary" id="hint">ИССЛЕДУЙ СТАНЦИЮ</div><div class="secondary">На компьютере: A / D или ← / →</div></div></section>
+<footer class="note"><span><em>ТОЛЬКО ПРОГУЛКА.</em> Пока нет боёв, инвентаря и ресурсов: тестируем атмосферу и передвижение.</span><span>Концепт: игровая вселенная по мотивам постапокалиптической Самары.</span></footer>
+</main>
+<script>
+(()=>{
+'use strict';
+const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d',{alpha:false});
+const SW=480, SH=270, WW=1900, ground=222;
+ctx.imageSmoothingEnabled=false;
+const P={x:700,dir:1,vx:0,step:0}, pressed={left:false,right:false};
+let camera=460, clock=0, last=0, nowZone='ГАГАРИНСКАЯ';
+const C={background:'#0b1119',concrete:'#38444b',stone:'#44525a',rust:'#825441',gold:'#e1a75f',cyan:'#77a6a0',ink:'#111820'};
+function box(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.ceil(w),Math.ceil(h));}
+function line(x1,y1,x2,y2,c,w=1){ctx.strokeStyle=c;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(Math.round(x1)+.5,Math.round(y1)+.5);ctx.lineTo(Math.round(x2)+.5,Math.round(y2)+.5);ctx.stroke();}
+function text(t,x,y,size=8,col='#dae0d2',align='left'){ctx.font=`bold ${size}px monospace`;ctx.textAlign=align;ctx.fillStyle='#090d12';ctx.fillText(t,x+1,y+1);ctx.fillStyle=col;ctx.fillText(t,x,y);ctx.textAlign='left';}
+function glow(x,y,r,color,power=.5){const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,color.replace('A',String(power)));g.addColorStop(1,color.replace('A','0'));ctx.fillStyle=g;ctx.fillRect(x-r,y-r,2*r,2*r);}
+function wall(){
+  box(0,0,WW,ground,C.background);
+  for(let y=8;y<220;y+=12){box(0,y,WW,1,'#222e36');for(let x=(y%24)*5;x<WW;x+=56){box(x,y+1,1,11,'#293740');}}
+  // Behind the inhabited level: structural ducts and broken passages.
+  box(0,13,WW,8,'#1b242d'); box(0,19,WW,2,'#53615f');
+  for(let x=0;x<WW;x+=94){box(x,8,10,21,'#2c3439');box(x+2,12,6,7,'#52615f');}
+  box(0,114,WW,6,'#151b22');box(0,120,WW,2,'#8f7460');
+  for(let x=0;x<WW;x+=112){
+   // Vault sidewall arches above old subway platforms.
+   box(x+6,128,91,80,'#24323b');box(x+12,135,79,69,'#303d42');
+   box(x+19,144,65,56,'#3c4a4d');
+   for(let y=150;y<203;y+=8){line(x+21,y,x+83,y,'#56605a');}
+  }
+  box(0,195,WW,4,'#59645e');box(0,201,WW,11,'#343d40');box(0,210,WW,3,'#726b5b');
+}
+function windowLight(x,y,w,h,c){box(x-2,y-2,w+4,h+4,'#182128');box(x,y,w,h,c);box(x+2,y+2,w-4,2,'#c1ae8360');box(x+Math.round(w/2),y,2,h,'#17212a');}
+function room(x,w,name,type){
+ let tint=type===0?'#5a4939':type===1?'#384e47':'#394451';
+ box(x,28,w,86,'#10171e');box(x+5,34,w-10,72,tint);box(x+5,34,w-10,3,'#8b8473');
+ for(let k=0;k<w;k+=15){box(x+8+k,45,1,56,'#171c2060');}
+ box(x+3,105,w-6,6,'#746959');box(x+3,109,w-6,2,'#a68b67');
+ box(x+4,29,w-8,5,'#586063');box(x+7,35,w-14,1,'#ac956d');
+ text(name,x+w/2,44,8,'#f0d2a0','center');
+ // Suspended lamps.
+ for(let i=0;i<2;i++){let lx=x+45+i*(w-90);box(lx,34,2,9,'#23252a');box(lx-8,42,18,3,'#d5be81');box(lx-5,45,13,2,'#f1d68f');glow(lx,49,45,'rgba(255,183,83,A)',.10);}
+ if(type===0){
+   // Barracks: bunks, hanging coats, ration storage.
+   for(let i=0;i<3;i++){let xx=x+30+i*70;box(xx,81,48,5,'#263037');box(xx+3,74,40,7,'#8e7a5b');box(xx+3,69,16,6,'#b7ae93');box(xx+2,90,2,13,'#252c30');box(xx+46,90,2,13,'#252c30');box(xx+6,64,38,2,'#3c3430');}
+   box(x+w-34,60,20,42,'#576068');box(x+w-32,63,16,2,'#a5a18a');
+ }else if(type===1){
+   // Workshop: workbench, tools, crates, metal box.
+   box(x+29,82,121,6,'#76553e');box(x+32,88,3,16,'#312c2b');box(x+144,88,3,16,'#312c2b');
+   for(let i=0;i<5;i++){box(x+38+i*22,62,1,17,'#b9b2a0');box(x+33+i*22,70,10,2,'#8b958c');}
+   box(x+50,75,27,7,'#333b40');box(x+54,71,9,4,'#cfad68');
+   box(x+w-58,76,36,25,'#2a3237');windowLight(x+w-52,81,24,12,'#83ae9c');
+ }else{
+   // Generator room: turbines, electrics and maintenance signage.
+   box(x+18,65,60,36,'#3b4144');box(x+22,70,52,26,'#222d31');
+   for(let i=0;i<4;i++)box(x+27+i*12,72,7,23,'#526c6f');
+   box(x+90,74,40,27,'#55565a');box(x+97,78,26,17,'#28353b');
+   for(let i=0;i<3;i++)box(x+103+i*7,85,3,3,'#dec56f');
+   box(x+w-40,56,23,44,'#364148');box(x+w-36,61,15,9,'#5e8785');
+   for(let i=0;i<3;i++)box(x+w-35+i*5,81,3,9,'#d2ac60');
+ }
+ box(x,26,5,89,'#697177');box(x+w-5,26,5,89,'#697177');
+ box(x,25,w,4,'#87908a');box(x,114,w,5,'#171a20');
+}
+function fixtures(){
+  // Upstairs shelters: architecture intentionally suggests future settlement simulator.
+  room(205,284,'ЖИЛОЙ СЕКТОР',0);
+  room(495,284,'МАСТЕРСКАЯ',1);
+  room(785,284,'ЭНЕРГОБЛОК',2);
+  room(1075,284,'МЕДИЦИНСКИЙ ОТСЕК',0);
+  box(195,0,10,125,'#252e34');box(1359,0,12,125,'#252e34');
+  for(let x=197;x<1369;x+=290){box(x,119,10,99,'#4a5457');box(x+1,129,8,72,'#64716f');box(x-2,194,14,8,'#353e40');}
+  // Service ladder built for next iteration.
+  const ladder=1278;box(ladder,93,3,124,'#a1987d');box(ladder+23,93,3,124,'#a1987d');
+  for(let y=103;y<212;y+=13)box(ladder+3,y,20,3,'#a59b7c');
+  // Cable bunches and platform pipes.
+  box(0,123,WW,3,'#7b6857');box(0,128,WW,3,'#42372e');
+  for(let x=0;x<WW;x+=125){box(x+10,128,4,14,'#675449');}
+  for(let x of [285,610,945,1234]){
+     box(x-6,137,12,4,'#4c585c');box(x-2,141,4,8,'#a99c81');
+     box(x-12,149,24,5,'#dab378');box(x-10,154,20,2,'#eee1ad');
+     glow(x,160,82,'rgba(255,196,98,A)',.16 + .014*Math.sin(clock*3+x));
+  }
+  // Old station signs.
+  for(const x of [410,832,1160]){
+    box(x-65,169,130,24,'#131e26');box(x-63,171,126,20,'#355b63');
+    box(x-61,173,122,2,'#729c9b');
+    text('ГАГАРИНСКАЯ',x,186,10,'#dce3d4','center');
+  }
+  // Dark maintenance alcoves.
+  for(let x of [160,1425]){
+    box(x,151,79,66,'#19232b');box(x+5,155,68,61,'#0b161d');
+    box(x+22,160,26,40,'#353f40');box(x+27,165,16,31,'#151f24');
+    box(x+32,173,6,4,'#b39262');
+  }
+  // Props at platform level.
+  for(let x of [350,556,1030,1458]){
+    box(x,204,33,16,'#554b3e');box(x+2,204,29,2,'#87725b');
+    box(x+4,211,25,2,'#342f2b');box(x+23,205,2,14,'#302c2a');
+  }
+  for(let x of [460,735,1355]){
+    box(x,191,20,28,'#484a45');box(x+3,194,14,5,'#9d9d87');
+    box(x+4,203,12,1,'#171d21');box(x+4,209,12,1,'#171d21');
+  }
+  // Train-tunnel mouths at both station ends.
+  for(let x of [15,1710]){
+    box(x,128,159,91,'#141d25');box(x+12,140,135,76,'#070e14');
+    for(let k=0;k<4;k++)box(x+18+k*28,141,3,66,'#263038');
+    box(x+14,207,131,3,'#4a514c');
+  }
+}
+function platform(){
+ box(0,216,WW,5,'#8e8772');box(0,219,WW,4,'#c2a875');box(0,223,WW,5,'#3f4140');
+ for(let x=6;x<WW;x+=21)box(x,220,11,2,'#d4bd8b');
+ box(0,228,WW,42,'#10191f');
+ box(0,236,WW,2,'#273843');box(0,247,WW,2,'#2e3d42');
+ // Two rails and sleepers visible in cross-section.
+ for(let x=0;x<WW;x+=21){box(x,249,10,14,'#4e4a41');box(x+2,250,6,11,'#655c4b');}
+ box(0,251,WW,3,'#a39c88');box(0,254,WW,2,'#554a40');
+ box(0,265,WW,5,'#6d7771');box(0,266,WW,1,'#c0bc9d');
+}
+function person(){
+ const x=Math.round(P.x), moving=Math.abs(P.vx)>7, phase=P.step;
+ const bob=moving?Math.sin(phase*2)*1.0:Math.sin(clock*2.0)*.5;
+ ctx.save();ctx.translate(x,Math.round(ground-2+bob));ctx.scale(P.dir,1);
+ box(-10,-1,22,2,'#0b1215a0');
+ // Foot motion and legs
+ const swing=moving?Math.sin(phase)*4:0;
+ box(-5+swing/1.5,-12,4,12,'#343943');box(2-swing/1.5,-12,4,12,'#323946');
+ box(-7+swing/1.5,-3,7,3,'#181b20');box(1-swing/1.5,-3,7,3,'#181b20');
+ // backpack behind survivor
+ box(-11,-30,7,18,'#4f574a');box(-13,-27,2,11,'#7e725a');
+ // body and jacket
+ box(-7,-31,15,19,'#626d61');box(-5,-29,10,15,'#4d5c51');
+ box(0,-27,2,12,'#859187');
+ // arm with glove
+ box(6,-29,4,13,'#6f7669');box(7,-17,3,4,'#97866f');
+ // scarf
+ box(-6,-32,13,3,'#a45343');box(5,-29,4,7,'#b3644e');
+ // neck/head and brown hair
+ box(-4,-40,10,9,'#c1987c');box(-5,-43,11,5,'#3f332d');box(-7,-40,3,6,'#4c4035');
+ box(4,-37,2,1,'#2c2a27');
+ ctx.restore();
+}
+function particles(){
+ // Floating dust specks on both foreground and background.
+ for(let i=0;i<43;i++){
+   let x=((i*137.44+Math.sin(i*19)*40 + clock*(i%2?3:-4))%WW+WW)%WW;
+   let y=50+(i*41%160)+Math.sin(clock*.3+i)*7;
+   box(x,y,1,1,i%3===0?'#b3a17a':'#56646a');
+ }
+}
+function render(){
+  box(0,0,SW,SH,'#0e151d');
+  ctx.save();ctx.translate(-Math.round(camera),0);
+  wall();fixtures();platform();particles();person();
+  ctx.restore();
+  // Look of an old monitor / dark corners.
+  const shade=ctx.createRadialGradient(SW/2,SH/2,70,SW/2,SH/2,340);
+  shade.addColorStop(0,'#05080a00');shade.addColorStop(1,'#010408a8');ctx.fillStyle=shade;ctx.fillRect(0,0,SW,SH);
+  // A thin static horizontal indicator that follows the player's screen position.
+  box(0,SH-2,SW,2,'#171d22');box((P.x/WW)*SW-1,SH-2,3,2,'#e3b469');
+}
+function update(dt){
+ clock+=dt;
+ const target=(pressed.right?1:0)-(pressed.left?1:0);
+ const requested=target*103;
+ P.vx+=(requested-P.vx)*Math.min(1,dt*13);
+ if(Math.abs(P.vx)<.08)P.vx=0;
+ if(P.vx!==0){P.x=Math.max(46,Math.min(WW-46,P.x+P.vx*dt));if(Math.abs(P.vx)>7){P.dir=P.vx>=0?1:-1;P.step+=dt*11;}}
+ let dest=Math.max(0,Math.min(WW-SW,P.x-SW*.50));
+ camera+=(dest-camera)*Math.min(1,dt*6);
+ let label=P.x<205?'ЗАПАДНЫЙ ТОННЕЛЬ':P.x>1420?'ВОСТОЧНЫЙ ТОННЕЛЬ':'ГАГАРИНСКАЯ';
+ if(label!==nowZone){nowZone=label;document.querySelector('#zone').textContent=label;}
+}
+function frame(ms){const dt=Math.min(.05,(ms-last)/1000||0);last=ms;update(dt);render();requestAnimationFrame(frame);}
+function hold(name,button){
+ const clear=()=>{pressed[name]=false;button.classList.remove('held');};
+ button.addEventListener('pointerdown',e=>{e.preventDefault();pressed[name]=true;button.classList.add('held');button.setPointerCapture?.(e.pointerId);});
+ ['pointerup','pointercancel','lostpointercapture','pointerleave'].forEach(event=>button.addEventListener(event,clear));
+}
+hold('left',document.querySelector('#left'));hold('right',document.querySelector('#right'));
+const keyMap={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right'};
+document.addEventListener('keydown',e=>{const k=keyMap[e.code];if(k){e.preventDefault();pressed[k]=true;}});
+document.addEventListener('keyup',e=>{const k=keyMap[e.code];if(k){e.preventDefault();pressed[k]=false;}});
+window.addEventListener('blur',()=>{pressed.left=pressed.right=false;document.querySelectorAll('.move').forEach(x=>x.classList.remove('held'));});
+render();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

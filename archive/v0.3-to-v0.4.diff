@@ -1,0 +1,867 @@
+--- archive/v0.3.html	2026-10-26 19:48:32.842378210 +0400
++++ index.html	2026-10-26 19:52:13.544540580 +0400
+@@ -8,7 +8,7 @@
+ <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+ <meta name="apple-mobile-web-app-title" content="Последняя ветка">
+ <meta name="theme-color" content="#06080a">
+-<title>Последняя ветка 0.3</title>
++<title>Последняя ветка 0.4</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -65,7 +65,7 @@
+ <div id="touch"></div>
+ <div id="hud">
+   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span></div>
+-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.3</button>
++  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.4</button>
+ </div>
+ <div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
+ <div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
+@@ -76,7 +76,7 @@
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 0.3<br>
++    <p>Станция «Гагаринская» · прототип 0.4<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -85,7 +85,7 @@
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.3
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.4
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -96,17 +96,22 @@
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '0.3',
++  VERSION: '0.4',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+   FLOORS: {
+-    platform: { y: 219, minX: 150, maxX: 1856 },
+-    upper:    { y: 98,  minX: 884, maxX: 1856 },  // мастерская → медпункт → энергоблок → насосная; западнее — завал
++    platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
++    upper:    { y: 98,  minX: 884, maxX: 1856 },  // мастерская → медпункт → энергоблок → шлюз → насосная; западнее — завал
++    surface:  { y: -61, minX: 1136, maxX: 1980 }, // улица у вестибюля: слева завал из обломков, справа забор
+   },
+   // Лестницы: x — ось, radius — где появляется подсказка, bottom/top — какие этажи соединяет.
+   STAIRS: [{ x: 1252, radius: 14, bottom: 'platform', top: 'upper' }],
+   CLIMB_SPEED: 52,          // пикс/с по вертикали
++  // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
++  GATES: [{ radius: 12,
++    a: { floor: 'upper',   x: 1635, dir: 'up',   label: '▲ На поверхность' },
++    b: { floor: 'surface', x: 1650, dir: 'down', label: '▼ Вход в метро' } }],
+   SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
+   STEP: 1 / 60,             // фиксированный шаг логики
+   PLAYER: {
+@@ -115,9 +120,12 @@
+     ACCEL: 480, DECEL: 640, TURN: 1300,
+     STRIDE: 3.3,            // сколько пикселей пути на один кадр ходьбы
+   },
+-  CAMERA: { SMOOTH_TIME: 0.32, LOOK_AHEAD: 34, LOOK_RATE: 1.8 },
+-  PARALLAX: { BACK: 0.9, FORE: 1.22 },
+-  AMBIENT: [74, 80, 100],    // цвет «темноты» в карте освещения
++  CAMERA: { SMOOTH_TIME: 0.32, LOOK_AHEAD: 34, LOOK_RATE: 1.8,
++    SMOOTH_Y: 0.45,         // плавность вертикальной камеры
++    SURFACE_FEET: 0.72 },   // на поверхности ступни героя — на 72% высоты кадра
++  PARALLAX: { BACK: 0.9, FORE: 1.22, SKY: 0.15, RUINS: 0.5 },
++  AMBIENT: [74, 80, 100],
++  AMBIENT_SURFACE: [168, 150, 124],   // пыльные сумерки снаружи    // цвет «темноты» в карте освещения
+   ZONES: [
+     { name: 'Жилой сектор',          to: 740 },
+     { name: 'Центральная платформа', to: 1300 },
+@@ -231,11 +239,14 @@
+    main  (1.0)          — верхний ярус с комнатами, перекрытие, колонны, платформа, пути;
+    fore  (1.22)         — тёмные силуэты переднего плана.
+    Параллельно заполняются списки источников света и «светящихся» элементов. */
+-const ROCK_H = 160;                     // толща грунта над станцией (видна на высоких экранах)
++const SURF_H = 280;                     // слой поверхности над станцией: мировые y от -280 до 0
++const GROUND_Y = CONFIG.FLOORS.surface.y;
++const surfRow = y => y + SURF_H;        // мировой y → строка канваса поверхности
+ // Области, за которые не выходит свет: зал (ниже перекрытия) и полоса верхнего яруса.
+ const HALL_CLIP = { x0: -Infinity, x1: Infinity, y0: 108, y1: Infinity };
+ const UPPER_CLIP = { x0: -Infinity, x1: Infinity, y0: 15, y1: 107 };
+-const WORLD = { rock: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
++const SURF_CLIP = { x0: -Infinity, x1: Infinity, y0: -SURF_H, y1: -50 };
++const WORLD = { sky: null, ruins: null, surface: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
+ 
+ /** Регистрирует источник света. layer: 'main' | 'back'. */
+ function addLight(x, y, r, color, mode = 'steady', power = 1, layer = 'main') {
+@@ -315,8 +326,9 @@
+   { x: 740,  w: 120, label: 'ЗАВАЛ',      type: 'sealed',   tint: [22, 24, 26],  light: null },
+   { x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150] },
+   { x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236] },
+-  { x: 1320, w: 290, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240] },
+-  { x: 1620, w: 250, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228] },
++  { x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240] },
++  { x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236] },
++  { x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228] },
+ ];
+ function drawRoom(g, r) {
+   const { x, w } = r, cx = x + w / 2;
+@@ -406,27 +418,37 @@
+     R(g, r.x + r.w - 36, 54, 24, 42, '#b8bcb4'); R(g, r.x + r.w - 33, 58, 18, 16, '#6c9090'); R(g, r.x + r.w - 33, 78, 18, 14, '#9ca09a');
+   },
+   power(g, r) {
+-    const gx = r.x + 26;
++    const gx = r.x + 18;
+     R(g, gx, 62, 100, 34, '#4a5456'); R(g, gx, 62, 100, 2, '#6e7a7c'); R(g, gx, 94, 100, 2, '#2a3032');
+     for (let k = 0; k < 5; k++) { R(g, gx + 8 + k * 17, 55, 11, 8, '#5c686a'); R(g, gx + 8 + k * 17, 55, 11, 1, '#7e8a8c'); }
+     disc(g, gx + 112, 78, 15, '#3a4244'); disc(g, gx + 112, 78, 11, '#576064'); disc(g, gx + 112, 78, 3, '#2a3032');
+     R(g, gx + 20, 19, 6, 36, '#3a4244'); R(g, gx + 20, 19, 1, 36, '#5a6264');
+-    const px = r.x + r.w - 76;
+-    R(g, px, 50, 48, 46, '#3e4a50'); R(g, px, 50, 48, 1, '#5e6a70');
+-    for (let k = 0; k < 3; k++) { disc(g, px + 10 + k * 14, 62, 4, '#c8c4b0'); R(g, px + 10 + k * 14, 59, 1, 3, '#2a2a2a'); }
+-    for (let k = 0; k < 4; k++) addEmissive(px + 8 + k * 10, 78, 3, 2, k === 2 ? [255, 170, 60] : [110, 230, 120], null, 'main', 'blink');
+-    R(g, r.x + 160, 72, 40, 24, '#2e3638');
+-    for (let k = 0; k < 5; k++) addEmissive(r.x + 164 + k * 7, 76, 2, 1, [90, 220, 110], null, 'main', 'blink');
++    const px = r.x + r.w - 54;
++    R(g, px, 50, 44, 46, '#3e4a50'); R(g, px, 50, 44, 1, '#5e6a70');
++    for (let k = 0; k < 3; k++) { disc(g, px + 9 + k * 13, 62, 4, '#c8c4b0'); R(g, px + 9 + k * 13, 59, 1, 3, '#2a2a2a'); }
++    for (let k = 0; k < 4; k++) addEmissive(px + 7 + k * 9, 78, 3, 2, k === 2 ? [255, 170, 60] : [110, 230, 120], null, 'main', 'blink');
+     for (let k = 0; k < r.w - 8; k++) R(g, r.x + 4 + k, 92, 1, 4, ((k >> 2) % 2) ? '#b8922e' : '#1c1c1c');
+   },
++  /** Шлюз: гермоворота в задней стене (створки рисуются в кадре — они открываются), оружейная стойка. */
++  gate(g, r) {
++    const gx = Math.round(r.x + r.w / 2);
++    R(g, gx - 28, 40, 56, 56, '#262b2e'); R(g, gx - 28, 40, 56, 1, '#4a5054'); R(g, gx - 28, 40, 2, 56, '#3a4044');
++    R(g, gx - 23, 44, 46, 52, '#07080a');                                       // проём за створками
++    for (let y = 44; y < 60; y++) R(g, gx - 23, y, 46, 1, rgb([60, 66, 70], 0.5 - (y - 44) / 40));   // ступени эскалатора в глубине
++    for (let x = gx - 28; x < gx + 28; x++) R(g, x, 92, 1, 4, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
++    R(g, r.x + 10, 52, 22, 32, '#3a3430'); R(g, r.x + 10, 52, 22, 1, '#5a5048');            // оружейная стойка
++    for (let k = 0; k < 4; k++) { L(g, r.x + 14 + k * 5, 55, r.x + 14 + k * 5, 80, '#1c1e20'); R(g, r.x + 13 + k * 5, 76, 3, 5, '#4a3a2a'); }
++    crate(g, r.x + r.w - 36, 80, 26, 16); crate(g, r.x + r.w - 30, 68, 18, 12);
++    addEmissive(gx - 1, 36, 3, 2, [255, 70, 50], null, 'main', 'blink');
++    WORLD.gate = { x: gx, open: 0 };
++  },
+   pumps(g, r) {
+     R(g, r.x + 4, 48, r.w - 8, 9, '#566c74'); R(g, r.x + 4, 48, r.w - 8, 2, '#7a929a'); R(g, r.x + 4, 56, r.w - 8, 1, '#34444a');
+-    [40, 150].forEach(px => { R(g, r.x + px, 48, 9, 48, '#566c74'); R(g, r.x + px, 48, 2, 48, '#7a929a');
+-      R(g, r.x + px - 2, 60, 13, 3, '#3e5058'); R(g, r.x + px - 2, 82, 13, 3, '#3e5058'); });
+-    R(g, r.x + 62, 72, 60, 24, '#47595f'); R(g, r.x + 62, 72, 60, 1, '#6a7e84'); R(g, r.x + 122, 76, 22, 20, '#3a4448');
+-    disc(g, r.x + 200, 68, 8, '#8a3a30'); disc(g, r.x + 200, 68, 6, '#3a4a50'); disc(g, r.x + 200, 68, 1, '#8a3a30');
+-    R(g, r.x + r.w - 58, 36, 42, 60, '#3f5258'); R(g, r.x + r.w - 58, 36, 42, 1, '#5e747a');
+-    R(g, r.x + r.w - 42, 46, 6, 40, '#1e282c'); addEmissive(r.x + r.w - 41, 62, 4, 23, [80, 150, 180], null, 'main', 'water');
++    R(g, r.x + 20, 48, 9, 48, '#566c74'); R(g, r.x + 20, 48, 2, 48, '#7a929a'); R(g, r.x + 18, 60, 13, 3, '#3e5058'); R(g, r.x + 18, 82, 13, 3, '#3e5058');
++    R(g, r.x + 36, 72, 46, 24, '#47595f'); R(g, r.x + 36, 72, 46, 1, '#6a7e84'); R(g, r.x + 82, 76, 18, 20, '#3a4448');
++    disc(g, r.x + 60, 64, 7, '#8a3a30'); disc(g, r.x + 60, 64, 5, '#3a4a50'); disc(g, r.x + 60, 64, 1, '#8a3a30');
++    R(g, r.x + r.w - 36, 36, 30, 60, '#3f5258'); R(g, r.x + r.w - 36, 36, 30, 1, '#5e747a');
++    R(g, r.x + r.w - 25, 46, 6, 40, '#1e282c'); addEmissive(r.x + r.w - 24, 62, 4, 23, [80, 150, 180], null, 'main', 'water');
+   },
+ };
+ 
+@@ -666,7 +688,7 @@
+ }
+ 
+ /* ---------- MAIN: проёмы между комнатами верхнего яруса и лестница ---------- */
+-const DOORWAYS = [[1146, 1164], [1306, 1324], [1606, 1624]];          // [левый край, правый край] прохода
++const DOORWAYS = [[1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];          // [левый край, правый край] прохода
+ function drawDoorways(g) {
+   DOORWAYS.forEach(([a, b]) => {
+     R(g, a, 50, b - a, 46, '#14171a');                                  // тёмный проём
+@@ -689,6 +711,96 @@
+   });
+ }
+ 
++/* ---------- SURFACE: улица над станцией, вестибюль и наклонный ход ---------- */
++/** Наклонный ход эскалатора в разрезе грунта: от вестибюля к потолку шлюза. oy — сдвиг строк канваса. */
++function drawEscalator(g, oy) {
++  const x0 = 1606, y0 = 14, x1 = 1690, y1 = GROUND_Y + 8;
++  for (let x = x0; x <= x1; x++) {
++    const cy = Math.round(y0 + (y1 - y0) * (x - x0) / (x1 - x0)) + oy;
++    R(g, x, cy - 7, 1, 1, '#3e3c38'); R(g, x, cy - 6, 1, 12, '#111315');
++    R(g, x, cy + 4 - ((x >> 1) % 2), 1, 2, '#34383a');                   // ступени
++    R(g, x, cy + 6, 1, 1, '#2a2826');
++  }
++}
++function buildSurface() {
++  // Небо: пыльные сумерки, ступенчатый градиент с дизерингом и полосами облаков.
++  const skyW = 1400, sky = makeCanvas(skyW, SURF_H), gs = sky.getContext('2d', { willReadFrequently: true });
++  paintRegion(gs, 0, 0, skyW, SURF_H, (x, y, o) => {
++    const t = clamp(y / (SURF_H - 70) + (dither(x, y) - 0.5) * 0.09, 0, 1), band = Math.round(t * 9) / 9;
++    const cloud = Math.sin(x * 0.011 + Math.sin(y * 0.08) * 2.2) * Math.sin(y * 0.19) > 0.58 ? 9 : 0;
++    o[0] = 30 + band * 112 + cloud; o[1] = 28 + band * 98 + cloud; o[2] = 30 + band * 66 + cloud * 0.5; return true;
++  });
++  disc(gs, 820, surfRow(-196), 14, 'rgba(236,224,186,.35)'); disc(gs, 820, surfRow(-196), 9, '#e2d8b4');
++  // Дальние руины многоэтажек (параллакс 0.5).
++  const ruins = makeCanvas(W, SURF_H), gr = ruins.getContext('2d');
++  for (let x = -10, i = 0; x < W; i++) {
++    const w = 34 + ((hash(i, 1) * 58) | 0), h = 46 + ((hash(i, 2) * 112) | 0), base = surfRow(GROUND_Y) + 2, top = base - h;
++    const col = hash(i, 3) > 0.5 ? [58, 54, 50] : [50, 48, 46];
++    R(gr, x, top, w, h, rgb(col)); R(gr, x, top, 1, h, rgb(col, 1.18));
++    for (let wy = top + 5; wy < base - 6; wy += 7) for (let wx = x + 4; wx < x + w - 4; wx += 6)
++      R(gr, wx, wy, 3, 4, hash(wx, wy) > 0.985 ? '#7a6a44' : rgb(col, 0.62));
++    for (let k = 0; k < w; k += 3) if (hash(i * 50 + k, 4) > 0.45) gr.clearRect(x + k, top, 3, (hash(k, i) * 18) | 0);   // обломанные этажи
++    x += w + 6 + ((hash(i, 5) * 40) | 0);
++  }
++  // Улица, грунт и вестибюль (параллакс 1).
++  const surf = makeCanvas(W, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
++  const R2 = (x, y, w, h, c) => R(gm, x, surfRow(y), w, h, c);
++  paintRegion(gm, 0, surfRow(GROUND_Y), W, -GROUND_Y, (x, row, o) => {
++    const y = row - SURF_H, n = (hash(x, y + 777) - 0.5) * 10;
++    if (y === GROUND_Y) return setC(o, 104, 100, 90, n);                // бордюр
++    if (y < -50) return setC(o, 56, 55, 52, n + (hash(x >> 1, y) > 0.95 ? -16 : 0));   // асфальт с трещинами
++    if (y < -44) return setC(o, 62, 52, 42, n);                          // подсыпка
++    const st = Math.sin(y * 0.4 + Math.sin(x * 0.02) * 2) * 4, stone = hash(x >> 2, y >> 2) > 0.9 ? 10 : 0, k = 0.9 - (y + 44) / 120;
++    return setC(o, (48 + stone) * k, (40 + stone) * k, (34 + stone) * k, n * 0.6 + st);
++  });
++  for (let x = 0; x < W; x += 1) if (hash(x, 31) > 0.86) R2(x, GROUND_Y - 1 - ((hash(x, 32) * 3) | 0), 1, 2 + ((hash(x, 33) * 2) | 0), '#5a5636');   // сухая трава
++  for (let x = 1020; x < 1140; x++) {                                     // завал из обломков — граница слева
++    const h = Math.max(0, Math.round(64 - Math.abs(x - 1092) * 0.85 + (hash(x, 7) - 0.5) * 12));
++    for (let y = 0; y < h; y++) R2(x, GROUND_Y - y, 1, 1, rgb([70, 66, 60], 0.55 + hash(x, y) * 0.5 - y / 180));
++  }
++  L(gm, 1060, surfRow(GROUND_Y - 40), 1120, surfRow(GROUND_Y - 58), '#4a4440', 3);
++  [[1250, 1], [1888, -1]].forEach(([tx, d]) => {                          // мёртвые деревья
++    L(gm, tx, surfRow(GROUND_Y), tx + d * 2, surfRow(GROUND_Y - 44), '#2a2420', 3);
++    L(gm, tx + d * 2, surfRow(GROUND_Y - 30), tx + d * 14, surfRow(GROUND_Y - 46), '#2a2420', 2);
++    L(gm, tx + d, surfRow(GROUND_Y - 20), tx - d * 10, surfRow(GROUND_Y - 34), '#2a2420', 2);
++    L(gm, tx + d * 2, surfRow(GROUND_Y - 44), tx - d * 4, surfRow(GROUND_Y - 58), '#2a2420', 1);
++  });
++  [[1330, 1], [1774, -1]].forEach(([lx, d]) => {                          // погнутые фонари
++    R2(lx, GROUND_Y - 44, 2, 44, '#3a3c3c'); L(gm, lx, surfRow(GROUND_Y - 44), lx + d * 10, surfRow(GROUND_Y - 52), '#3a3c3c', 2);
++    R2(lx + d * 10 - 3, GROUND_Y - 52, 7, 2, '#4a4c4c');
++  });
++  const cx = 1420;                                                        // сгоревшая машина
++  R2(cx, GROUND_Y - 13, 46, 9, '#4e3a2e'); R2(cx + 9, GROUND_Y - 21, 24, 8, '#3e3028'); R2(cx + 12, GROUND_Y - 19, 8, 5, '#16181a'); R2(cx + 22, GROUND_Y - 19, 8, 5, '#16181a');
++  R2(cx, GROUND_Y - 13, 46, 1, '#6a5040'); for (let k = 0; k < 8; k++) R2(cx + 3 + k * 5, GROUND_Y - 10, 3, 2, '#6a3e26');
++  disc(gm, cx + 9, surfRow(GROUND_Y - 3), 4, '#1a1a1a'); disc(gm, cx + 37, surfRow(GROUND_Y - 3), 4, '#1a1a1a');
++  for (let k = 0; k < 6; k++) R2(1980 + (k % 2), GROUND_Y - 30 + k * 5, 18, 1, '#4a4844');   // забор у края
++  R2(1984, GROUND_Y - 32, 2, 32, '#3a3836'); R2(1996, GROUND_Y - 32, 2, 32, '#3a3836');
++  // Вестибюль станции.
++  const px0 = 1592, px1 = 1708, top = GROUND_Y - 51;
++  R2(px0, top, px1 - px0, 51, '#5e5c56');
++  for (let x = px0; x < px1; x += 12) R2(x, top, 1, 51, '#4e4c48');
++  for (let k = 0; k < 14; k++) { const sx = px0 + ((hash(k, 61) * (px1 - px0)) | 0); R2(sx, top + 2, 1, 10 + ((hash(61, k) * 30) | 0), 'rgba(30,26,22,.35)'); }
++  R2(px0 - 6, top - 6, px1 - px0 + 12, 6, '#6e6c66'); R2(px0 - 6, top - 6, px1 - px0 + 12, 1, '#8a8882'); R2(px0 - 6, top - 1, px1 - px0 + 12, 1, '#3a3836');
++  [[px0 + 8, 38], [1664, 36]].forEach(([wx, ww]) => {
++    R2(wx, GROUND_Y - 36, ww, 22, '#1a2022'); R2(wx, GROUND_Y - 36, ww, 1, '#3a4448');
++    for (let k = 9; k < ww; k += 9) R2(wx + k, GROUND_Y - 36, 1, 22, '#3a3a38');
++    L(gm, wx + 3, surfRow(GROUND_Y - 35), wx + 12, surfRow(GROUND_Y - 22), '#4a5a5e');
++  });
++  R2(1640, GROUND_Y - 32, 20, 32, '#3e4244'); R2(1642, GROUND_Y - 30, 16, 30, '#0b0d0f');           // двери
++  for (let x = 1586; x < 1716; x += 4) { R2(x, top - 9, 3, 1, '#5a5a58'); R2(x + 1, top - 8, 1, 2, '#5a5a58'); }   // колючая проволока
++  plate(gm, 1650, surfRow(top + 4), 'ГАГАРИНСКАЯ', '#2f5660', '#dfe6d6', '#6f9a98');
++  R2(1649, top - 18, 2, 12, '#3a3a38'); R2(1640, top - 38, 20, 20, '#8a2a24'); R2(1640, top - 38, 20, 1, '#aa4038');
++  drawText(gm, 'М', 1645, surfRow(top - 35), '#ece4d2', 'rgba(0,0,0,.4)', 2);
++  for (let k = 0; k < 4; k++) { const sx = k < 2 ? 1612 + k * 12 : 1664 + (k - 2) * 12;          // мешки у входа
++    R2(sx, GROUND_Y - 6, 13, 6, '#776c52'); R2(sx + 1, GROUND_Y - 6, 11, 1, '#9a8e6c'); }
++  const lamp = addLight(1650, GROUND_Y - 34, 44, [255, 200, 140], 'flicker', 0.8);
++  lamp.clip = SURF_CLIP;
++  addEmissive(1649, GROUND_Y - 34, 3, 1, [255, 226, 170], lamp);
++  R2(1647, GROUND_Y - 36, 7, 2, '#4a4a48');
++  drawEscalator(gm, SURF_H);
++  WORLD.sky = sky; WORLD.ruins = ruins; WORLD.surface = surf;
++}
++
+ function buildWorld() {
+   const main = makeCanvas(W, H), gm = main.getContext('2d', { willReadFrequently: true });
+   paintRegion(gm, 0, 0, W, H, mainTexel);
+@@ -705,14 +817,8 @@
+   drawBackDecor(gb);
+   const fw = Math.ceil(W * CONFIG.PARALLAX.FORE) + 40, fore = makeCanvas(fw, H), gf = fore.getContext('2d');
+   drawFore(gf, fw);
+-  const rock = makeCanvas(W, ROCK_H), gr = rock.getContext('2d', { willReadFrequently: true });
+-  paintRegion(gr, 0, 0, W, ROCK_H, (x, y, o) => {
+-    const n = (hash(x, y + 999) - 0.5) * 10, s = Math.sin(y * 0.3 + Math.sin(x * 0.015) * 2.5) * 3;
+-    const k = 0.55 + 0.45 * (y / ROCK_H);                               // выше — темнее
+-    const stone = hash(x >> 3, y >> 2) > 0.93 ? 7 : 0;
+-    return setC(o, (25 + stone) * k, (27 + stone) * k, (31 + stone) * k, (n + s) * k);
+-  });
+-  WORLD.rock = rock; WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
++  buildSurface(); drawEscalator(gm, 0);
++  WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
+   WORLD.lights.forEach(l => { if (!l.clip) l.clip = HALL_CLIP; });
+   WORLD.drips = [470, 1238, 1560].map((x, i) => ({ x, y: 0, v: 0, wait: 0.5 + i * 0.9, active: false }));
+ }
+@@ -721,13 +827,13 @@
+    Персонаж рисуется кодом в кадры 26×42 (лицом вправо), затем к силуэту
+    добавляется тёмный контур для читаемости на любом фоне. */
+ const SPRITE_W = 26, SPRITE_H = 42;
+-const PAL = {
++const HERO_PAL = {
+   skin: '#c99878', skinSh: '#9c6c52', hair: '#3f322b', hairHi: '#5a473b', eye: '#1d1a18',
+   scarf: '#a85343', scarfSh: '#7d3a30', jacket: '#5d6a58', jacketHi: '#76846e', jacketSh: '#44503f', zip: '#8d9a86',
+   belt: '#2e2a26', buckle: '#b39a62', pack: '#4f574a', packHi: '#626b5a', packSh: '#3a4136', roll: '#7e725a', rollSh: '#5f5644',
+   pants: '#39404c', pantsSh: '#2a2f39', boot: '#1f2024', bootHi: '#3a3a40', glove: '#8a7a64', outline: '#0b0d10',
+ };
+-function drawPersonFrame(o) {
++function drawPersonFrame(o, PAL = HERO_PAL) {
+   const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true }), b = o.bob;
+   const leg = (hx, fx, lift, col, colSh) => {
+     const hy = 27 + b, fy = 38 - lift, kx = Math.round((hx + fx) / 2 + 1 + (lift ? 1 : 0)), ky = Math.round((hy + fy) / 2);
+@@ -740,12 +846,14 @@
+   };
+   arm(o.armBack, PAL.jacketSh);                                          // дальняя рука
+   leg(12, 12 + o.legBack.f, o.legBack.lift, PAL.pantsSh, PAL.boot);      // дальняя нога
++  if (!o.noPack) {
+   R(g, 3, 11 + b, 8, 4, PAL.roll); R(g, 3, 11 + b, 1, 4, PAL.rollSh); R(g, 10, 11 + b, 1, 4, PAL.rollSh); R(g, 3, 11 + b, 8, 1, '#9a8e72');
+   R(g, 4, 15 + b, 6, 12, PAL.pack); R(g, 4, 15 + b, 6, 3, PAL.packHi); R(g, 9, 15 + b, 1, 12, PAL.packSh); R(g, 4, 26 + b, 6, 1, PAL.packSh);
++  }
+   R(g, 9, 14 + b, 9, 14, PAL.jacket); R(g, 9, 14 + b, 9, 2, PAL.jacketHi); R(g, 17, 16 + b, 1, 11, PAL.jacketSh);
+   R(g, 15, 16 + b, 1, 9, PAL.zip); R(g, 13, 21 + b, 2, 2, PAL.jacketSh);
+   R(g, 9, 25 + b, 9, 2, PAL.belt); R(g, 15, 25 + b, 2, 2, PAL.buckle); R(g, 9, 27 + b, 9, 1, PAL.jacketSh);
+-  R(g, 10, 15 + b, 1, 10, PAL.packSh);                                  // лямка рюкзака
++  if (!o.noPack) R(g, 10, 15 + b, 1, 10, PAL.packSh);                   // лямка рюкзака
+   leg(14, 14 + o.legFront.f, o.legFront.lift, PAL.pants, PAL.pantsSh);  // ближняя нога
+   R(g, 10, 12 + b, 8, 3, PAL.scarf); R(g, 10, 14 + b, 8, 1, PAL.scarfSh); R(g, 8 - o.tail, 14 + b, 2, 6, PAL.scarf); R(g, 8 - o.tail, 19 + b, 2, 1, PAL.scarfSh);
+   R(g, 11, 4 + b, 7, 8, PAL.skin); R(g, 11, 11 + b, 7, 1, PAL.skinSh); R(g, 18, 8 + b, 1, 2, PAL.skin);
+@@ -753,22 +861,24 @@
+   R(g, 13, 8 + b, 1, 2, PAL.skinSh);                                    // ухо
+   if (o.blink) R(g, 16, 7 + b, 2, 1, PAL.skinSh); else { R(g, 16, 7 + b, 1, 1, PAL.eye); R(g, 16, 6 + b, 2, 1, PAL.hair); }
+   R(g, 17, 10 + b, 1, 1, PAL.skinSh);
++  if (o.hat) { R(g, 9, 1 + b, 10, 4, o.hat); R(g, 9, 1 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + b, 10, 1, 'rgba(0,0,0,.35)'); }
+   arm(o.armFront, PAL.jacket);                                          // ближняя рука
++  if (o.gun) { L(g, 8, 27 + b, 21, 14 + b, '#222426', 2); R(g, 6, 26 + b, 4, 3, '#4a3a2a'); R(g, 15, 21 + b, 2, 4, '#222426'); R(g, 20, 13 + b, 2, 1, '#55595c'); }
+   outline(g);
+   return c;
+ }
+-function outline(g) {
+-  const img = g.getImageData(0, 0, SPRITE_W, SPRITE_H), d = img.data, a = i => d[i * 4 + 3] > 0;
++function outline(g, SW = SPRITE_W, SH = SPRITE_H) {
++  const img = g.getImageData(0, 0, SW, SH), d = img.data, a = i => d[i * 4 + 3] > 0;
+   const add = [];
+-  for (let y = 0; y < SPRITE_H; y++) for (let x = 0; x < SPRITE_W; x++) {
+-    const i = y * SPRITE_W + x; if (a(i)) continue;
+-    if ((x > 0 && a(i - 1)) || (x < SPRITE_W - 1 && a(i + 1)) || (y > 0 && a(i - SPRITE_W)) || (y < SPRITE_H - 1 && a(i + SPRITE_W))) add.push(i);
++  for (let y = 0; y < SH; y++) for (let x = 0; x < SW; x++) {
++    const i = y * SW + x; if (a(i)) continue;
++    if ((x > 0 && a(i - 1)) || (x < SW - 1 && a(i + 1)) || (y > 0 && a(i - SW)) || (y < SH - 1 && a(i + SW))) add.push(i);
+   }
+   add.forEach(i => { d[i * 4] = 11; d[i * 4 + 1] = 13; d[i * 4 + 2] = 16; d[i * 4 + 3] = 255; });
+   g.putImageData(img, 0, 0);
+ }
+ /** Кадр подъёма по лестнице, вид со спины. ph: 0 — левая рука вверх, 2 — правая, 1/3 — обе на перекладине. */
+-function drawClimbFrame(ph) {
++function drawClimbFrame(ph, PAL = HERO_PAL) {
+   const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true });
+   const upL = ph === 0, upR = ph === 2;
+   const leg = (hx, raised) => {
+@@ -788,18 +898,160 @@
+   return c;
+ }
+ const SPRITES = { walk: [], idle: [], blink: null, climb: [] };
+-function buildSprites() {
++/* Палитры жителей: та же фигура, другая одежда. */
++const GUARD_PAL  = { ...HERO_PAL, jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d',
++  pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' };
++const WORKER_PAL = { ...HERO_PAL, jacket: '#8a6a3a', jacketHi: '#a3824e', jacketSh: '#6a5030', zip: '#5a4228', scarf: '#4a5a6a', scarfSh: '#36424e',
++  pants: '#4a4030', pantsSh: '#3a3226', hair: '#3a2a20' };
++const WORKER2_PAL = { ...HERO_PAL, jacket: '#3e5a6a', jacketHi: '#527484', jacketSh: '#2e4450', zip: '#9aa4a8', scarf: '#8a6a3a', scarfSh: '#6a5030',
++  pants: '#3a3e44', pantsSh: '#2c2f34', skin: '#a87a5c', skinSh: '#7c5640', hair: '#1e1a18' };
++const MEDIC_PAL  = { ...HERO_PAL, jacket: '#c4c6bc', jacketHi: '#dcded4', jacketSh: '#9a9c92', zip: '#8a8c84', scarf: '#c4c6bc', scarfSh: '#9a9c92',
++  pants: '#3a4048', pantsSh: '#2c3138', hair: '#6a5040', skin: '#d4a484' };
++const RES_A_PAL  = { ...HERO_PAL, jacket: '#6a5a4a', jacketHi: '#7e6c5a', jacketSh: '#4e4236', zip: '#4e4236', scarf: '#7a7a6a', scarfSh: '#5a5a4e', hair: '#5a4030' };
++const RES_B_PAL  = { ...HERO_PAL, jacket: '#4a5a6a', jacketHi: '#5e7080', jacketSh: '#384450', zip: '#384450', scarf: '#a08a5a', scarfSh: '#7a6a44',
++  hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' };
++const RES_C_PAL  = { ...HERO_PAL, jacket: '#7a4a4a', jacketHi: '#905a58', jacketSh: '#5a3636', zip: '#5a3636', scarf: '#b8a888', scarfSh: '#8a7c64',
++  hair: '#8a6a4a', hairHi: '#a88a62', skin: '#d8a888' };
++
++/** Сидящий житель: табурет, согнутые ноги, руки на коленях. b — дыхание. */
++function drawSitFrame(PAL, b, o = {}) {
++  const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true });
++  R(g, 7, 34, 12, 2, '#5e4630'); R(g, 7, 34, 12, 1, '#7a5c40'); R(g, 8, 36, 2, 5, '#3e2e20'); R(g, 16, 36, 2, 5, '#3e2e20');
++  R(g, 11, 31, 9, 3, PAL.pantsSh); R(g, 18, 31, 3, 8, PAL.pantsSh); R(g, 18, 39, 5, 2, PAL.boot);
++  L(g, 12, 22 + b, 18, 29, PAL.jacketSh, 3);                            // дальняя рука
++  R(g, 9, 20 + b, 9, 13 - b, PAL.jacket); R(g, 9, 20 + b, 9, 2, PAL.jacketHi); R(g, 15, 22 + b, 1, 8 - b, PAL.zip); R(g, 9, 31, 9, 2, PAL.belt);
++  R(g, 12, 32, 10, 3, PAL.pants); R(g, 19, 32, 3, 7, PAL.pants); R(g, 19, 39, 5, 2, PAL.boot); R(g, 19, 39, 5, 1, PAL.bootHi);
++  R(g, 10, 18 + b, 8, 3, PAL.scarf); R(g, 10, 20 + b, 8, 1, PAL.scarfSh);
++  R(g, 11, 10 + b, 7, 8, PAL.skin); R(g, 11, 17 + b, 7, 1, PAL.skinSh); R(g, 18, 14 + b, 1, 2, PAL.skin);
++  R(g, 10, 8 + b, 8, 3, PAL.hair); R(g, 10, 11 + b, 2, 5, PAL.hair); R(g, 13, 8 + b, 3, 1, PAL.hairHi); R(g, 13, 14 + b, 1, 2, PAL.skinSh);
++  if (o.blink) R(g, 16, 13 + b, 2, 1, PAL.skinSh); else { R(g, 16, 13 + b, 1, 1, PAL.eye); R(g, 16, 12 + b, 2, 1, PAL.hair); }
++  R(g, 17, 16 + b, 1, 1, PAL.skinSh);
++  if (o.hat) { R(g, 9, 7 + b, 10, 4, o.hat); R(g, 9, 7 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 11 + b, 10, 1, 'rgba(0,0,0,.35)'); }
++  L(g, 13, 22 + b, 16, 27, PAL.jacket, 3); L(g, 16, 27, 19, 30, PAL.jacket, 3); R(g, 18, 30, 3, 2, PAL.glove);   // ближняя рука на колене
++  if (o.gun) { R(g, 6, 29, 17, 2, '#222426'); R(g, 4, 29, 3, 3, '#4a3a2a'); }
++  outline(g);
++  return c;
++}
++/** Границы непрозрачной части канваса. */
++function alphaBox(c) {
++  const d = c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data;
++  let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
++  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++)
++    if (d[(y * c.width + x) * 4 + 3]) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
++  return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
++}
++/** Спящий: кадр стоя с закрытыми глазами, повёрнутый на 90° (голова слева), под одеялом. rise — дыхание одеяла. */
++function makeLying(PAL, rise, blanket) {
++  const src = drawPersonFrame({ legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
++  const c = makeCanvas(SPRITE_H, SPRITE_W), g = c.getContext('2d', { willReadFrequently: true });
++  g.imageSmoothingEnabled = false; g.translate(0, SPRITE_W); g.rotate(-Math.PI / 2); g.drawImage(src, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
++  const bb = alphaBox(c), bx = bb.x + Math.round(bb.w * 0.34);
++  R(g, bx, bb.y + 1 - rise, bb.x + bb.w - bx, bb.h - 1 + rise, blanket); R(g, bx, bb.y + 1 - rise, bb.x + bb.w - bx, 1, 'rgba(255,255,255,.16)');
++  R(g, bx, bb.y + 1 - rise, 1, bb.h - 1 + rise, '#0b0d10');
++  return { c, bb: alphaBox(c) };
++}
++/** Мутант: сгорбленный, длинные руки до земли. 6 кадров походки, лицом вправо. */
++const MUT_W = 34, MUT_H = 40;
++function drawMutantFrame(i) {
++  const c = makeCanvas(MUT_W, MUT_H), g = c.getContext('2d', { willReadFrequently: true }), p = (i / 6) * Math.PI * 2;
++  const skin = '#8a9578', sh = '#5f6b55', dark = '#2e352b', rag = '#4a3e34', ragSh = '#352c24';
++  const leg = (hx, ff, lift, col) => { const fy = 37 - lift; R(g, hx - 1, 26, 3, 5, col); L(g, hx, 30, hx + ff, fy, col, 3); R(g, hx + ff - 1, fy + 1, 5, 2, dark); };
++  const f = Math.round(Math.sin(p) * 5);
++  leg(13, -f, Math.cos(p + Math.PI) > 0.3 ? 1 : 0, sh);
++  for (let y = 11; y <= 28; y++) { const t = (y - 11) / 17, cx = Math.round(23 - t * 9), half = Math.round(4 + Math.sin(t * Math.PI) * 2.5);
++    R(g, cx - half, y, half * 2, 1, y < 22 ? skin : rag); }
++  for (let k = 0; k < 4; k++) R(g, 18 - k * 2, 12 + k * 3, 1, 1, sh);   // позвонки
++  R(g, 11, 24, 12, 1, ragSh);
++  disc(g, 27, 15, 4, skin); R(g, 27, 18, 5, 2, sh); R(g, 29, 19, 3, 1, '#1a1a14'); R(g, 28, 13, 1, 1, '#1a1a14');
++  leg(16, f, Math.cos(p) > 0.3 ? 1 : 0, skin);
++  const sw = Math.round(-Math.sin(p) * 3);
++  L(g, 22, 15, 24 + sw, 25, skin, 2); L(g, 24 + sw, 25, 26 + sw, 34, skin, 2); R(g, 25 + sw, 35, 3, 2, dark);
++  outline(g, MUT_W, MUT_H);
++  return c;
++}
++/** Набор кадров одного персонажа: ходьба, дыхание, моргание; по запросу — сидя и лёжа. */
++function personSet(pal, o = {}) {
++  const set = { walk: [], idle: [], blink: null, sit: [], lie: [] };
+   for (let i = 0; i < 8; i++) {                                          // 8 кадров ходьбы
+-    const p = (i / 8) * Math.PI * 2;
+-    const legF = { f: Math.round(Math.sin(p) * 5), lift: Math.cos(p) > 0.3 ? (Math.cos(p) > 0.8 ? 2 : 1) : 0 };
+-    const legB = { f: Math.round(Math.sin(p + Math.PI) * 5), lift: Math.cos(p + Math.PI) > 0.3 ? (Math.cos(p + Math.PI) > 0.8 ? 2 : 1) : 0 };
+-    SPRITES.walk.push(drawPersonFrame({ legFront: legF, legBack: legB, armFront: Math.round(-Math.sin(p) * 4), armBack: Math.round(Math.sin(p) * 4),
+-      bob: Math.abs(Math.sin(p)) > 0.6 ? 1 : 0, tail: 1, blink: false }));
+-  }
+-  const stand = { legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0 };
+-  SPRITES.idle.push(drawPersonFrame({ ...stand, bob: 0, blink: false }), drawPersonFrame({ ...stand, bob: 1, blink: false }));
+-  SPRITES.blink = drawPersonFrame({ ...stand, bob: 0, blink: true });
++    const p = (i / 8) * Math.PI * 2, lift = q => (Math.cos(q) > 0.3 ? (Math.cos(q) > 0.8 ? 2 : 1) : 0);
++    set.walk.push(drawPersonFrame({ ...o, legFront: { f: Math.round(Math.sin(p) * 5), lift: lift(p) }, legBack: { f: Math.round(Math.sin(p + Math.PI) * 5), lift: lift(p + Math.PI) },
++      armFront: Math.round(-Math.sin(p) * 4), armBack: Math.round(Math.sin(p) * 4), bob: Math.abs(Math.sin(p)) > 0.6 ? 1 : 0, tail: 1, blink: false }, pal));
++  }
++  const stand = { ...o, legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: o.gun ? 3 : 0, armBack: 1, tail: 0 };
++  set.idle.push(drawPersonFrame({ ...stand, bob: 0, blink: false }, pal), drawPersonFrame({ ...stand, bob: 1, blink: false }, pal));
++  set.blink = drawPersonFrame({ ...stand, bob: 0, blink: true }, pal);
++  if (o.sit) set.sit.push(drawSitFrame(pal, 0, o), drawSitFrame(pal, 1, o));
++  if (o.blanket) set.lie.push(makeLying(pal, 0, o.blanket), makeLying(pal, 1, o.blanket));
++  return set;
++}
++const SETS = {};
++function buildSprites() {
++  Object.assign(SPRITES, personSet(HERO_PAL));
+   for (let i = 0; i < 4; i++) SPRITES.climb.push(drawClimbFrame(i));
++  SETS.guard   = personSet(GUARD_PAL,   { hat: '#3e4636', gun: true, noPack: true, sit: true });
++  SETS.worker  = personSet(WORKER_PAL,  { hat: '#c8a03c', noPack: true });
++  SETS.worker2 = personSet(WORKER2_PAL, { hat: '#b8b8b0', noPack: true });
++  SETS.medic   = personSet(MEDIC_PAL,   { noPack: true });
++  SETS.resA    = personSet(RES_A_PAL,   { noPack: true, sit: true, blanket: '#7a3b34' });
++  SETS.resB    = personSet(RES_B_PAL,   { noPack: true, sit: true, blanket: '#465a6c' });
++  SETS.resC    = personSet(RES_C_PAL,   { noPack: true, sit: true });
++  SETS.mutant  = { walk: [0, 1, 2, 3, 4, 5].map(drawMutantFrame) };
++}
++
++/* ================================ ACTORS ==================================
++   Жители, охрана и мутанты — только анимация и блуждание в своих границах.
++   kind: guard (стоит, оглядывается) · idle (стоит) · walker (ходит от точки к точке) ·
++         sitter / sitguard (сидит) · sleeper (лежит) · mutant (бродит по улице). */
++const ACTORS = [];
++function actor(kind, set, x, y, o = {}) {
++  ACTORS.push({ kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
++    wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed });
++}
++function placeActors() {
++  const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
++  actor('guard', 'guard', 158, P, { facing: -1 }); actor('guard', 'guard', 118, P, { facing: 1 });          // западная баррикада
++  actor('guard', 'guard', 1864, P, { facing: 1 }); actor('sitguard', 'guard', 1884, P, { facing: -1 });     // гермозатвор
++  actor('guard', 'guard', 1600, U, { facing: 1 }); actor('guard', 'guard', 1670, U, { facing: -1 });       // шлюз на поверхность
++  actor('walker', 'worker', 1000, U, { minX: 900, maxX: 1100, speed: 22 });                                // мастерская
++  actor('walker', 'medic', 1200, U, { minX: 1172, maxX: 1232, speed: 16 });                                // медпункт
++  actor('walker', 'worker2', 1430, U, { minX: 1340, maxX: 1520, speed: 24 });                              // энергоблок
++  actor('walker', 'worker', 1800, U, { minX: 1748, maxX: 1852, speed: 18 });                               // насосная
++  actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
++  actor('sitter', 'resC', 382, U, { facing: -1 });                                                          // жилой блок
++  actor('sitter', 'resA', 492, U, { facing: 1 }); actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
++  actor('idle', 'resA', 648, U, { facing: 1 });                                                             // повар у буржуйки
++  actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
++  actor('walker', 'resC', 400, P, { minX: 240, maxX: 690, speed: 20 });                                    // жилой сектор
++  actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
++  actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
++  actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
++}
++function updateActors(dt) {
++  for (const a of ACTORS) {
++    a.t += dt; a.blinkT -= dt; if (a.blinkT < -0.12) a.blinkT = 2 + rand() * 4;
++    if (a.kind === 'guard' || a.kind === 'idle') { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = (a.kind === 'guard' ? 3 : 6) + rand() * 5; } }
++    if (a.kind !== 'walker' && a.kind !== 'mutant') continue;
++    if (a.wait > 0) { a.wait -= dt; a.moving = false; continue; }
++    const d = a.tx - a.x;
++    if (Math.abs(d) < 1) { a.wait = (a.kind === 'mutant' ? 0.8 : 1.5) + rand() * 3; a.tx = a.minX + rand() * (a.maxX - a.minX); a.moving = false; continue; }
++    const step = Math.min(Math.abs(d), a.speed * dt);
++    a.x += Math.sign(d) * step; a.facing = Math.sign(d); a.walkDist += step; a.moving = true;
++  }
++}
++function actorSprite(a) {
++  const s = SETS[a.set];
++  if (a.kind === 'mutant') return s.walk[a.moving ? Math.floor(a.walkDist / 3) % 6 : 0];
++  if (a.kind === 'sitter' || a.kind === 'sitguard') return s.sit[Math.floor(a.t / 0.9) % 2];
++  if (a.kind === 'sleeper') return s.lie[Math.floor(a.t / 1.6) % 2];
++  if (a.moving) return s.walk[Math.floor(a.walkDist / CONFIG.PLAYER.STRIDE) % 8];
++  if (a.blinkT < 0) return s.blink;
++  return s.idle[Math.floor(a.t / 0.75) % 2];
++}
++/** Рисует спрайт с отражением по направлению; half — x оси персонажа внутри спрайта. */
++function blit(g, spr, cx, top, facing, half) {
++  if (facing >= 0) { g.drawImage(spr, cx - half, top); return; }
++  const left = cx - (spr.width - half - 1);
++  g.save(); g.translate(left + spr.width, top); g.scale(-1, 1); g.drawImage(spr, 0, 0); g.restore();
+ }
+ 
+ /* ================================ INPUT ===================================
+@@ -849,29 +1101,33 @@
+   floor: 'platform', state: 'walk',      // state: 'walk' | 'climb'
+   x: CONFIG.PLAYER.START_X, prevX: CONFIG.PLAYER.START_X,
+   y: CONFIG.FLOORS.platform.y, prevY: CONFIG.FLOORS.platform.y,
+-  vx: 0, facing: 1, climb: null, climbDist: 0,
++  vx: 0, facing: 1, climb: null, climbDist: 0, gate: null, alpha: 1,
+   walkDist: 0, frame: 0, idleT: 0, blinkT: 3, onStep: null,
+   reset() {
+-    this.floor = 'platform'; this.state = 'walk'; this.climb = null;
++    this.floor = 'platform'; this.state = 'walk'; this.climb = null; this.gate = null; this.alpha = 1;
+     this.x = this.prevX = CONFIG.PLAYER.START_X; this.y = this.prevY = CONFIG.FLOORS.platform.y;
+     this.vx = 0; this.walkDist = 0;
+   },
+-  /** Лестница в радиусе и направление, доступное с текущего этажа: { stair, dir } или null. */
+-  stairNearby() {
++  /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
++  interaction() {
+     if (this.state !== 'walk') return null;
+     for (const s of CONFIG.STAIRS) {
+       if (Math.abs(this.x - s.x) > s.radius) continue;
+-      if (this.floor === s.bottom) return { stair: s, dir: 'up' };
+-      if (this.floor === s.top) return { stair: s, dir: 'down' };
++      if (this.floor === s.bottom) return { kind: 'stair', stair: s, dir: 'up' };
++      if (this.floor === s.top) return { kind: 'stair', stair: s, dir: 'down' };
+     }
++    for (const gt of CONFIG.GATES)
++      for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
++        if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
+     return null;
+   },
+   update(dt, dir, action) {
+     this.prevX = this.x; this.prevY = this.y;
+-    if (this.state === 'climb') { this.updateClimb(dt); return; }        // горизонтальный ввод во время подъёма игнорируется
++    if (this.state === 'climb') { this.updateClimb(dt); return; }        // горизонтальный ввод во время перехода игнорируется
++    if (this.state === 'gate') { this.updateGate(dt); return; }
+     if (action) {
+-      const near = this.stairNearby();
+-      if (near && (action === 'use' || action === near.dir)) { this.startClimb(near); return; }
++      const it = this.interaction();
++      if (it && (action === 'use' || action === it.dir)) { if (it.kind === 'stair') this.startClimb(it); else this.startGate(it); return; }
+     }
+     this.updateWalk(dt, dir);
+   },
+@@ -914,8 +1170,33 @@
+       this.state = 'walk'; this.climb = null; this.walkDist = 0; this.idleT = 0;
+     }
+   },
++  startGate({ from, to }) { this.state = 'gate'; this.vx = 0; this.gate = { from, to, phase: 'open', t: 0 }; },
++  /** Проход через ворота: открыть → уйти внутрь (затемнение) → камера едет → выйти с другой стороны. */
++  updateGate(dt) {
++    const s = this.gate; s.t += dt;
++    if (s.phase === 'open' || s.phase === 'enter') this.x += (s.from.x - this.x) * Math.min(1, dt * 10);
++    if (s.phase === 'open' && s.t >= (s.from.floor === 'upper' ? 0.7 : 0.25)) { s.phase = 'enter'; s.t = 0; }
++    else if (s.phase === 'enter') {
++      this.alpha = Math.max(0, 1 - s.t / 0.45);
++      if (s.t >= 0.45) {
++        s.phase = 'travel'; s.t = 0; this.alpha = 0; this.floor = s.to.floor;
++        this.x = this.prevX = s.to.x; this.y = this.prevY = CONFIG.FLOORS[s.to.floor].y;
++      }
++    } else if (s.phase === 'travel' && s.t >= 1.1) { s.phase = 'exit'; s.t = 0; }
++    else if (s.phase === 'exit') {
++      this.alpha = Math.min(1, s.t / 0.45);
++      if (s.t >= 0.45) { this.alpha = 1; this.state = 'walk'; this.gate = null; this.idleT = 0; }
++    }
++  },
++  /** Должны ли быть открыты гермоворота в шлюзе (персонаж проходит через них). */
++  gateOpenTarget() {
++    if (this.state !== 'gate') return 0;
++    const s = this.gate, side = s.phase === 'open' || s.phase === 'enter' ? s.from.floor : s.to.floor;
++    return side === 'upper' ? 1 : 0;
++  },
+   sprite() {
+     if (this.state === 'climb') return SPRITES.climb[Math.floor(this.climbDist / 6) % 4];
++    if (this.state === 'gate') return this.gate.phase === 'travel' ? null : this.gate.phase === 'exit' ? SPRITES.idle[0] : SPRITES.climb[1];
+     if (Math.abs(this.vx) > 4) return SPRITES.walk[this.frame];
+     if (this.blinkT < 0) return SPRITES.blink;
+     return SPRITES.idle[Math.floor(this.idleT / 0.7) % 2];
+@@ -923,28 +1204,43 @@
+ };
+ 
+ /* ================================ CAMERA ================================== */
++/** Критически демпфированное сглаживание (как SmoothDamp): плавно, без перелёта. */
++function damp(cur, target, state, smoothTime, dt) {
++  const omega = 2 / smoothTime, x = omega * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
++  const change = cur - target, temp = (state.v + omega * change) * dt;
++  state.v = (state.v - omega * temp) * e;
++  return target + (change + temp) * e;
++}
+ const Camera = {
+   x: 0, prevX: 0, vel: { v: 0 }, look: 0, viewW: 480,
+-  /** Критически демпфированное следование + упреждение в сторону взгляда. */
++  y: 0, prevY: 0, velY: { v: 0 }, viewH: 270,
++  /** По X — следование с упреждением; по Y — станция целиком или улица, если герой на поверхности. */
+   update(dt, player) {
+-    this.prevX = this.x;
++    this.prevX = this.x; this.prevY = this.y;
+     const C = CONFIG.CAMERA, moving = Math.abs(player.vx) > 4;
+     const lookTarget = player.facing * (moving ? C.LOOK_AHEAD : C.LOOK_AHEAD * 0.4);
+     this.look += (lookTarget - this.look) * (1 - Math.exp(-dt * C.LOOK_RATE));
+-    const target = this.clampX(player.x + this.look - this.viewW / 2);
+-    const omega = 2 / C.SMOOTH_TIME, x = omega * dt, e = 1 / (1 + x + 0.48 * x * x + 0.235 * x * x * x);
+-    const change = this.x - target, temp = (this.vel.v + omega * change) * dt;
+-    this.vel.v = (this.vel.v - omega * temp) * e;
+-    this.x = this.clampX(target + (change + temp) * e);
++    this.x = this.clampX(damp(this.x, this.clampX(player.x + this.look - this.viewW / 2), this.vel, C.SMOOTH_TIME, dt));
++    this.y = damp(this.y, this.targetY(player), this.velY, C.SMOOTH_Y, dt);
+   },
+   clampX(x) { return clamp(x, 0, Math.max(0, W - this.viewW)); },
+-  snap(player) { this.look = player.facing * CONFIG.CAMERA.LOOK_AHEAD * 0.4; this.x = this.prevX = this.clampX(player.x + this.look - this.viewW / 2); this.vel.v = 0; },
++  targetY(p) {
++    const maxY = H - this.viewH;                                        // низ кадра = низ станции
++    if (p.floor !== 'surface') return maxY;
++    return clamp(CONFIG.FLOORS.surface.y - this.viewH * CONFIG.CAMERA.SURFACE_FEET, -SURF_H, maxY);
++  },
++  snap(player) {
++    this.look = player.facing * CONFIG.CAMERA.LOOK_AHEAD * 0.4;
++    this.x = this.prevX = this.clampX(player.x + this.look - this.viewW / 2); this.vel.v = 0;
++    this.y = this.prevY = this.targetY(player); this.velY.v = 0;
++  },
+ };
+ 
+ /* ================================== FX ==================================== */
+ const FX = {
+-  dust: [], puffs: [], embers: [], sparks: [], splashes: [],
++  dust: [], puffs: [], embers: [], sparks: [], splashes: [], ash: [],
+   init() {
++    for (let i = 0; i < 70; i++) this.ash.push({ x: rand() * 600, y: -SURF_H + rand() * (SURF_H + GROUND_Y), vx: 3 + rand() * 4, vy: 5 + rand() * 7, ph: rand() * 6.28 });
+     for (let i = 0; i < 90; i++) this.dust.push({ x: rand() * 600, y: 128 + rand() * 84, vx: (rand() - 0.5) * 3, vy: (rand() - 0.5) * 1.5, ph: rand() * 6.28, a: 0.25 + rand() * 0.45 });
+   },
+   step(x, facing, y) {
+@@ -957,6 +1253,12 @@
+       if (d.x < camX - 20) d.x += span; else if (d.x > camX + viewW + 20) d.x -= span;
+       if (d.y < 128) d.y = 211; else if (d.y > 212) d.y = 128;
+     }
++    for (const a of this.ash) {                                         // пепел над улицей
++      a.x += (a.vx + Math.sin(t * 0.7 + a.ph) * 3) * dt; a.y += a.vy * dt;
++      if (a.y > GROUND_Y - 1) { a.y = -SURF_H + rand() * 20; a.x = camX + rand() * viewW; }
++      const span = viewW + 40;
++      if (a.x < camX - 20) a.x += span; else if (a.x > camX + viewW + 20) a.x -= span;
++    }
+     this.puffs = this.puffs.filter(p => (p.life -= dt) > 0 && ((p.x += p.vx * dt), (p.y += p.vy * dt), (p.vx *= 0.92), true));
+     // Огонь в бочке выбрасывает искры.
+     if (rand() < dt * 7) this.embers.push({ x: WORLD.fire.x + (rand() - 0.5) * 8, y: WORLD.fire.y - 4, vx: (rand() - 0.5) * 6, vy: -14 - rand() * 12, life: 1 + rand() });
+@@ -1011,13 +1313,12 @@
+     this.canvas.width = this.devW; this.canvas.height = this.devH;
+     this.canvas.style.width = cssW + 'px'; this.canvas.style.height = cssH + 'px';
+     this.scale = Math.max(1, Math.floor(this.devH / H));
+-    this.viewH = Math.ceil(this.devH / this.scale);
++    this.viewH = Math.ceil(this.devH / this.scale) + 1;                 // +1 строка под дробный сдвиг камеры по Y
+     this.viewW = Math.min(W, Math.ceil(this.devW / this.scale));
+-    this.yoff = this.viewH - H;                                         // лишние строки — сверху (толща грунта)
+     this.buf = makeCanvas(this.viewW + 1, this.viewH); this.g = this.buf.getContext('2d');
+     this.light = makeCanvas(this.viewW + 1, this.viewH); this.gl = this.light.getContext('2d');
+     this.vignette = this.makeVignette();
+-    Camera.viewW = this.viewW;
++    Camera.viewW = this.viewW; Camera.viewH = this.devH / this.scale;
+     this.ctx.imageSmoothingEnabled = false;
+   },
+   makeVignette() {
+@@ -1029,16 +1330,23 @@
+   /** Перевод мировой координаты в координату буфера для слоя с параллаксом p. */
+   sx(x, p, camX, frac) { return Math.round(x - camX * p + frac); },
+   frame(alpha, t) {
+-    const g = this.g, yo = this.yoff, camX = Camera.prevX + (Camera.x - Camera.prevX) * alpha;
+-    const camI = Math.floor(camX), frac = camX - camI, vw = this.viewW + 1, vh = this.viewH;
++    const g = this.g, camX = Camera.prevX + (Camera.x - Camera.prevX) * alpha, camY = Camera.prevY + (Camera.y - Camera.prevY) * alpha;
++    const camI = Math.floor(camX), frac = camX - camI, camYI = Math.floor(camY), fracY = camY - camYI;
++    const yo = this.yoff = -camYI, vw = this.viewW + 1, vh = this.viewH;
+     const PB = CONFIG.PARALLAX.BACK, PF = CONFIG.PARALLAX.FORE;
+     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+     g.fillStyle = '#16181b'; g.fillRect(0, 0, vw, vh);
+-    // 1. Слои мира.
+-    if (yo > 0) g.drawImage(WORLD.rock, -camI, yo - ROCK_H);
++    // 1. Поверхность: небо, дальние руины, улица с вестибюлем (видна, когда камера поднята).
++    if (yo > 0) {
++      g.drawImage(WORLD.sky, this.sx(0, CONFIG.PARALLAX.SKY, camX, frac), yo - SURF_H);
++      g.drawImage(WORLD.ruins, this.sx(0, CONFIG.PARALLAX.RUINS, camX, frac), yo - SURF_H);
++      g.drawImage(WORLD.surface, -camI, yo - SURF_H);
++    }
++    // 2. Станция и створки гермоворот.
+     g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
+     g.drawImage(WORLD.main, -camI, yo);
+-    // 2. Динамика под освещением (освещается картой света).
++    this.drawGate(g, camI, yo);
++    // 3. Динамика под освещением (освещается картой света).
+     g.fillStyle = 'rgb(222,212,190)';
+     for (const d of FX.dust) { g.globalAlpha = d.a; g.fillRect(Math.round(d.x - camI), Math.round(d.y + yo), 1, 1); }
+     g.globalAlpha = 1;
+@@ -1048,38 +1356,69 @@
+     g.fillStyle = 'rgba(150,140,120,.5)';
+     for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
+     g.globalAlpha = 1;
+-    // 3. Персонаж и его тень.
++    if (yo > 0) { g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1); }
++    // 4. Жители, охрана, мутанты, затем герой.
++    this.drawActors(g, camI, yo);
+     const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
+     const fy = Math.round(Player.prevY + (Player.y - Player.prevY) * alpha) + yo;
+     if (Player.state === 'walk') {
+       g.fillStyle = 'rgba(0,0,0,.42)'; g.fillRect(px - 8, fy, 17, 1); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(px - 6, fy + 1, 13, 1);
+     }
+     const spr = Player.sprite();
+-    if (Player.state === 'climb' || Player.facing > 0) g.drawImage(spr, px - 13, fy - 40);
+-    else { g.save(); g.translate(px - 12 + SPRITE_W, fy - 40); g.scale(-1, 1); g.drawImage(spr, 0, 0); g.restore(); }
+-    // 4. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
++    if (spr) { g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, Player.state === 'walk' ? Player.facing : 1, 13); g.globalAlpha = 1; }
++    // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
+     this.drawLightmap(camX, frac, t, px, fy);
+     g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
+     g.globalCompositeOperation = 'source-over';
+-    // 5. Светящиеся элементы поверх темноты.
++    // 6. Светящиеся элементы поверх темноты.
+     this.drawEmissive(camX, frac, t);
+-    // 6. Передний план и виньетка.
++    // 7. Передний план и виньетка.
+     g.drawImage(WORLD.fore, this.sx(0, PF, camX, frac), yo);
+     g.drawImage(this.vignette, 0, 0);
+-    // 7. На экран: целый масштаб, сдвиг на дробную часть камеры, нижний край сцены = нижний край экрана.
++    // 8. На экран: целый масштаб, сдвиг на дробные части камеры по X и Y.
+     const s = this.scale;
+     this.ctx.imageSmoothingEnabled = false;
+-    this.ctx.drawImage(this.buf, Math.round(-frac * s), this.devH - vh * s, vw * s, vh * s);
++    this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
++  },
++  /** Створки гермоворот шлюза: уезжают в стены по мере открытия. */
++  drawGate(g, camI, yo) {
++    const G = WORLD.gate, x = G.x - camI;
++    if (x < -40 || x > this.viewW + 40) return;
++    const lw = Math.round(23 * (1 - G.open * 0.9)), top = 44 + yo;
++    const leaf = (lx) => {
++      R(g, lx, top, lw, 52, '#566064'); R(g, lx, top, lw, 1, '#7a868a');
++      for (let y = top + 6; y < top + 44; y += 10) R(g, lx + 2, y, Math.max(0, lw - 4), 1, '#46505a');
++      for (let yy = top + 44; yy < top + 50; yy++) for (let xx = lx; xx < lx + lw; xx++) R(g, xx, yy, 1, 1, ((xx + yy) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
++    };
++    if (lw > 0) { leaf(x - 23); leaf(x + 23 - lw); }
++    if (lw > 10) { disc(g, x + 23 - Math.round(lw / 2), top + 22, 5, '#3a4448'); disc(g, x + 23 - Math.round(lw / 2), top + 22, 3, '#6a767a'); }
++  },
++  drawActors(g, camI, yo) {
++    const vw = this.viewW + 1, vh = this.viewH;
++    for (const a of ACTORS) {
++      const spr = actorSprite(a);
++      if (a.kind === 'sleeper') {
++        const x = a.bed[0] - camI - spr.bb.x, y = a.bed[1] + yo - (spr.bb.y + spr.bb.h);
++        if (x < vw && x + spr.c.width > 0 && y < vh && y + spr.c.height > 0) g.drawImage(spr.c, x, y);
++        continue;
++      }
++      const x = Math.round(a.x) - camI, foot = a.y + yo, top = foot - (a.kind === 'mutant' ? 39 : 40);
++      if (x + 20 < 0 || x - 20 > vw || top > vh || foot < 0) continue;
++      if (a.kind !== 'sitter' && a.kind !== 'sitguard') { g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(x - 8, foot, 17, 1); }
++      blit(g, spr, x, top, a.facing, a.kind === 'mutant' ? 17 : 13);
++    }
+   },
+   drawLightmap(camX, frac, t, playerSX, playerFY) {
+     const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, A = CONFIG.AMBIENT;
+     gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
+     gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
++    const gy = Math.min(this.viewH, yo - 50);                           // снаружи — светлее: пыльные сумерки
++    if (gy > 0) { const S = CONFIG.AMBIENT_SURFACE; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }
+     gl.globalCompositeOperation = 'lighter';
+     let n = 0;
+     /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
+     const blob = (x, y, r, c, a, sy = 1, clip = null, p = 1) => {
+-      if (a <= 0.01 || x + r < 0 || x - r > vw) return;
++      if (a <= 0.01 || x + r < 0 || x - r > vw || y + r < 0 || y - r > this.viewH) return;
+       gl.save();
+       if (clip) {
+         const cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, p, camX, frac) : 0, cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, p, camX, frac) : vw;
+@@ -1099,7 +1438,7 @@
+       blob(x, y, l.r, l.c, l.i * l.power * 0.85, 1, l.clip, p);
+       if (l.pool) blob(x, 215 + yo, l.r * 0.75, l.c, l.i * 0.55, 0.22, l.clip, p);  // пятно света на полу
+     }
+-    const pClip = Player.state === 'climb' ? null : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
++    const pClip = Player.state !== 'walk' ? null : Player.floor === 'surface' ? SURF_CLIP : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
+     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5, 1, pClip);                 // мягкая подсветка героя для читаемости
+     this.drawnLights = n;
+   },
+@@ -1107,7 +1446,7 @@
+     const g = this.g, yo = this.yoff;
+     for (const e of WORLD.emissive) {
+       const p = e.layer === 'back' ? CONFIG.PARALLAX.BACK : 1, x = this.sx(e.x, p, camX, frac);
+-      if (x + e.w < 0 || x > this.viewW + 1) continue;
++      if (x + e.w < 0 || x > this.viewW + 1 || e.y + yo > this.viewH || e.y + yo + e.h < 0) continue;
+       let k = e.light ? e.light.i : 1;
+       if (e.mode === 'blink') k = noise1(t * 1.5, e.seed) > 0.35 ? 1 : 0.25;
+       if (e.mode === 'garland') k = 0.55 + 0.45 * Math.sin(t * 2 + e.seed);
+@@ -1120,6 +1459,8 @@
+     this.drawFire(this.sx(WORLD.fire.x, 1, camX, frac), WORLD.fire.y + yo, t);
+     const camI = Math.floor(camX);
+     for (const e of FX.embers) { g.fillStyle = e.life > 0.6 ? '#ffd27a' : '#e0703a'; g.fillRect(Math.round(e.x - camI), Math.round(e.y) + yo, 1, 1); }
++    g.fillStyle = '#dcec78';                                             // глаза мутантов в сумерках
++    for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
+     g.fillStyle = '#d8ecff';
+     for (const s of FX.sparks) g.fillRect(Math.round(s.x - camI), Math.round(s.y) + yo, 1, 1);
+     // Мягкие ореолы ламп и огня.
+@@ -1156,7 +1497,7 @@
+     if (dt > 0) this.fps += (1 / dt - this.fps) * 0.05;
+     if (!this.on) return;
+     this.el.textContent =
+-      `FPS   ${this.fps.toFixed(0)}\nX     ${Player.x.toFixed(1)}  v ${Player.vx.toFixed(1)}\nCAM   ${Camera.x.toFixed(2)}\n` +
++      `FPS   ${this.fps.toFixed(0)}\nX     ${Player.x.toFixed(1)}  v ${Player.vx.toFixed(1)}\nCAM   ${Camera.x.toFixed(2)} / ${Camera.y.toFixed(1)}\n` +
+       `FLOOR ${Player.floor} · ${Player.state}  Y ${Player.y.toFixed(1)}\n` +
+       `VIEW  ${Render.viewW}×${Render.viewH} ×${Render.scale}\nDPR   ${Render.dpr}  LIGHTS ${Render.drawnLights}\n` +
+       `INPUT ${Input.dir()}  BUILD ${Game.buildMs} мс`;
+@@ -1171,10 +1512,10 @@
+     this.els = { zone: document.getElementById('zone'), hint: document.getElementById('hint'), title: document.getElementById('title'),
+       padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act') };
+     const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
+-    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница · R — в центр';
++    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · R — в центр';
+       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
+     const t0 = performance.now();
+-    buildWorld(); buildSprites(); FX.init();
++    buildWorld(); buildSprites(); placeActors(); FX.init();
+     this.buildMs = Math.round(performance.now() - t0);
+     Render.init(document.getElementById('screen'));
+     Debug.init();
+@@ -1218,16 +1559,19 @@
+     Player.update(dt, dir, Input.takeAction());
+     Camera.update(dt, Player);
+     FX.update(dt, this.t, Camera.x, Render.viewW);
+-    this.els.padL.classList.toggle('on', dir < 0);
++    updateActors(dt);
++    const go = Player.gateOpenTarget();                                 // створки шлюза догоняют нужное положение
++    WORLD.gate.open = clamp(WORLD.gate.open + (go > WORLD.gate.open ? 1 : -1) * dt * 1.8, 0, 1);
++    this.els.padL.classList.toggle('on', dir < 0 && Player.state === 'walk');
+     this.els.padR.classList.toggle('on', dir > 0 && Player.state === 'walk');
+     this.updateZone();
+     this.updateAction();
+   },
+-  /** Кнопка лестницы видна только в радиусе лестницы и только когда персонаж стоит на полу. */
++  /** Кнопка действия видна только у лестницы или гермоворот и только когда персонаж стоит на полу. */
+   updateAction() {
+-    const near = Player.stairNearby();
+-    let label = near ? (near.dir === 'up' ? '▲ Подняться' : '▼ Спуститься') : '';
+-    if (label && !this.coarse) label += near.dir === 'up' ? '  ·  W' : '  ·  S';
++    const it = Player.interaction();
++    let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься') : it.from.label;
++    if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : '  ·  S';
+     if (label === this.actLabel) return;
+     this.actLabel = label;
+     this.els.act.textContent = label;
+@@ -1238,6 +1582,8 @@
+   updateZone() {
+     let z;
+     if (Player.state === 'climb') z = 'Лестница';
++    else if (Player.state === 'gate') z = 'Шлюз';
++    else if (Player.floor === 'surface') z = 'Поверхность · вестибюль';
+     else if (Player.floor === 'upper') {
+       const r = ROOMS.find(r => Player.x >= r.x - 5 && Player.x < r.x + r.w + 5);
+       z = r ? r.label[0] + r.label.slice(1).toLowerCase() : 'Верхний ярус';
