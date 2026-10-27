@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 0.7</title>
+<title>Последняя ветка 0.8</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -31,14 +31,6 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   font-size:11px;color:#d4ccb6;background:var(--panel);padding:6px 11px;border:1px solid var(--line);white-space:nowrap;
   pointer-events:none;transition:opacity 1s}
 #hint.gone{opacity:0}
-.pad{position:fixed;z-index:3;bottom:calc(env(safe-area-inset-bottom) + 14px);width:86px;height:86px;border-radius:50%;
-  background:rgba(8,11,14,.42);border:2px solid rgba(232,184,106,.38);display:grid;place-items:center;pointer-events:none;
-  transition:background .08s,transform .08s}
-.pad svg{width:34px;height:34px;fill:var(--gold);opacity:.9}
-#padL{left:calc(env(safe-area-inset-left) + 18px)}
-#padR{right:calc(env(safe-area-inset-right) + 18px)}
-.pad.on{background:rgba(232,184,106,.30);transform:scale(.93)}
-.desktop .pad{display:none}
 /* Контекстная кнопка «Подняться/Спуститься»: лежит поверх сенсорного слоя, поэтому не запускает ходьбу. */
 #act{position:fixed;z-index:4;left:50%;bottom:calc(env(safe-area-inset-bottom) + 20px);transform:translateX(-50%);min-width:176px;
   padding:15px 22px;background:rgba(14,12,8,.72);border:2px solid rgba(232,184,106,.75);color:var(--ink);font-size:14px;
@@ -47,9 +39,10 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 #act.press{background:rgba(232,184,106,.38)}
 /* Строка состояния сети в HUD — видна только при отключении питания. */
 .station .pw{display:block;margin-top:2px;font-size:11px;color:#ec8f6c}
+.station .cy{color:#e8b86a}
 /* Панель генератора: свой слой ввода поверх сенсорных половин экрана. */
 #gen{position:fixed;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);
-  width:min(310px,calc(100vw - 230px));min-width:240px;padding:7px 10px 8px;background:rgba(7,9,11,.9);border:1px solid var(--line);
+  width:min(360px,calc(100vw - 32px));padding:7px 10px 8px;background:rgba(7,9,11,.9);border:1px solid var(--line);
   font-size:11px;color:var(--ink);display:none;touch-action:none}
 #gen.show{display:block}
 .gen-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -67,12 +60,16 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 #gen button:active{background:rgba(232,184,106,.34)}
 /* Карточка осмотра (посты, доска объявлений) — тот же язык, что у панели генератора. */
 #card{position:fixed;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);
-  width:min(330px,calc(100vw - 230px));min-width:240px;padding:7px 10px 9px;background:rgba(7,9,11,.9);border:1px solid var(--line);
+  width:min(400px,calc(100vw - 32px));padding:7px 10px 9px;background:rgba(7,9,11,.92);border:1px solid var(--line);
   font-size:11px;color:var(--ink);display:none;touch-action:none}
 #card.show{display:block}
-#card .gen-head b{flex:1}
-#card button{font:inherit;color:var(--ink);background:rgba(232,184,106,.14);border:1px solid rgba(232,184,106,.55);width:34px;min-height:30px;cursor:pointer}
-.card-text{font-size:11.5px;line-height:1.5}
+#card .gen-head b{flex:1;font-size:11px}
+#cardIdx{color:var(--muted);font-variant-numeric:tabular-nums}
+#card button{font:inherit;color:var(--ink);background:rgba(232,184,106,.14);border:1px solid rgba(232,184,106,.55);min-width:36px;min-height:34px;cursor:pointer}
+#card button:active{background:rgba(232,184,106,.34)}
+.card-text{font-size:12px;line-height:1.45;min-height:3em}
+.card-btns{display:flex;justify-content:flex-end;margin-top:6px}
+#cardNext{min-width:120px!important;min-height:40px!important;font-size:13px!important}
 .gen-btns button{flex:1}
 #genClose{width:34px;min-height:30px!important;padding:0!important}
 #genReset{background:rgba(236,143,108,.16)!important;border-color:rgba(236,143,108,.6)!important}
@@ -98,16 +95,15 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <canvas id="screen"></canvas>
 <div id="touch"></div>
 <div id="hud">
-  <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span></div>
-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.7</button>
+  <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
+  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.8</button>
 </div>
-<div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
-<div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
-<div class="pad" id="padR"><svg viewBox="0 0 24 24"><path d="M8.5 4 17 12l-8.5 8z"/></svg></div>
+<div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
 <div id="card" role="dialog" aria-label="Осмотр">
-  <div class="gen-head"><b id="cardTitle"></b><button id="cardClose" type="button" aria-label="Закрыть">✕</button></div>
+  <div class="gen-head"><b id="cardTitle"></b><span id="cardIdx"></span><button id="cardClose" type="button" aria-label="Закрыть">✕</button></div>
   <div id="cardText" class="card-text"></div>
+  <div class="card-btns"><button id="cardNext" type="button">Далее ›</button></div>
 </div>
 <div id="gen" role="dialog" aria-label="Генератор">
   <div class="gen-head"><b>ГЕНЕРАТОР</b><span id="genState"></span><button id="genClose" type="button" aria-label="Закрыть">✕</button></div>
@@ -115,7 +111,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div class="gen-row"><span>Аккумулятор</span><div class="gen-bar batt"><i id="genBattBar"></i></div><span id="genBatt"></span></div>
   <div class="gen-note" id="genBattNote"></div>
   <div class="gen-row"><span>Канистры</span><span></span><span id="genCans"></span></div>
-  <div class="gen-btns"><button id="genToggle" type="button"></button><button id="genRefuel" type="button">Заправить</button><button id="genReset" type="button" hidden>Новая демонстрация</button></div>
+  <div class="gen-btns"><button id="genToggle" type="button"></button><button id="genRefuel" type="button">Заправить</button><button id="genDeliver" type="button" hidden></button><button id="genReset" type="button" hidden>Новая демонстрация</button></div>
   <div id="genMsg" class="gen-msg"></div>
 </div>
 <div id="debug"></div>
@@ -123,7 +119,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 0.7 «Архитектура и охрана»<br>
+    <p>Станция «Гагаринская» · прототип 0.8 «Живая станция»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -132,7 +128,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.7 «Архитектура и охрана»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.8 «Живая станция»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -143,13 +139,13 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '0.7',
+  VERSION: '0.8',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
   FLOORS: {
     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
-    upper:    { y: 98,  minX: 852, maxX: 1856 },  // площадка лестницы → мастерская → медпункт → энергоблок → шлюз → насосная
+    upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → галерея над маршем → мастерская → … → насосная
     surface:  { y: -61, minX: 1136, maxX: 1980 }, // улица у вестибюля: слева завал из обломков, справа забор
   },
   // Лестничные марши. from/to — этажи; bottom/top — площадки: x — где герой встаёт после перехода,
@@ -183,7 +179,8 @@ const CONFIG = {
     GEN_OUTPUT: 5.0,                  // выработка генератора, ед/с
     FUEL_RATE: 0.05,                  // расход топлива при работе, ед/с (15 ед — 5 минут работы)
     FUEL_START: 15, FUEL_MAX: 100,
-    CANISTER: 10, CANISTERS: 2,       // запас в канистре и их число; заправка — только если в баке свободно ≥ 10
+    CANISTER: 10, CANISTERS: 2,       // запас в канистре и стартовое число; заправка — только если в баке свободно ≥ 10
+    STORE_MAX: 6,                     // склад канистр в генераторной (0.8): сюда сдают найденное на поверхности
     BATT_CAP: 40, BATT_START: 30, CHARGE_MAX: 0.4,
     DEMAND: { critical: 0.8, technical: 1.2, platform: 1.4, living: 0.8 },   // порядок = приоритет при нехватке
     EMERGENCY: 0.35,                  // аварийный контур от аккумулятора, ед/с (30 ед — ~86 с)
@@ -210,17 +207,83 @@ const CONFIG = {
     { id: 'east-checkpoint', floor: 'platform', name: 'Пост 2 «К Московской»', type: 'security', circuit: 'technical', x: [1826, 2000], door: [1886, 1962] },
   ],
   /* Осмотр без перехода: data-driven, порядок после лестниц, ворот и генератора. */
+  /* Собеседники и охрана с фонарями (0.8): один источник истины для расстановки, разговоров и проверки реестра.
+     walk — участок, где ходит NPC; lamp — что он зажигает при блэкауте; tunnel — куда светит охрана поста. */
+  NPCS: {
+    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1, react: ['ТИХО...', 'НОРМ'] },
+    'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
+    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1 },
+    'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard',   x: 1884, facing: -1, lamp: 'lantern' },
+    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', x: 400, walk: [240, 630], speed: 20, lamp: 'candle', react: ['ТЕМНО!', 'О СВЕТ!'] },
+    cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle' },
+    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 382, facing: -1, lamp: 'candle' },
+    medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16 },
+    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', x: 1400, walk: [1340, 1460], speed: 24, react: ['ГЕНЕРАТОР!', 'РАБОТАЕТ'] },
+  },
+  /* Осмотры и разговоры: data-driven, порядок после лестниц, ворот и генератора. trigger — неподвижный участок;
+     npc + radius — разговор с NPC, участок считается от его текущей позиции. lines — реплики по кругу («Далее» / E). */
   INSPECTS: [
-    { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Осмотреть пост',
-      title: 'ПОСТ 1 · К «СПОРТИВНОЙ»',
-      text: 'Тоннель в сторону «Спортивной». Проход закрыт: гермодверь заперта, на посту дежурит охрана. Выход к соседним станциям — в будущих версиях.' },
+    { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Поговорить с охраной',
+      title: 'ПОСТ 1 · К «СПОРТИВНОЙ» · ОХРАНА', lines: [
+        '«За этой дверью дорога к „Спортивной“. Пока закрыто».',
+        '«Ночью за воротами снова кто-то стучал по рельсам».',
+        '«Фонарь проверяю каждый час. Когда сеть падает, он важнее винтовки».',
+        '«Пропуск? Нужна отметка начальника. Для своих правила те же».',
+        '«Если услышишь три коротких удара — отойди от двери».'] },
     { id: 'inspect-assembly-board', space: 'assembly', type: 'inspect', floor: 'platform', trigger: [894, 924], label: '◎ Объявления',
-      title: 'МЕСТО СОБРАНИЙ · ДОСКА',
-      text: 'Дежурства на постах — по графику, смена в 8:00 и 20:00. Собрание жителей — у трибуны. Пайки выдают по талонам в столовой. Объявления пока справочные.' },
-    { id: 'inspect-east-post', space: 'east-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [1828, 1850], label: '◎ Спросить охрану',
-      title: 'ПОСТ 2 · К «МОСКОВСКОЙ»',
-      text: '«За гермозатвором 2 — тоннель к „Московской“. Проход закрыт, без приказа начальника станции никого не пускаем».' },
+      title: 'ДОСКА «СБОР»', lines: [
+        'Смена караула. Западный пост заступает в 08:00, восточный — в 20:00. Опоздания отмечают в журнале.',
+        'Выдача пайков. Столовая ждёт жителей после утреннего обхода. Посуду приносить свою.',
+        'Экономия света. Без надобности не включать технические лампы. Генератор работает на остатках топлива.',
+        'Вода. Насосная просит сообщать о течах у колонн и мокрых пятнах возле кабелей.',
+        'Медпункт. При кашле и лихорадке — сначала к дежурному медику, затем в общее помещение.',
+        'Ремонт. Мастерской требуются изолента, провод, крепёж и рабочие фонари.',
+        'Выход наверх. Перед вылазкой сообщить на посту охраны, проверить фильтры и запасные батареи.',
+        'Тишина. После отбоя в жилом секторе не шуметь и не оставлять открытый огонь без присмотра.',
+        'Собрание жителей. Обсуждение запасов и дежурств — у трибуны. Право голоса — у каждого взрослого жителя.',
+        'Пропажа ключа. Кто нашёл связку с красной биркой — сдать начальнику смены.'] },
+    { id: 'inspect-east-post', space: 'east-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [1828, 1850], label: '◎ Поговорить с охраной',
+      title: 'ПОСТ 2 · К «МОСКОВСКОЙ» · ОХРАНА', lines: [
+        '«„Московская“ там, за гермозатвором. Но сегодня никто не проходит».',
+        '«Разведчики говорили, что в тоннеле стало сыро».',
+        '«За запасные батарейки готовы отдать половину ужина».',
+        '«До смены ещё далеко. Хочешь поговорить — говори тихо».',
+        '«Обе двери держим закрытыми. Лишняя осторожность никому не мешала».'] },
+    { id: 'talk-medic', type: 'talk', floor: 'upper', npc: 'medic', radius: 14, label: '◎ Поговорить с медиком', title: 'МЕДИК', lines: [
+        '«Сначала вымой руки, потом подходи к койкам».',
+        '«Лекарств мало. Не трать перевязочные материалы на мелочь».',
+        '«В темноте работать хуже всего. Береги генератор».',
+        '«Я видел людей после поверхности. Не выходи без подготовки».',
+        '«Здесь хотя бы тепло. Для больных это уже половина дела».'] },
+    { id: 'talk-mechanic', type: 'talk', floor: 'upper', npc: 'mechanic', radius: 14, label: '◎ Поговорить с механиком', title: 'МЕХАНИК ГЕНЕРАТОРНОЙ', lines: [
+        '«Двигатель ещё держится. Больше всего боюсь пустого бака».',
+        '«Топливо ищи наверху. В мастерской из воздуха его не сделаешь».',
+        '«Если погаснет свет, не лезь в щиток голыми руками».',
+        '«Аккумулятор нужен для аварийных маяков. Не растрачивай его зря».',
+        '«Пока мотор работает, станция дышит спокойнее».'] },
+    { id: 'talk-cook', type: 'talk', floor: 'upper', npc: 'cook', radius: 14, label: '◎ Поговорить с поваром', title: 'ПОВАР', lines: [
+        '«Сегодня горячее. Не спрашивай, из чего — лучше ешь».',
+        '«Посуду обратно принеси, не теряй».',
+        '«Чай ещё настаивается. Подходи попозже».',
+        '«Без света жаровня всё равно выручит».',
+        '«У нас на станции самый ценный звук — когда все сыты и молчат».'] },
+    { id: 'talk-resident', type: 'talk', floor: 'upper', npc: 'resident', radius: 14, label: '◎ Поговорить с жильцом', title: 'ЖИЛЕЦ', lines: [
+        '«Всю ночь слушал, как трубы звенят».',
+        '«За занавеской у нас своё маленькое жильё».',
+        '«На поверхности когда-то было шумно. Теперь страшно тихо».',
+        '«Детям рассказывают, что солнце ещё бывает ярким».',
+        '«Лишь бы свет не пропадал надолго».'] },
   ],
+  /* Поиск топлива на поверхности (0.8). once — разовая находка; refill — тайник разведчиков, пополняется
+     одной канистрой через CACHE_REFILL секунд активной игры после того, как его опустошили. */
+  SCAVENGE: {
+    CARRY_MAX: 2, CACHE_REFILL: 180, SAVE_KEY: 'pv.scavenge.v1',
+    SPOTS: [
+      { id: 'garage', kind: 'once',   floor: 'surface', trigger: [1188, 1214], label: '◎ Осмотреть гараж',  title: 'ГАРАЖ' },
+      { id: 'car',    kind: 'once',   floor: 'surface', trigger: [1426, 1460], label: '◎ Осмотреть машину', title: 'СГОРЕВШАЯ МАШИНА' },
+      { id: 'cache',  kind: 'refill', floor: 'surface', trigger: [1922, 1950], label: '◎ Тайник разведчиков', title: 'ТАЙНИК РАЗВЕДЧИКОВ' },
+    ],
+  },
   /* Реестр «Гагаринской 3.0»: уровни и замыслы. active — уже есть в игре, planned — только план. */
   STATION: {
     floors: [
@@ -332,6 +395,7 @@ const FONT_SRC = {
   '8':'01110100011000101110100011000101110','9':'01110100011000101111000010001001100',' ':'00000000000000000000000000000000000',
   '-':'00000000000000011111000000000000000',':':'00000001000010000000001000010000000','.':'00000000000000000000000000000000100',
   '!':'00100001000010000100001000000000100','№':'10010110101011010111100101001010011',
+  '◀':'00010001100111011110011100011000010','▶':'01000011000111001111011100110001000',
 };
 /** Рисует строку пиксельным шрифтом. Возвращает ширину. */
 function drawText(g, str, x, y, color, shadow = null, scale = 1) {
@@ -411,7 +475,7 @@ function createPower(cfg) {
       if (g.on) { g.on = false; this.message = 'Генератор остановлен'; }
       else if (g.fuel <= 0) {
         this.message = this.canisters > 0 ? 'Бак пуст — сначала заправьте из канистры'
-          : 'Топлива нет и канистры кончились — нажмите «Новая демонстрация»';
+          : 'Топлива нет и канистры кончились — ищите канистры на поверхности';
         return false;
       } else { g.on = true; this.message = 'Генератор запущен'; }
       this.refresh(); return true;
@@ -423,6 +487,13 @@ function createPower(cfg) {
       g.fuel += cfg.CANISTER; this.canisters -= 1; this.message = `Залито ${cfg.CANISTER} ед. топлива`;
       return true;
     },
+    /** Принять канистры на склад (сдача найденного); возвращает принятое число, лишнее остаётся у героя. */
+    store(n) {
+      if (!Number.isInteger(n) || n <= 0) return 0;
+      const k = Math.min(n, cfg.STORE_MAX - this.canisters);
+      if (k <= 0) { this.message = `Склад полон: ${this.canisters} из ${cfg.STORE_MAX}`; return 0; }
+      this.canisters += k; this.message = `На склад принято канистр: ${k}`; return k;
+    },
     reset() {
       this.generator.on = true; this.generator.fuel = cfg.FUEL_START; this.battery.charge = cfg.BATT_START;
       this.canisters = cfg.CANISTERS; this.message = 'Запасы восстановлены для новой демонстрации'; this.refresh();
@@ -431,7 +502,7 @@ function createPower(cfg) {
     /** Загрузка сохранения с проверкой типов и границ; при ошибке состояние не меняется. */
     restore(s) {
       if (!s || s.v !== 1 || typeof s.on !== 'boolean' || !num(s.fuel, 0, cfg.FUEL_MAX) || !num(s.charge, 0, cfg.BATT_CAP)
-        || !Number.isInteger(s.canisters) || s.canisters < 0 || s.canisters > cfg.CANISTERS) return false;
+        || !Number.isInteger(s.canisters) || s.canisters < 0 || s.canisters > cfg.STORE_MAX) return false;   // 0.6/0.7: 0–2, с 0.8: до склада
       this.generator.on = s.on && s.fuel > 0; this.generator.fuel = s.fuel; this.battery.charge = s.charge; this.canisters = s.canisters;
       this.refresh(); return true;
     },
@@ -441,11 +512,79 @@ function createPower(cfg) {
 }
 /* POWER:END */
 
+/* ============================== SCAVENGE ==================================
+   Поиск топлива: переносимый запас героя, разовые находки, тайник разведчиков. Время — только step(dt) игры:
+   перезагрузка и свёрнутая вкладка тайник не пополняют. Тестируется отдельно: node tests/scavenge.test.js */
+/* SCAVENGE:BEGIN */
+function createScavenge(cfg) {
+  const once = cfg.SPOTS.filter(s => s.kind === 'once').map(s => s.id);
+  const S = {
+    carried: 0, taken: {}, cache: { stock: 1, t: 0 }, message: '',
+    spot(id) { return cfg.SPOTS.find(s => s.id === id) || null; },
+    available(id) { const s = this.spot(id); return !!s && (s.kind === 'once' ? !this.taken[id] : this.cache.stock > 0); },
+    /** Пустой тайник пополняется одной канистрой через CACHE_REFILL с активной игры. */
+    step(dt) {
+      if (!(dt > 0) || !Number.isFinite(dt) || this.cache.stock > 0) return;
+      this.cache.t += dt;
+      if (this.cache.t >= cfg.CACHE_REFILL) { this.cache.stock = 1; this.cache.t = 0; }
+    },
+    /** Забрать канистру из точки в переносимый запас. Нет места — точка остаётся нетронутой. */
+    pick(id) {
+      const s = this.spot(id);
+      if (!s) { this.message = ''; return false; }
+      if (!this.available(id)) {
+        this.message = s.kind === 'once' ? 'Здесь уже пусто — канистру забрали.'
+          : `Тайник пуст. Разведчики пополнят его примерно через ${Math.max(1, Math.ceil(cfg.CACHE_REFILL - this.cache.t))} с.`;
+        return false;
+      }
+      if (this.carried >= cfg.CARRY_MAX) {
+        this.message = `Больше не унести: при себе ${this.carried} из ${cfg.CARRY_MAX}. Отнесите канистры в генераторную.`; return false;
+      }
+      this.carried += 1;
+      if (s.kind === 'once') this.taken[id] = true; else { this.cache.stock = 0; this.cache.t = 0; }
+      this.message = `Найдена канистра топлива. При себе ${this.carried} из ${cfg.CARRY_MAX}.`; return true;
+    },
+    /** Сдать всё, что несёт герой, на склад генераторной (power.store); возвращает сданное число. */
+    deliver(power) {
+      if (this.carried <= 0) { this.message = 'При себе нет канистр'; return 0; }
+      const n = power.store(this.carried); this.carried -= n; this.message = power.message; return n;
+    },
+    snapshot() { return { v: 1, carried: this.carried, taken: once.filter(id => this.taken[id]), cache: { stock: this.cache.stock, t: this.cache.t } }; },
+    /** Загрузка с проверкой; при ошибке состояние не меняется (энергосистему это не затрагивает). */
+    restore(s) {
+      const ok = s && s.v === 1 && Number.isInteger(s.carried) && s.carried >= 0 && s.carried <= cfg.CARRY_MAX
+        && Array.isArray(s.taken) && s.taken.every(id => once.includes(id)) && new Set(s.taken).size === s.taken.length
+        && s.cache && (s.cache.stock === 0 || s.cache.stock === 1)
+        && typeof s.cache.t === 'number' && Number.isFinite(s.cache.t) && s.cache.t >= 0 && s.cache.t <= cfg.CACHE_REFILL;
+      if (!ok) return false;
+      this.carried = s.carried; this.taken = {}; s.taken.forEach(id => { this.taken[id] = true; });
+      this.cache = { stock: s.cache.stock, t: s.cache.stock ? 0 : s.cache.t }; return true;
+    },
+  };
+  return S;
+}
+/** Курсор реплик: первое открытие — с первой строки, каждое следующее нажатие и новое открытие — следующая по кругу. */
+function createDialogCursor() {
+  const last = new Map();
+  return {
+    open(id, n) { const i = last.has(id) ? (last.get(id) + 1) % n : 0; last.set(id, i); return i; },
+    next(id, n) { const i = ((last.get(id) ?? -1) + 1) % n; last.set(id, i); return i; },
+    peek(id) { return last.get(id) ?? -1; },
+  };
+}
+/* SCAVENGE:END */
+
 /* =============================== STATION ==================================
    Реестр «Гагаринской 3.0»: проекция действующих данных (ROOMS, FLOORS, STAIRS, GATES, GENERATOR, SPACES, INSPECTS)
    плюс замыслы из CONFIG.STATION. Второго источника истины нет — активное собирается из рабочих конфигов.
    Блок между маркерами проверяется отдельно: node tests/station.test.js */
 /* STATION:BEGIN */
+/** Участок действия: неподвижный trigger или зона разговора — весь путь NPC плюс радиус. */
+function inspectZone(cfg, i) {
+  if (i.trigger) return i.trigger;
+  const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
+  const [a, b] = n.walk || [n.x, n.x]; return [a - i.radius, b + i.radius];
+}
 function buildStationPlan(cfg, rooms) {
   const st = cfg.STATION, act = 'active';
   const plan = {
@@ -466,7 +605,9 @@ function buildStationPlan(cfg, rooms) {
                                   { id: `stair-${s.id}-top`, kind: 'stair', floor: s.to, trigger: s.top.trigger }]),
       ...cfg.GATES.flatMap(g => [g.a, g.b].map((e, k) => ({ id: `gate-${g.id}-${k ? 'b' : 'a'}`, kind: 'gate', floor: e.floor, trigger: [e.x - g.radius, e.x + g.radius] }))),
       { id: 'generator', kind: 'generator', floor: cfg.GENERATOR.floor, trigger: cfg.GENERATOR.trigger },
-      ...cfg.INSPECTS.map(i => ({ id: i.id, kind: 'inspect', floor: i.floor, trigger: i.trigger, space: i.space, type: i.type })),
+      ...cfg.INSPECTS.map(i => ({ id: i.id, kind: 'inspect', floor: i.floor, trigger: inspectZone(cfg, i), space: i.space, type: i.type,
+        npc: i.npc, lines: i.lines })),
+      ...cfg.SCAVENGE.SPOTS.map(sp => ({ id: 'scavenge-' + sp.id, kind: 'scavenge', floor: sp.floor, trigger: sp.trigger })),
     ],
   };
   return plan;
@@ -509,6 +650,25 @@ function validateStationPlan(plan, cfg) {
     if (!(a < b)) err.push(`действие ${i.id}: пустой участок`);
     if (b < F.minX || a > F.maxX) err.push(`действие ${i.id} недостижимо (${a}–${b} вне ${F.minX}–${F.maxX})`);
     if (i.space && !plan.rooms.some(r => r.id === i.space && r.status === 'active')) err.push(`действие ${i.id}: нет действующего пространства ${i.space}`);
+    if (i.kind === 'inspect') {
+      if (!Array.isArray(i.lines) || !i.lines.length || i.lines.some(l => typeof l !== 'string' || !l.trim())) err.push(`действие ${i.id}: нет реплик`);
+      else if (new Set(i.lines).size !== i.lines.length) err.push(`действие ${i.id}: повтор реплик`);
+    }
+    if (i.npc !== undefined) {
+      const n = cfg.NPCS[i.npc];
+      if (!n) err.push(`разговор ${i.id}: нет NPC ${i.npc}`);
+      else {
+        if (n.floor !== i.floor) err.push(`разговор ${i.id}: NPC ${i.npc} на другом этаже`);
+        const [na, nb] = n.walk || [n.x, n.x];
+        if (f.legacyFloor === 'upper' && !plan.rooms.some(r => r.status === 'active' && r.floor === 'upper' && r.x && na >= r.x[0] + 4 && nb <= r.x[1] - 4))
+          err.push(`разговор ${i.id}: NPC ${i.npc} ходит не в пределах одной комнаты`);
+      }
+    }
+  }
+  for (const r of plan.rooms) {                                              // действующие комнаты яруса — достижимы
+    if (r.status !== 'active' || r.floor !== 'upper' || !r.x) continue;
+    const U = cfg.FLOORS.upper;
+    if (r.x[1] - 4 < U.minX || r.x[0] + 4 > U.maxX) err.push(`комната ${r.id} недоступна: вне ${U.minX}–${U.maxX}`);
   }
   for (let m = 0; m < it.length; m++) for (let n = m + 1; n < it.length; n++)
     if (it[m].floor === it[n].floor && it[m].trigger[0] <= it[n].trigger[1] && it[n].trigger[0] <= it[m].trigger[1])
@@ -517,6 +677,7 @@ function validateStationPlan(plan, cfg) {
 }
 /* STATION:END */
 const Power = createPower(CONFIG.POWER);
+const Scavenge = createScavenge(CONFIG.SCAVENGE);
 /** Видимый уровень цепей: плавно догоняет модель (доли секунды), один и тот же для света, свечения и ореолов. */
 const PowerView = {
   levels: {}, main: 1,
@@ -706,14 +867,15 @@ const ROOM_DRAW = {
     ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, r.x + 172 + k * 10, 35, 6, 7, c));
     for (let k = 0; k < 3; k++) { R(g, r.x + 40 + k * 14, 34, 1, 6, '#2a2a2a'); R(g, r.x + 37 + k * 14, 40, 8, 5, '#5c6266'); }
   },
-  /** Лестничная клетка на месте расчищенного завала: обломки остались у западной стены. */
+  /** Лестничная клетка: завал разобран (проход на запад открыт), обломки сложены на стене-полке; таблички направлений. */
   stairwell(g, r) {
-    for (let k = 0; k < 24; k++) {
-      const h = Math.max(0, Math.round(30 - k * 1.3 + (hash(k, 3) - 0.5) * 8));
-      for (let y = 0; y < h; y++) R(g, r.x + 4 + k, 95 - y, 1, 1, rgb([60, 60, 58], 0.55 + hash(k, y) * 0.5 - y / 120));
+    for (let k = 0; k < 22; k++) {                                           // остатки завала на кронштейнах у потолка
+      const h = Math.max(0, Math.round(6 - Math.abs(k - 11) * 0.5 + (hash(k, 3) - 0.5) * 3));
+      for (let y = 0; y < h; y++) R(g, r.x + 40 + k, 44 - y, 1, 1, rgb([60, 60, 58], 0.6 + hash(k, y) * 0.5));
     }
-    L(g, r.x + 6, 52, r.x + 24, 92, '#4c5052', 3);                          // обломок балки
-    for (let y = 40; y < 90; y++) R(g, r.x + 30, y, 1, 1, ((y >> 2) % 2) ? '#c8a03c' : '#1a1a1a');   // лента ограждения
+    R(g, r.x + 38, 45, 26, 2, '#4a4e50'); L(g, r.x + 40, 47, r.x + 46, 53, '#3a3e40'); L(g, r.x + 62, 47, r.x + 56, 53, '#3a3e40');
+    drawText(g, '◀ ЖИЛЬЕ', r.x + 8, 58, '#c8b88a', 'rgba(0,0,0,.45)');
+    drawText(g, 'ТЕХ ▶', r.x + r.w - 32, 58, '#c8b88a', 'rgba(0,0,0,.45)');
   },
   workshop(g, r) {
     R(g, r.x + 20, 78, 136, 5, '#76553e'); R(g, r.x + 20, 78, 136, 1, '#9a7656');
@@ -832,6 +994,7 @@ function drawEnds(g) {
   for (let y = 204; y < 211; y++) for (let x = 17; x < 47; x++) R(g, x, y, 1, 1, ((x + y) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
   R(g, 27, 175, 10, 3, '#0e1012'); disc(g, 32, 192, 6, '#3a4246'); disc(g, 32, 192, 4, '#6a767a'); disc(g, 32, 192, 2, '#3a4246');
   drawText(g, 'ПОСТ 1', 15, 142, '#c8b88a', 'rgba(0,0,0,.5)');
+  addBeacon(g, 32, 158);                                                     // аварийный маяк над гермодверью (0.8), как у Поста 2
   R(g, 54, 146, 2, 8, '#2a2c2e'); R(g, 51, 153, 9, 3, '#545a5c'); R(g, 51, 153, 9, 1, '#70767a');
   const wl = addLight(56, 158, 74, [210, 226, 236], 'steady', 0.9, 'main', 'technical');          // служебная лампа поста
   addEmissive(53, 156, 5, 1, [230, 246, 255], wl);
@@ -1043,7 +1206,9 @@ function drawFore(g, w) {
 }
 
 /* ---------- MAIN: проёмы между комнатами верхнего яруса и лестница ---------- */
-const DOORWAYS = [[856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];          // [левый край, правый край] прохода
+const DOORWAYS = [[426, 444], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
+/** Задняя галерея над проёмом марша (вдоль дальней стены лестничной клетки): x — от и до, по ней идут по ярусу. */
+const GALLERY = { x0: 744, x1: 856 };
 function drawDoorways(g) {
   DOORWAYS.forEach(([a, b]) => {
     R(g, a, 50, b - a, 46, '#14171a');                                  // тёмный проём
@@ -1071,6 +1236,7 @@ function drawStairs(g) {
     const conc = (x, y, v) => { const n = (hash(x, y + 404) - 0.5) * 10; R(g, x, y, 1, 1, rgb([v + n, v - 4 + n, v - 10 + n])); };
     R(g, h0, 96, h1 - h0, 26, '#121417');                               // проём сквозь пол и перекрытие
     R(g, h0 - 1, 96, 1, 26, '#6e706c'); R(g, h0 - 1, 121, h1 - h0 + 1, 1, '#3a3c3e');
+    drawGallery(g, h0, h1);
     // Опорная тумба у подножия.
     for (let x = x0 - 6; x < x0 + 26; x++) for (let y = yb - 14; y < yb; y++)
       conc(x, y, y === yb - 14 ? 138 : x === x0 - 6 ? 116 : y >= yb - 2 ? 62 : 92);
@@ -1089,7 +1255,19 @@ function drawStairs(g) {
     for (let y = stairTopY(s, x1 - 1); y < underside(x1 - 1); y++) R(g, x1, y, 1, 1, '#4a4844');   // торец у площадки
   });
 }
-/** Перила вдоль марша. Рисуются позади героя, а пока он идёт по маршу — перед ним. */
+/** Задняя галерея над проёмом: решётчатый настил вровень с полом яруса, кронштейны в стену, перила со стойками.
+    Рисуется до ступеней — марш проходит перед ней; поднимающийся по маршу не задевает настил головой. */
+function drawGallery(g, h0, h1) {
+  for (let x = h0; x < h1; x++) {
+    R(g, x, 95, 1, 1, '#9a9e96'); R(g, x, 96, 1, 1, '#6e726c'); R(g, x, 97, 1, 2, (x % 3) ? '#4a4e50' : '#22262a'); R(g, x, 99, 1, 1, '#1c1e20');
+  }
+  R(g, h0, 100, h1 - h0, 2, '#2e3234');                                  // швеллер под настилом
+  for (let x = h0 + 6; x < h1 - 4; x += 22) { L(g, x, 102, x + 10, 114, '#4a4e50', 2); R(g, x - 1, 101, 3, 2, '#3a3e40'); }   // кронштейны
+  for (let x = h0 - 2; x <= h1 + 2; x++) { R(g, x, 79, 1, 1, '#8c8e86'); R(g, x, 80, 1, 1, '#45484a'); R(g, x, 88, 1, 1, '#5a5e5a'); }
+  for (let x = h0; x <= h1; x += 16) R(g, x, 81, 1, 15, '#55595a');
+  R(g, h1, 81, 1, 15, '#55595a');
+}
+/** Перила вдоль марша. Рисуются позади героя, а пока он идёт по маршу или по галерее за ним — перед ним. */
 function drawRail(g, s, camI, yo) {
   const { x0, x1 } = s.run, yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y;
   const railY = x => Math.round(yb - (x - x0) * (yb - yt) / (x1 - x0)) - 15;
@@ -1158,6 +1336,16 @@ function buildSurface() {
     R2(lx, GROUND_Y - 44, 2, 44, '#3a3c3c'); L(gm, lx, surfRow(GROUND_Y - 44), lx + d * 10, surfRow(GROUND_Y - 52), '#3a3c3c', 2);
     R2(lx + d * 10 - 3, GROUND_Y - 52, 7, 2, '#4a4c4c');
   });
+  // Гараж-ракушка (поиск топлива): корпус здесь, створка — в кадре (открыта, когда обыскан).
+  R2(1176, GROUND_Y - 32, 50, 32, '#4a4e4c'); R2(1174, GROUND_Y - 35, 54, 4, '#5e625e'); R2(1174, GROUND_Y - 35, 54, 1, '#7a7e78');
+  for (let x = 1178; x < 1226; x += 4) R2(x, GROUND_Y - 31, 1, 31, '#3e4240');
+  R2(1186, GROUND_Y - 28, 30, 28, '#141618'); R2(1185, GROUND_Y - 29, 32, 1, '#2a2c2c');
+  for (let k = 0; k < 6; k++) R2(1178 + k * 8, GROUND_Y - 34 + (k % 2), 4, 2, 'rgba(110,60,40,.55)');   // ржавчина
+  drawText(gm, '17', 1218, surfRow(GROUND_Y - 27), '#8a8a80', null);
+  // Тайник разведчиков у забора: мешки, ящик, мелом — знак «Р».
+  for (let k = 0; k < 4; k++) { R2(1918 + k * 11, GROUND_Y - 6, 12, 6, '#776c52'); R2(1919 + k * 11, GROUND_Y - 6, 10, 1, '#9a8e6c'); }
+  R2(1926, GROUND_Y - 16, 22, 10, '#5a4630'); R2(1926, GROUND_Y - 16, 22, 1, '#7a6040'); R2(1926, GROUND_Y - 11, 22, 1, '#3e3020');
+  drawText(gm, 'Р', 1934, surfRow(GROUND_Y - 15), '#d8d0c0', null);
   const cx = 1420;                                                        // сгоревшая машина
   R2(cx, GROUND_Y - 13, 46, 9, '#4e3a2e'); R2(cx + 9, GROUND_Y - 21, 24, 8, '#3e3028'); R2(cx + 12, GROUND_Y - 19, 8, 5, '#16181a'); R2(cx + 22, GROUND_Y - 19, 8, 5, '#16181a');
   R2(cx, GROUND_Y - 13, 46, 1, '#6a5040'); for (let k = 0; k < 8; k++) R2(cx + 3 + k * 5, GROUND_Y - 10, 3, 2, '#6a3e26');
@@ -1395,25 +1583,27 @@ function buildSprites() {
          sitter / sitguard (сидит) · sleeper (лежит) · mutant (бродит по улице). */
 const ACTORS = [];
 function actor(kind, set, x, y, o = {}) {
-  ACTORS.push({ kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
+  const a = { kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
     wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed,
-    react: o.react || null, bubble: null });
+    react: o.react || null, bubble: null, id: o.id || null, lampType: o.lamp || null, tunnel: o.tunnel || 0,
+    lamp: 0, lampWant: false, lampDelay: 0, talkT: 0 };
+  ACTORS.push(a); return a;
 }
+/** Персонаж из CONFIG.NPCS (охрана постов, собеседники, жители со свечами). */
+function npcActor(id) {
+  const n = CONFIG.NPCS[id], [a, b] = n.walk || [n.x, n.x];
+  return actor(n.kind, n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, facing: n.facing, minX: a, maxX: b, speed: n.speed, react: n.react, lamp: n.lamp, tunnel: n.tunnel });
+}
+const npcById = id => ACTORS.find(a => a.id === id) || null;
 function placeActors() {
   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
-  actor('guard', 'guard', 158, P, { facing: -1, react: ['ТИХО...', 'НОРМ'] }); actor('guard', 'guard', 118, P, { facing: 1 });   // западная баррикада
-  actor('guard', 'guard', 1864, P, { facing: 1 }); actor('sitguard', 'guard', 1884, P, { facing: -1 });     // гермозатвор
+  Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
   actor('guard', 'guard', 1600, U, { facing: 1 }); actor('guard', 'guard', 1670, U, { facing: -1 });       // шлюз на поверхность
   actor('walker', 'worker', 1000, U, { minX: 900, maxX: 1100, speed: 22 });                                // мастерская
-  actor('walker', 'medic', 1200, U, { minX: 1172, maxX: 1232, speed: 16 });                                // медпункт
-  actor('walker', 'worker2', 1430, U, { minX: 1340, maxX: 1520, speed: 24, react: ['ГЕНЕРАТОР!', 'РАБОТАЕТ'] });   // энергоблок
   actor('walker', 'worker', 1800, U, { minX: 1748, maxX: 1852, speed: 18 });                               // насосная
   actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
-  actor('sitter', 'resC', 382, U, { facing: -1 });                                                          // жилой блок
   actor('sitter', 'resA', 492, U, { facing: 1 }); actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
-  actor('idle', 'resA', 648, U, { facing: 1 });                                                             // повар у буржуйки
   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
-  actor('walker', 'resC', 400, P, { minX: 240, maxX: 630, speed: 20, react: ['ТЕМНО!', 'О СВЕТ!'] });   // жилой сектор, не заходит на марш
   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
@@ -1433,6 +1623,8 @@ function updateActors(dt) {
   for (const a of ACTORS) {
     a.t += dt; a.blinkT -= dt; if (a.blinkT < -0.12) a.blinkT = 2 + rand() * 4;
     if (a.bubble && (a.bubble.t -= dt) <= 0) a.bubble = null;
+    if (a.lampWant && a.tunnel) { a.facing = a.tunnel; continue; }       // блэкаут: охрана светит в тоннель и не оглядывается
+    if (a.talkT > 0) { a.talkT -= dt; a.moving = false; continue; }       // разговаривает с героем — стоит на месте
     if (a.kind === 'guard' || a.kind === 'idle') { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = (a.kind === 'guard' ? 3 : 6) + rand() * 5; } }
     if (a.kind !== 'walker' && a.kind !== 'mutant') continue;
     if (a.wait > 0) { a.wait -= dt; a.moving = false; continue; }
@@ -1441,6 +1633,35 @@ function updateActors(dt) {
     const step = Math.min(Math.abs(d), a.speed * dt);
     a.x += Math.sign(d) * step; a.facing = Math.sign(d); a.walkDist += step; a.moving = true;
   }
+}
+/** Ручные фонари и свечи: при обесточенной цепи своего места NPC зажигает свет через 0.5–2 с (по порядку),
+    при возвращении питания — гасит. Свет независимый: не от сети и не от аккумулятора. */
+function updateLamps(dt) {
+  let k = 0;
+  for (const a of ACTORS) {
+    if (!a.lampType) continue;
+    const want = Power.level(actorCircuit(a)) === 0;
+    if (want !== a.lampWant) { a.lampWant = want; a.lampDelay = 0.5 + ((k * 0.37) % 1.5); }
+    k++;
+    if (a.lampDelay > 0) { a.lampDelay -= dt; continue; }
+    a.lamp = clamp(a.lamp + (want ? dt * 2.5 : -dt), 0, 1);
+  }
+}
+/** Цепь, от которой зависит свет вокруг NPC: на ярусе — цепь комнаты, на платформе — зона зала. */
+function actorCircuit(a) {
+  if (a.y < 108) { const r = ROOMS.find(r => a.x >= r.x && a.x < r.x + r.w); return r ? r.circuit : 'technical'; }
+  return CONFIG.CIRCUIT_ZONES.hall.find(([to]) => a.x < to)[1];
+}
+/** Прямоугольник, за который свет NPC не выходит: комната яруса или зал. */
+function actorClip(a) {
+  if (a.y < 108) { const r = ROOMS.find(r => a.x >= r.x && a.x < r.x + r.w); return r ? { x0: r.x + 4, x1: r.x + r.w - 4, y0: 19, y1: 100 } : UPPER_CLIP; }
+  return a.y < 0 ? SURF_CLIP : HALL_CLIP;
+}
+/** Точка света в руке NPC (мировые координаты). */
+function lampPoint(a) {
+  const sit = a.kind === 'sitter' || a.kind === 'sitguard';
+  if (a.lampType === 'beam') return [Math.round(a.x) + a.facing * 7, a.y - 25];
+  return [Math.round(a.x) + a.facing * (sit ? 8 : 7), a.y - (sit ? 13 : 19)];
 }
 function actorSprite(a) {
   const s = SETS[a.set];
@@ -1526,8 +1747,14 @@ const Player = {
         if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
     const G = CONFIG.GENERATOR;
     if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
-    for (const item of CONFIG.INSPECTS)
-      if (this.floor === item.floor && inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' };
+    for (const item of CONFIG.INSPECTS) {
+      if (this.floor !== item.floor) continue;
+      if (item.trigger) { if (inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' }; continue; }
+      const a = npcById(item.npc);                                       // разговор: от текущей позиции NPC
+      if (a && Math.abs(this.x - a.x) <= item.radius) return { kind: 'inspect', item, dir: 'use' };
+    }
+    for (const spot of CONFIG.SCAVENGE.SPOTS)
+      if (this.floor === spot.floor && inside(this.x, spot.trigger)) return { kind: 'scavenge', item: spot, dir: 'use' };
     return null;
   },
   update(dt, dir, action) {
@@ -1728,7 +1955,23 @@ function lightIntensity(l, t) {
 const Render = {
   canvas: null, ctx: null, buf: null, g: null, light: null, gl: null, vignette: null, fireLayer: null, occ: [],
   scale: 1, viewW: 480, viewH: 270, yoff: 0, devW: 0, devH: 0, dpr: 1, drawnLights: 0,
-  init(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d', { alpha: false }); this.fireLayer = makeCanvas(64, 100); this.resize(); },
+  init(canvas) { this.canvas = canvas; this.ctx = canvas.getContext('2d', { alpha: false }); this.fireLayer = makeCanvas(64, 100); this.beamTex = this.makeBeam(); this.resize(); },
+  /** Пятно света радиуса r того же профиля, что blob(); создаётся один раз на радиус и цвет. */
+  lampDisc(r, c) {
+    const key = r + ':' + c; this.discs = this.discs || {};
+    if (this.discs[key]) return this.discs[key];
+    const t = makeCanvas(2 * r, 2 * r), b = t.getContext('2d'), grd = b.createRadialGradient(r, r, 0, r, r, r);
+    grd.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`); grd.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},.5)`); grd.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+    b.fillStyle = grd; b.fillRect(0, 0, 2 * r, 2 * r); return (this.discs[key] = t);
+  },
+  /** Текстура луча ручного фонаря (один раз): конус длиной 120 с затуханием; вершина — в точке (2, 18). */
+  makeBeam() {
+    const L = 120, c = makeCanvas(L + 4, 60), b = c.getContext('2d'), ax = 2, ay = 18;
+    b.beginPath(); b.moveTo(ax, ay); b.lineTo(ax + L, ay - 16); b.lineTo(ax + L, ay + 40); b.closePath(); b.clip();
+    const grd = b.createRadialGradient(ax, ay, 0, ax, ay, L);
+    grd.addColorStop(0, 'rgba(235,240,255,.9)'); grd.addColorStop(0.5, 'rgba(200,212,235,.45)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+    b.fillStyle = grd; b.fillRect(0, 0, c.width, c.height); return c;
+  },
   /** Подбор целочисленного масштаба под экран; вызывается при повороте/изменении размера. */
   resize() {
     const vv = window.visualViewport, cssW = Math.round(vv ? vv.width : innerWidth), cssH = Math.round(vv ? vv.height : innerHeight);
@@ -1741,6 +1984,10 @@ const Render = {
     this.viewW = Math.min(W, Math.ceil(this.devW / this.scale));
     this.buf = makeCanvas(this.viewW + 1, this.viewH); this.g = this.buf.getContext('2d');
     this.light = makeCanvas(this.viewW + 1, this.viewH); this.gl = this.light.getContext('2d');
+    // Буфер свечения: сюда попадают лампочки, табло, маяки, искры и ореолы, которые оказались позади персонажа;
+    // из буфера вырезаются силуэты, поэтому светящиеся пиксели стены не ложатся поверх одежды.
+    // Создаётся только при изменении размера; очищается лишь использованный прямоугольник.
+    this.glow = makeCanvas(this.viewW + 1, this.viewH); this.gg = this.glow.getContext('2d');
     this.vignette = this.makeVignette();
     Camera.viewW = this.viewW; Camera.viewH = this.devH / this.scale;
     this.ctx.imageSmoothingEnabled = false;
@@ -1770,6 +2017,7 @@ const Render = {
     g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
     g.drawImage(WORLD.main, -camI, yo);
     this.drawGate(g, camI, yo);
+    if (yo > 0) this.drawScavenge(g, camI, yo);
     // 3. Динамика под освещением (освещается картой света).
     g.fillStyle = 'rgb(222,212,190)';
     for (const d of FX.dust) { g.globalAlpha = d.a; g.fillRect(Math.round(d.x - camI), Math.round(d.y + yo), 1, 1); }
@@ -1783,7 +2031,8 @@ const Render = {
     if (yo > 0) { g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1); }
     // 4. Перила (позади героя), жители, охрана, мутанты, затем герой.
     const onStairs = Player.state === 'stairs';
-    if (!onStairs) CONFIG.STAIRS.forEach(st => drawRail(g, st, camI, yo));
+    const onGallery = Player.state === 'walk' && Player.floor === 'upper' && Player.x >= GALLERY.x0 && Player.x <= GALLERY.x1;
+    if (!onStairs && !onGallery) CONFIG.STAIRS.forEach(st => drawRail(g, st, camI, yo));
     this.occ.length = 0;
     this.drawActors(g, camI, yo);
     const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
@@ -1793,11 +2042,14 @@ const Render = {
     }
     const spr = Player.sprite();
     const pFacing = Player.state === 'gate' ? 1 : Player.facing;
+    this.playerOcc = null;
     if (spr) {
       g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
-      this.occ.push({ spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha });
+      this.playerOcc = { spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha };
+      this.occ.push(this.playerOcc);
     }
     if (onStairs) drawRail(g, Player.path.stair, camI, yo);
+    if (onGallery) CONFIG.STAIRS.forEach(st => drawRail(g, st, camI, yo));   // галерея в глубине: перила марша перед героем
     // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
     this.drawLightmap(camX, frac, t, px, fy);
     g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
@@ -1873,15 +2125,49 @@ const Render = {
       blob(x, y, l.r, l.c, l.i * l.power * 0.85, 1, l.clip, p);
       if (l.pool) blob(x, 215 + yo, l.r * 0.75, l.c, l.i * 0.55, 0.22, l.clip, p);  // пятно света на полу
     }
+    // Ручные фонари и свечи NPC: свой свет, не зависит от сети; не выходит за стены комнаты и перекрытия.
+    for (const a of ACTORS) {
+      if (a.lamp < 0.01) continue;
+      const [wx, wy] = lampPoint(a), x = this.sx(wx, 1, camX, frac), y = wy + yo, clip = actorClip(a);
+      const fl = a.lampType === 'candle' ? 0.82 + 0.18 * noise1(t * 7, a.x) : 1;
+      const disc = (r, c, al, dy = 0) => {                              // готовое пятно света (кэш текстур, без градиента в кадре)
+        const tex = this.lampDisc(r, c), cc = clip;
+        gl.save();
+        const cx0 = cc.x0 > -1e9 ? this.sx(cc.x0, 1, camX, frac) : 0, cx1 = cc.x1 < 1e9 ? this.sx(cc.x1, 1, camX, frac) : vw;
+        gl.beginPath(); gl.rect(cx0, cc.y0 + yo, cx1 - cx0, (cc.y1 < 1e9 ? cc.y1 + yo : this.viewH) - (cc.y0 + yo)); gl.clip();
+        gl.globalAlpha = Math.min(1, al); gl.drawImage(tex, x - r, y + dy - r); gl.restore(); n++;
+      };
+      if (a.lampType === 'beam') {
+        disc(26, [200, 210, 225], 0.35 * a.lamp, 6);                          // рассеянный свет вокруг охранника
+        gl.save();                                                       // конус из готовой текстуры: от руки к тоннелю, чуть вниз
+        const c = clip, cx0 = c.x0 > -1e9 ? this.sx(c.x0, 1, camX, frac) : 0, cx1 = c.x1 < 1e9 ? this.sx(c.x1, 1, camX, frac) : vw;
+        gl.beginPath(); gl.rect(cx0, c.y0 + yo, cx1 - cx0, (c.y1 < 1e9 ? c.y1 + yo : this.viewH) - (c.y0 + yo)); gl.clip();
+        gl.globalAlpha = a.lamp;
+        if (a.facing > 0) gl.drawImage(this.beamTex, x - 2, y - 18);
+        else { gl.translate(x, 0); gl.scale(-1, 1); gl.drawImage(this.beamTex, -2, y - 18); }
+        gl.restore(); n++;
+      } else disc(a.lampType === 'lantern' ? 46 : 36, [255, 172, 96], (a.lampType === 'lantern' ? 0.8 : 0.7) * a.lamp * fl);
+    }
     const pClip = Player.state !== 'walk' ? null : Player.floor === 'surface' ? SURF_CLIP : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
     this.drawnLights = n;
   },
   drawEmissive(camX, frac, t) {
-    const g = this.g, yo = this.yoff;
+    const g = this.g, gg = this.gg, yo = this.yoff, vw = this.viewW + 1, vh = this.viewH;
+    // Прямоугольники персонажей: свечение, которое их не задевает, рисуется прямо в кадр (как раньше, без затрат);
+    // задевающее — в буфер, из которого потом вырезаются силуэты.
+    const boxes = this.occ.map(o => [o.cx - o.half - 1, o.top, o.cx + o.half + 1, o.top + SPRITE_H]);
+    let d = null;
+    const route = (x0, y0, x1, y1) => {
+      for (const b of boxes) if (x0 < b[2] && x1 > b[0] && y0 < b[3] && y1 > b[1]) {
+        if (!d) d = [x0, y0, x1, y1]; else { d[0] = Math.min(d[0], x0); d[1] = Math.min(d[1], y0); d[2] = Math.max(d[2], x1); d[3] = Math.max(d[3], y1); }
+        return gg;
+      }
+      return g;
+    };
     for (const e of WORLD.emissive) {
       const p = e.layer === 'back' ? CONFIG.PARALLAX.BACK : 1, x = this.sx(e.x, p, camX, frac);
-      if (x + e.w < 0 || x > this.viewW + 1 || e.y + yo > this.viewH || e.y + yo + e.h < 0) continue;
+      if (x + e.w < 0 || x > vw || e.y + yo > vh || e.y + yo + e.h < 0) continue;
       let k = e.light ? e.light.i : 1;
       if (e.mode === 'blink') k = noise1(t * 1.5, e.seed) > 0.35 ? 1 : 0.25;
       if (e.mode === 'garland') k = 0.55 + 0.45 * Math.sin(t * 2 + e.seed);
@@ -1889,28 +2175,85 @@ const Render = {
       if (!e.light) k *= powerLevel(e.circuit);                       // у свечения с источником уровень уже в e.light.i
       const c = e.mode === 'gen' ? (Power.running() ? [110, 230, 120] : [230, 80, 60]) : e.c;
       if (k < 0.12) continue;
-      g.fillStyle = rgb(c, 0.35 + 0.65 * k);
-      g.fillRect(x, e.y + yo, e.w, e.h);
-      if (e.mode === 'screen') { g.fillStyle = 'rgba(10,30,26,.5)'; for (let y = e.y + yo + 1; y < e.y + yo + e.h; y += 2) g.fillRect(x, y, e.w, 1); }
+      const tg = route(x, e.y + yo, x + e.w, e.y + yo + e.h);
+      tg.fillStyle = rgb(c, 0.35 + 0.65 * k);
+      tg.fillRect(x, e.y + yo, e.w, e.h);
+      if (e.mode === 'screen') { tg.fillStyle = 'rgba(10,30,26,.5)'; for (let y = e.y + yo + 1; y < e.y + yo + e.h; y += 2) tg.fillRect(x, y, e.w, 1); }
     }
     const camI = Math.floor(camX);
-    this.drawFireLayer(camX, frac, t, camI, yo);
-    g.fillStyle = '#dcec78';                                             // глаза мутантов в сумерках
-    for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
-    g.fillStyle = '#d8ecff';
-    for (const s of FX.sparks) g.fillRect(Math.round(s.x - camI), Math.round(s.y) + yo, 1, 1);
-    // Мягкие ореолы ламп и огня.
-    g.globalCompositeOperation = 'lighter';
+    for (const s of FX.sparks) {
+      const x = Math.round(s.x - camI), y = Math.round(s.y) + yo, tg = route(x, y, x + 1, y + 1);
+      tg.fillStyle = '#d8ecff'; tg.fillRect(x, y, 1, 1);
+    }
+    // Мягкие ореолы ламп (сложение).
     for (const l of WORLD.lights) {
       if (l.i < 0.2 || l.mode === 'garland' || l === WORLD.fire.light) continue;   // у бочки ореол не рисуем: он лёг бы на героя
       const p = l.layer === 'back' ? CONFIG.PARALLAX.BACK : 1, x = this.sx(l.x, p, camX, frac), y = l.y - 3 + yo, r = l.mode === 'fire' ? 16 : 10;
-      if (x + r < 0 || x - r > this.viewW + 1) continue;
-      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      if (x + r < 0 || x - r > vw || y + r < 0 || y - r > vh) continue;
+      const tg = route(x - r, y - r, x + r, y + r);
+      const grd = tg.createRadialGradient(x, y, 0, x, y, r);
       grd.addColorStop(0, `rgba(${l.c[0]},${l.c[1]},${l.c[2]},${0.32 * l.i * l.power})`); grd.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = grd; g.fillRect(x - r, y - r, r * 2, r * 2);
+      tg.globalCompositeOperation = 'lighter'; tg.fillStyle = grd; tg.fillRect(x - r, y - r, r * 2, r * 2); tg.globalCompositeOperation = 'source-over';
     }
-    g.globalCompositeOperation = 'source-over';
+    if (d) this.flushGlow(d, this.occ);                                    // персонажи стоят перед стеной: свечение — за ними
+    this.drawFireLayer(camX, frac, t, camI, yo);
+    g.fillStyle = '#dcec78';                                             // глаза мутантов — часть самого мутанта
+    for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
+    this.drawHandLights(camI, yo, t);
     this.drawBubbles(camI, yo);
+  },
+  /** Вырезать силуэты из использованного прямоугольника буфера, перенести его в кадр и очистить. */
+  flushGlow(d, list) {
+    const vw = this.viewW + 1, vh = this.viewH;
+    const x0 = clamp(Math.floor(d[0]) - 1, 0, vw), y0 = clamp(Math.floor(d[1]) - 1, 0, vh), x1 = clamp(Math.ceil(d[2]) + 1, 0, vw), y1 = clamp(Math.ceil(d[3]) + 1, 0, vh);
+    if (x1 <= x0 || y1 <= y0) { this.gg.clearRect(0, 0, vw, vh); return; }
+    this.cutOut(this.gg, list.filter(o => o.cx + o.half >= x0 && o.cx - o.half <= x1 && o.top <= y1 && o.top + SPRITE_H >= y0));
+    this.g.drawImage(this.glow, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
+    this.gg.clearRect(x0, y0, x1 - x0, y1 - y0);
+  },
+  /** Вырезать силуэты (список occ) из буфера свечения: те же кадры, зеркало и прозрачность, что на сцене. */
+  cutOut(c, list) {
+    c.globalCompositeOperation = 'destination-out';
+    for (const o of list) { c.globalAlpha = o.alpha; blit(c, o.spr, o.cx, o.top, o.facing, o.half); }
+    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
+  },
+  /** Светящиеся точки фонарей и свечей в руках NPC. Герой всегда стоит перед NPC, поэтому из этого слоя вырезается только он. */
+  drawHandLights(camI, yo, t) {
+    const gg = this.gg, vw = this.viewW + 1, po = this.playerOcc;
+    const pb = po ? [po.cx - po.half - 1, po.top, po.cx + po.half + 1, po.top + SPRITE_H] : null;
+    let d = null;
+    for (const a of ACTORS) {
+      if (a.lamp < 0.05) continue;
+      const [wx, wy] = lampPoint(a), x = wx - camI, y = wy + yo;
+      if (x < -4 || x > vw + 4 || y < -4 || y > this.viewH + 4) continue;
+      let tg = this.g;                                                  // точка за героем — через буфер с вырезом, иначе сразу в кадр
+      if (pb && x - 4 < pb[2] && x + 5 > pb[0] && y - 4 < pb[3] && y + 4 > pb[1]) {
+        tg = gg; d = d ? [Math.min(d[0], x - 4), Math.min(d[1], y - 4), Math.max(d[2], x + 5), Math.max(d[3], y + 4)] : [x - 4, y - 4, x + 5, y + 4];
+      }
+      tg.globalAlpha = a.lamp;
+      if (a.lampType === 'beam') { tg.fillStyle = '#3a3e40'; tg.fillRect(x - a.facing * 3, y, 4, 2); tg.fillStyle = '#f2f6ff'; tg.fillRect(x + (a.facing > 0 ? 1 : -1), y, 1, 2); }
+      else if (a.lampType === 'lantern') { tg.fillStyle = '#4a3a2a'; tg.fillRect(x - 1, y - 3, 3, 1); tg.fillStyle = '#ffd08a'; tg.fillRect(x - 1, y - 2, 3, 3); }
+      else { tg.fillStyle = '#e8e0cc'; tg.fillRect(x, y, 1, 3); tg.fillStyle = noise1(t * 9, a.x) > 0.5 ? '#ffe2a0' : '#ffb860'; tg.fillRect(x, y - 2, 1, 2); }
+      tg.globalAlpha = 1;
+    }
+    if (d) this.flushGlow(d, [po]);                                       // герой стоит перед NPC — вырезается только он
+  },
+  /** Канистры и состояние точек поиска на поверхности (меняются после сбора). */
+  drawScavenge(g, camI, yo) {
+    const y0 = GROUND_Y + yo;
+    if (y0 < -40 || y0 > this.viewH + 40) return;
+    const can = (x, foot) => {                                            // красная канистра 7×9
+      R(g, x, foot - 9, 7, 9, '#8a2a22'); R(g, x, foot - 9, 7, 1, '#b84a3a'); R(g, x + 1, foot - 7, 1, 5, '#a8463a');
+      R(g, x + 4, foot - 11, 2, 2, '#3a2a24'); R(g, x + 1, foot - 10, 3, 1, '#5a2a22');
+    };
+    const sx = x => x - camI;
+    if (Scavenge.available('garage')) {                                     // створка закрыта
+      R(g, sx(1186), y0 - 28, 30, 28, '#5a5e5a'); for (let k = 0; k < 7; k++) R(g, sx(1186), y0 - 26 + k * 4, 30, 1, '#464a48');
+      R(g, sx(1200), y0 - 14, 3, 2, '#2a2c2c');
+    } else { R(g, sx(1186), y0 - 28, 30, 4, '#5a5e5a'); R(g, sx(1190), y0 - 12, 22, 2, '#3a3430'); R(g, sx(1192), y0 - 20, 1, 8, '#3a3430'); }
+    if (Scavenge.available('car')) can(sx(1468), y0);                     // канистра у багажника
+    else { L(g, sx(1460), y0 - 13, sx(1468), y0 - 22, '#4e3a2e', 2); }   // открытый багажник
+    if (Scavenge.available('cache')) can(sx(1933), y0 - 16);
   },
   /** Короткие реплики жителей над головой (поверх темноты, чтобы читались и в блэкаут). */
   drawBubbles(camI, yo) {
@@ -1975,16 +2318,34 @@ const Debug = {
 /* =============================== INFO CARD ================================
    Карточка осмотра поста или доски: заголовок, текст, ✕. Свой слой ввода, ничего не меняет в игре. */
 const InfoCard = {
-  open: false, item: null, els: {},
+  open: false, item: null, idx: 0, els: {}, cursor: createDialogCursor(),
   init() {
     const $ = id => document.getElementById(id);
-    this.els = { root: $('card'), title: $('cardTitle'), text: $('cardText') };
+    this.els = { root: $('card'), title: $('cardTitle'), text: $('cardText'), index: $('cardIdx'), next: $('cardNext') };
     this.els.root.addEventListener('pointerdown', e => e.stopPropagation());
     $('cardClose').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.hide(); });
+    this.els.next.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.next(); });
   },
-  toggle(item) { if (this.open && this.item === item) this.hide(); else this.show(item); },
-  show(item) { this.open = true; this.item = item; this.els.title.textContent = item.title; this.els.text.textContent = item.text; this.els.root.classList.add('show'); },
-  hide() { this.open = false; this.item = null; this.els.root.classList.remove('show'); },
+  /** E / кнопка действия: открыть; при открытой карточке того же места — следующая реплика (одна реплика — закрыть). */
+  use(item) {
+    if (this.open && this.item === item) { if (item.lines.length > 1) this.next(); else this.hide(); }
+    else this.show(item);
+  },
+  show(item) {
+    this.open = true; this.item = item; this.idx = this.cursor.open(item.id, item.lines.length);
+    this.els.root.classList.add('show'); this.render();
+  },
+  /** Короткое сообщение без цикла (находки топлива). */
+  message(item, text) { this.open = true; this.item = item; this.idx = 0; this.single = text; this.els.root.classList.add('show'); this.render(); },
+  next() { if (!this.open || this.single != null) return this.hide(); this.idx = this.cursor.next(this.item.id, this.item.lines.length); this.render(); },
+  render() {
+    const it = this.item, many = this.single == null && it.lines.length > 1;
+    this.els.title.textContent = it.title;
+    this.els.text.textContent = this.single ?? it.lines[this.idx];
+    this.els.index.textContent = many ? `${this.idx + 1}/${it.lines.length}` : '';
+    this.els.next.textContent = many ? 'Далее ›' : 'Закрыть';
+  },
+  hide() { this.open = false; this.item = null; this.single = null; this.els.root.classList.remove('show'); },
 };
 
 /* ============================== GEN PANEL =================================
@@ -1994,12 +2355,14 @@ const GenPanel = {
   init() {
     const $ = id => document.getElementById(id);
     this.els = { root: $('gen'), state: $('genState'), fuel: $('genFuel'), fuelBar: $('genFuelBar'), batt: $('genBatt'), battBar: $('genBattBar'),
-      battNote: $('genBattNote'), cans: $('genCans'), toggle: $('genToggle'), refuel: $('genRefuel'), reset: $('genReset'), msg: $('genMsg') };
+      battNote: $('genBattNote'), cans: $('genCans'), toggle: $('genToggle'), refuel: $('genRefuel'), reset: $('genReset'), msg: $('genMsg'),
+      deliver: $('genDeliver') };
     this.els.root.addEventListener('pointerdown', e => e.stopPropagation());
     const on = (el, fn) => el.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); this.render(); });
     on($('genClose'), () => this.hide());
     on(this.els.toggle, () => { Power.toggle(); Game.savePower(); });
     on(this.els.refuel, () => { Power.refuel(); Game.savePower(); });
+    on(this.els.deliver, () => { Scavenge.deliver(Power); Game.savePower(); Game.saveScavenge(); });
     on(this.els.reset, () => {                                          // двойное подтверждение: случайно не сбросить
       if (!this.armed) { this.armed = true; Power.message = 'Нажмите ещё раз, чтобы восстановить запасы'; return; }
       this.armed = false; Power.reset(); Game.savePower();
@@ -2016,9 +2379,11 @@ const GenPanel = {
     set(E.batt, `${b.charge.toFixed(1)} / ${C.BATT_CAP}`); E.battBar.style.width = (100 * b.charge / C.BATT_CAP) + '%';
     set(E.battNote, Power.running() ? (b.charge >= C.BATT_CAP ? 'аккумулятор полон' : 'аккумулятор заряжается')
       : b.charge > 0 ? 'питает аварийный свет' : 'аккумулятор разряжен');
-    set(E.cans, `${Power.canisters} × ${C.CANISTER}`);
+    set(E.cans, `${Power.canisters} из ${C.STORE_MAX}`);
+    E.deliver.hidden = Scavenge.carried <= 0;
+    set(E.deliver, `Сдать канистры (${Scavenge.carried})`);
     set(E.toggle, g.on ? 'Остановить' : 'Запустить');
-    E.reset.hidden = !(Power.stuck() || Debug.on);
+    E.reset.hidden = !Debug.on;                                          // сброс — только для отладки: топливо ищут на поверхности
     set(E.reset, this.armed ? 'Точно сбросить?' : 'Новая демонстрация');
     set(E.msg, Power.message);
   },
@@ -2030,20 +2395,20 @@ const Game = {
   els: {},
   start() {
     this.els = { zone: document.getElementById('zone'), hint: document.getElementById('hint'), title: document.getElementById('title'),
-      padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act'),
-      power: document.getElementById('power') };
+      act: document.getElementById('act'),
+      power: document.getElementById('power'), carry: document.getElementById('carry') };
     const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
     if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — действие · R — в центр';
       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
-    this.loadPower(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+    this.loadPower(); this.loadScavenge(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
     GenPanel.init(); InfoCard.init();
     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
-    addEventListener('pagehide', () => this.savePower());
-    document.addEventListener('visibilitychange', () => { if (document.hidden) this.savePower(); });
+    addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); } });
     Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); };
     Render.init(document.getElementById('screen'));
     Debug.init();
@@ -2053,7 +2418,10 @@ const Game = {
       station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
       player: () => ({ x: Player.x, y: Player.y, floor: Player.floor, state: Player.state }),
       card: () => (InfoCard.open ? InfoCard.item.id : null),
-      actors: () => ACTORS.map(a => ({ kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing })),
+      actors: () => ACTORS.map(a => ({ id: a.id, kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing, lamp: a.lamp })),
+      scavenge: () => ({ ...Scavenge.snapshot(), message: Scavenge.message }),
+      cardState: () => (InfoCard.open ? { id: InfoCard.item.id, idx: InfoCard.idx, text: document.getElementById('cardText').textContent } : null),
+      scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
     });
     Player.onStep = (x, f, y) => FX.step(x, f, y);
     const act = this.els.act;
@@ -2092,21 +2460,30 @@ const Game = {
   update(dt) {
     this.t += dt;
     const dir = Input.dir(), action = Input.takeAction(), it = Player.interaction();
-    if (action && it && (it.kind === 'generator' || it.kind === 'inspect')) {      // окна у пульта и постов, без хода
-      if (action === 'use') { if (it.kind === 'generator') GenPanel.toggle(); else InfoCard.toggle(it.item); }
+    if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
+      if (action === 'use') {
+        if (it.kind === 'generator') GenPanel.toggle();
+        else if (it.kind === 'inspect') InfoCard.use(it.item);
+        else if (InfoCard.open && InfoCard.item === it.item) InfoCard.hide();
+        else { Scavenge.pick(it.item.id); this.saveScavenge(); InfoCard.message(it.item, Scavenge.message); }
+      }
       Player.update(dt, dir, null);
     } else Player.update(dt, dir, action);
     const near = Player.interaction();                                   // отошёл — окно закрылось
     if (GenPanel.open && near?.kind !== 'generator') GenPanel.hide();
-    if (InfoCard.open && (near?.kind !== 'inspect' || near.item !== InfoCard.item)) InfoCard.hide();
+    if (InfoCard.open && near?.item !== InfoCard.item) InfoCard.hide();
+    if (InfoCard.open && InfoCard.item.npc) {                            // собеседник ждёт и смотрит на героя
+      const a = npcById(InfoCard.item.npc);
+      if (a) { a.talkT = 0.3; a.moving = false; if (a.kind !== 'sitter') a.facing = Player.x >= a.x ? 1 : -1; if (a.kind === 'walker') a.wait = Math.max(a.wait, 0.3); }
+    }
+    Scavenge.step(dt);
     this.updatePower(dt);
     Camera.update(dt, Player);
     FX.update(dt, this.t, Camera.x, Render.viewW);
-    updateActors(dt);
+    updateActors(dt); updateLamps(dt);
     const go = Player.gateOpenTarget();                                 // створки шлюза догоняют нужное положение
     WORLD.gate.open = clamp(WORLD.gate.open + (go > WORLD.gate.open ? 1 : -1) * dt * 1.8, 0, 1);
-    this.els.padL.classList.toggle('on', dir < 0 && Player.state === 'walk');
-    this.els.padR.classList.toggle('on', dir > 0 && Player.state === 'walk');
+    if (dir && !this.moved) { this.moved = true; setTimeout(() => this.els.hint.classList.add('gone'), 1500); }   // подсказка уходит после первого шага
     this.updateZone();
     this.updateAction();
   },
@@ -2121,6 +2498,18 @@ const Game = {
       ? `⚡ Нет питания · резерв ${Math.round(100 * Power.battery.charge / CONFIG.POWER.BATT_CAP)}%` : '⚡ Нет питания · резерв пуст';
     if (pw.textContent !== txt) { pw.textContent = txt; pw.hidden = !txt; }
     if (GenPanel.open) GenPanel.render();
+    const cy = this.els.carry, ct = Player.floor === 'surface' || Scavenge.carried > 0 ? `Канистры при себе ${Scavenge.carried}/${CONFIG.SCAVENGE.CARRY_MAX}` : '';
+    if (cy.textContent !== ct) { cy.textContent = ct; cy.hidden = !ct; }
+    this.saveSt = (this.saveSt || 0) + dt;
+    if (this.saveSt >= 5) { this.saveSt = 0; this.saveScavenge(); }      // таймер тайника — раз в 5 с
+  },
+  saveScavenge() { try { localStorage.setItem(CONFIG.SCAVENGE.SAVE_KEY, JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
+  /** Отдельный ключ: испорченная запись поиска сбрасывает только поиск, энергосистему не трогает. */
+  loadScavenge() {
+    try {
+      const raw = localStorage.getItem(CONFIG.SCAVENGE.SAVE_KEY);
+      if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY);
+    } catch (_) { try { localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY); } catch (__) { /* нет доступа */ } }
   },
   savePower() { try { localStorage.setItem(CONFIG.POWER.SAVE_KEY, JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   loadPower() {
@@ -2133,7 +2522,8 @@ const Game = {
   updateAction() {
     const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
     let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
-      : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? '⚙ Генератор' : it.item.label;
+      : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
+    if (it && it.kind === 'scavenge' && !Scavenge.available(it.item.id)) label = it.item.id === 'cache' ? '◎ Тайник пуст' : '◎ Пусто';
     if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
     if (label === this.actLabel) return;
     this.actLabel = label;

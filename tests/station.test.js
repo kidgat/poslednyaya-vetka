@@ -54,4 +54,28 @@ ok('N08 рассинхрон с CONFIG.FLOORS пойман', hit(errsOf(c), /CON
 const r2 = clone(ROOMS); r2[1].id = r2[0].id;
 ok('N09 повтор id комнаты пойман', hit(errsOf(CONFIG, r2), /повтор id/));
 
+// 0.8: верхний ярус целиком, собеседники, находки
+const U = CONFIG.FLOORS.upper;
+ok('S14 верхний ярус проходной: жилой блок и столовая в пределах ходьбы', U.minX <= 160 && ['habitation', 'kitchen'].every(id => { const r = ROOMS.find(x => x.id === id); return r.x + r.w - 4 > U.minX; }), `${U.minX}–${U.maxX}`);
+ok('S15 марш не тронут: (652,219) ↔ (862,98), 20 ступеней', (() => { const s = CONFIG.STAIRS[0]; return s.bottom.x === 652 && s.top.x === 862 && s.run.steps === 20 && s.hole.join() === '752,846'; })());
+ok('S16 разговоры с NPC: 4 собеседника на ярусе + 2 поста, у каждого NPC есть запись', ['medic', 'mechanic', 'cook', 'resident'].every(id => CONFIG.INSPECTS.some(i => i.npc === id)) && CONFIG.INSPECTS.filter(i => i.npc).every(i => CONFIG.NPCS[i.npc]));
+ok('S17 зона механика не заходит на пульт генератора', (() => { const z = plan.interactions.find(i => i.id === 'talk-mechanic').trigger; return z[1] < CONFIG.GENERATOR.trigger[0]; })());
+ok('S18 точки поиска топлива — в реестре, на поверхности, в пределах ходьбы', plan.interactions.filter(i => i.kind === 'scavenge').length === 3);
+c = clone(CONFIG); c.NPCS.mechanic.walk = [1340, 1520];
+ok('N10 механик зашёл на пульт генератора — пересечение поймано', hit(errsOf(c), /пересекаются.*(talk-mechanic|generator)/));
+c = clone(CONFIG); c.INSPECTS.find(i => i.id === 'talk-medic').npc = 'ghost';
+ok('N11 разговор с несуществующим NPC пойман', hit(errsOf(c), /нет NPC/));
+c = clone(CONFIG); c.NPCS.cook.floor = 'platform';
+ok('N12 NPC на другом этаже пойман', hit(errsOf(c), /другом этаже/));
+c = clone(CONFIG); c.NPCS.medic.walk = [1100, 1232];
+ok('N13 NPC ходит через несколько комнат — пойман', hit(errsOf(c), /одной комнаты/));
+c = clone(CONFIG); c.INSPECTS[1].lines = [];
+ok('N14 доска без объявлений поймана', hit(errsOf(c), /нет реплик/));
+c = clone(CONFIG); c.INSPECTS[1].lines[1] = c.INSPECTS[1].lines[0];
+ok('N15 повтор объявления пойман', hit(errsOf(c), /повтор реплик/));
+c = clone(CONFIG); c.FLOORS.upper.minX = 852;
+ok('N16 ярус снова закрыт слева — жилой блок недоступен, поймано', hit(errsOf(c), /habitation недоступна/) && hit(errsOf(c), /kitchen недоступна/));
+c = clone(CONFIG); c.SCAVENGE.SPOTS[2].trigger = [1640, 1660];
+ok('N17 находка на воротах шлюза — пересечение поймано', hit(errsOf(c), /пересекаются/));
+
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

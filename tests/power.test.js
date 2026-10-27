@@ -45,7 +45,7 @@ const Q = createPower(cfg); Q.generator.fuel = 95;
 ok('A09 переполнение: при свободных < 10 заправка запрещена, топливо не теряется', Q.refuel() === false && Q.generator.fuel === 95 && Q.canisters === 2, Q.message);
 
 const S = createPower(cfg); S.generator.on = false; S.generator.fuel = 0; S.canisters = 0; S.refresh();
-ok('тупик распознаётся (для кнопки «Новая демонстрация»)', S.stuck() && S.toggle() === false && /Новая демонстрация/.test(S.message));
+ok('тупик распознаётся; с 0.8 подсказка ведёт на поверхность, а не к сбросу', S.stuck() && S.toggle() === false && /поверхност/.test(S.message), S.message);
 S.reset(); ok('сброс демонстрации возвращает стартовые запасы', S.running() && S.generator.fuel === 15 && S.canisters === 2 && S.battery.charge === 30);
 
 const A = createPower(cfg), B = createPower(cfg); run(A, 60, 60); run(B, 60, 120);
@@ -68,6 +68,23 @@ ok('нет NaN/Infinity в состоянии после всех сценари
 const W = createPower({ ...cfg, GEN_OUTPUT: 3.0 }); W.step(1 / 60);
 ok('нехватка выработки: питание по приоритету critical > technical > platform > living',
   W.level('critical') === 1 && W.level('technical') === 1 && W.level('platform') === 0 && W.level('living') === 0, JSON.stringify(W.circuits));
+
+// 0.8: склад канистр станции и миграция сохранений 0.6/0.7.
+ok('S01 склад: STORE_MAX 6, стартовые канистры прежние (2)', cfg.STORE_MAX === 6 && createPower(cfg).canisters === 2);
+const K = createPower(cfg);
+ok('S02 сдача 2 канистр → склад 4', K.store(2) === 2 && K.canisters === 4, K.message);
+ok('S03 сдача сверх лимита принимает только место: 4 + 3 → 6, принято 2', K.store(3) === 2 && K.canisters === 6);
+ok('S04 полный склад: сдача отклонена, число не меняется', K.store(1) === 0 && K.canisters === 6 && /полон/.test(K.message), K.message);
+ok('S05 сдача 0, отрицательных, дробных, NaN — ничего не меняет', [0, -1, 1.5, NaN, '2'].every(n => K.store(n) === 0) && K.canisters === 6);
+const M = createPower(cfg);
+ok('S06 миграция 0.6/0.7: {v:1,on,fuel,charge,canisters 0..2} грузится как раньше',
+  [0, 1, 2].every(c => M.restore({ v: 1, on: true, fuel: 33.5, charge: 21, canisters: c }) && M.canisters === c && M.generator.fuel === 33.5 && M.battery.charge === 21));
+ok('S07 запись 0.8 с 6 канистрами принимается, с 7 — нет', M.restore({ v: 1, on: false, fuel: 1, charge: 0, canisters: 6 }) && M.canisters === 6
+  && M.restore({ v: 1, on: false, fuel: 1, charge: 0, canisters: 7 }) === false && M.canisters === 6);
+const N = createPower(cfg); N.generator.fuel = 95; N.store(2);
+ok('S08 бак: свободно < 10 — заправка не тратит канистру со склада', N.refuel() === false && N.canisters === 4 && N.generator.fuel === 95);
+ok('S09 snapshot по-прежнему {v:1,on,fuel,charge,canisters}', Object.keys(N.snapshot()).join() === 'v,on,fuel,charge,canisters');
+ok('S10 нет NaN после операций склада', [K, M, N].every(finite));
 
 console.log(`\n${pass} PASS, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);
