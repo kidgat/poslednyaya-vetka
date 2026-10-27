@@ -5,7 +5,7 @@
    — остальные файлы игры (иконки, манифест): сначала кэш, в фоне — обновление из сети.
    При выпуске новой версии поменяйте CACHE — старый кэш игры удалится, кэши других приложений не трогаются. */
 const PREFIX = 'poslednyaya-vetka-';
-const CACHE = PREFIX + '0.9';
+const CACHE = PREFIX + '1.0';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 const SCOPE = new URL('./', self.location).pathname;             // папка игры на сервере
 const NET_TIMEOUT = 3000;

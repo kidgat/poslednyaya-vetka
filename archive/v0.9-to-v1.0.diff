@@ -1,0 +1,735 @@
+diff --git a/archive/v0.9.html b/index.html
+index fb6641b..d0e6c79 100644
+--- a/archive/v0.9.html
++++ b/index.html
+@@ -10,7 +10,7 @@
+ <meta name="theme-color" content="#06080a">
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" href="icon-180.png">
+-<title>Последняя ветка 0.9</title>
++<title>Последняя ветка 1.0</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -25,8 +25,12 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ .station{background:var(--panel);border:1px solid var(--line);padding:6px 10px 7px;line-height:1.3}
+ .station b{display:block;font-size:13px;letter-spacing:.16em;color:var(--gold)}
+ .station span{font-size:11px;color:var(--muted);letter-spacing:.03em}
+-#opt{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:13px;
+-  padding:4px 9px;cursor:pointer;margin-right:6px;min-height:30px}
++/* 1.0: сенсорная область ⚙ — 44×44 CSS px (прозрачная), видимый значок — прежняя маленькая плашка внутри */
++#opt{pointer-events:auto;position:relative;width:44px;height:44px;margin:-8px 0 0 0;padding:0;background:transparent;border:0;
++  cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;font:inherit}
++#opt i{display:flex;align-items:center;justify-content:center;width:30px;height:28px;box-sizing:border-box;background:var(--panel);
++  border:1px solid var(--line);color:var(--muted);font-style:normal;font-size:13px;pointer-events:none}
++#opt.press i,#opt[aria-expanded="true"] i{border-color:rgba(232,184,106,.75);color:var(--gold)}
+ #opts{position:fixed;z-index:6;top:calc(env(safe-area-inset-top) + 48px);right:calc(env(safe-area-inset-right) + 12px);
+   background:rgba(7,9,11,.94);border:1px solid var(--line);padding:8px 10px;font-size:11px;color:var(--ink);display:none;touch-action:none}
+ #opts.show{display:block}
+@@ -106,7 +110,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ <div id="touch"></div>
+ <div id="hud">
+   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
+-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false">⚙</button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.9</button></div>
++  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0</button></div>
+ </div>
+ <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
+ <div id="act" role="button" aria-label="Действие"></div>
+@@ -132,7 +136,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 0.9 «Вестибюль +1»<br>
++    <p>Станция «Гагаринская» · прототип 1.0 «Подземное хозяйство»<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -141,7 +145,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.9 «Вестибюль +1»
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0 «Подземное хозяйство»
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -152,12 +156,13 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '0.9',
++  VERSION: '1.0',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+   FLOORS: {
+     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
++    utility:  { y: 368, minX: 310, maxX: 1850, bottom: true },   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
+     upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → галерея над маршем → мастерская → … → насосная
+     vestibule: { y: -14, minX: 1188, maxX: 1852, cam: 0.40 },   // 0.9: вестибюль +1 — карантин, экипировка, КПП, зал, караульная
+     surface:  { y: -122, minX: 1136, maxX: 1980, cam: 0.72 },   // улица (0.9: земля поднята с −61, под ней вестибюль)
+@@ -171,7 +176,11 @@ const CONFIG = {
+     // Направление по x задаёт только геометрию; «подняться/спуститься» — как у любого марша (from → to).
+     { id: 'vestibule', from: 'upper', to: 'vestibule',
+     bottom: { x: 1704, trigger: [1692, 1716] }, top: { x: 1530, trigger: [1522, 1546] },
+-    run: { x0: 1696, x1: 1540, steps: 18 }, hole: [1540, 1588], holeY: [-16, 19] }],
++    run: { x0: 1696, x1: 1540, steps: 18 }, hole: [1540, 1588], holeY: [-16, 19] },
++    // 1.0: с платформы вниз, на ярус −2. Проём — сквозь настил платформы, путевую зону и плиту; рельсы над проёмом лежат на мостике.
++    { id: 'utility', from: 'utility', to: 'platform',
++    bottom: { x: 1408, trigger: [1396, 1420] }, top: { x: 1622, trigger: [1610, 1634] },
++    run: { x0: 1422, x1: 1606, steps: 24 }, hole: [1474, 1606], holeY: [214, 286] }],
+   STAIR_SPEED: 52,          // пикс/с по горизонтали при ходьбе по маршу
+   // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
+   // 0.9: гермоворота в центральном зале вестибюля (раньше — прямо из шлюза яруса 0). Обхода вестибюля нет.
+@@ -262,6 +271,12 @@ const CONFIG = {
+       onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
+     'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на марш в вестибюль
+       onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
++    'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
++      onBlackout: ['ГРИБАМ ВСЁ РАВНО', 'ГДЕ ФОНАРЬ?', 'НЕ ТОПЧИТЕ ГРЯДКИ!'], onRestore: ['ВОТ, ДРУГОЕ ДЕЛО', 'СВЕТ ЕСТЬ'] },
++    'storekeeper': { floor: 'utility', kind: 'idle', set: 'resB', x: 1262, facing: -1, lamp: 'lantern',                              // 1.0: склад
++      onBlackout: ['СКЛАД НЕ ТРОГАТЬ!', 'ВСЁ ПЕРЕСЧИТАНО!', 'ФОНАРЬ НА ПОЛКЕ'], onRestore: ['СВЕТ! ПЕРЕСЧИТАЮ', 'НУ, СЛАВА БОГУ'] },
++    'drain-tech':  { floor: 'utility', kind: 'walker', set: 'worker', x: 1760, walk: [1700, 1820], speed: 16, lamp: 'headlamp',     // 1.0: дренажная
++      onBlackout: ['НАСОСЫ ВСТАЛИ!', 'ВОДА ПОДНИМЕТСЯ!', 'ПРОВЕРЮ ЗАДВИЖКУ!'], onRestore: ['НАСОСЫ ПОШЛИ', 'УРОВЕНЬ ПАДАЕТ'] },
+     'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
+       onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
+     'quarantine-medic': { floor: 'vestibule', kind: 'idle', set: 'medic', x: 1260, facing: -1, lamp: 'lantern',               // 0.9: санитар карантина
+@@ -280,6 +295,9 @@ const CONFIG = {
+     { id: 'em-pumps',    room: 'water',    x: 1744, y: 40 },   // над входом в насосную
+     { id: 'em-quarantine', room: 'quarantine', x: 1318, y: -72 }, // 0.9: у выхода из карантина
+     { id: 'em-kpp',      room: 'checkpoint', x: 1468, y: -72 },  // 0.9: над постом КПП
++    { id: 'em-pods',     room: 'living-pods', x: 504, y: 310 },     // 1.0: у выхода из жилых ячеек
++    { id: 'em-utilstair', room: 'utility-stairwell', x: 1396, y: 310 }, // 1.0: у подножия лестницы на платформу
++    { id: 'em-drainage', room: 'drainage',   x: 1648, y: 310 },    // 1.0: над входом в дренажную
+   ],
+   EMERGENCY_GLOW: [
+     { id: 'glow-post1', x: 124, y: 200, r: 92 },               // отсвет маяка Поста 1 на мешках и охране
+@@ -343,6 +361,26 @@ const CONFIG = {
+         '«В журнал пишем всё: кто вышел, кто вернулся и во сколько».',
+         '«Сидим ближе к воротам, чтобы успеть, если наверху шумно».',
+         '«Ночью ворота открываем только по паролю. Даже своим».'] },
++    { id: 'talk-mushrooms', type: 'talk', floor: 'utility', npc: 'mushroom-grower', radius: 12, label: '◎ Поговорить с грибником', title: 'ГРИБНИЦА', lines: [
++        '«Грибам свет почти не нужен. А вот людям — ещё как».',
++        '«Субстрат — опилки, картон, всё, что гниёт. Ничего не выбрасываем».',
++        '«Влажность держим водой из дренажа. Только кипятим сначала».',
++        '«Вешенка растёт за три недели. Если не трогать и не дышать на неё».',
++        '«Половина урожая — в столовую, остальное сушим на зиму».',
++        '«Споры в лёгкие не нужны. Работаю в маске, и ты сюда без неё не лезь».'] },
++    { id: 'talk-storeroom', type: 'talk', floor: 'utility', npc: 'storekeeper', radius: 12, label: '◎ Поговорить с кладовщиком', title: 'КЛАДОВЩИК', lines: [
++        '«На складе всё пересчитано. Даже ржавые гайки».',
++        '«Принёс с поверхности — сдай под запись. Без записи вещи нет».',
++        '«Тушёнка — по нормам. Мешки с крупой — только по приказу».',
++        '«Канистры храним отдельно. Одна искра — и склада нет».',
++        '«Хлам не выкидывай. Мастерская из любой железки что-нибудь сделает».'] },
++    { id: 'talk-drainage', type: 'talk', floor: 'utility', npc: 'drain-tech', radius: 12, label: '◎ Поговорить с техником', title: 'ДРЕНАЖНЫЙ ТЕХНИК', lines: [
++        '«Если насосы снова встанут, нас тут затопит».',
++        '«Грунтовая вода идёт всегда. Весной — вдвое больше».',
++        '«Без электричества у нас час, может два. Потом вода на путях».',
++        '«Решётки чистим каждый день: крысы, листья, тряпки».',
++        '«Один насос — на запчасти. Второй держится на честном слове».',
++        '«Красная лампа мигает — значит, уровень высокий. Зови меня сразу».'] },
+     { id: 'talk-medic', type: 'talk', floor: 'upper', npc: 'medic', radius: 14, label: '◎ Поговорить с медиком', title: 'МЕДИК', lines: [
+         '«Сначала вымой руки, потом подходи к койкам».',
+         '«Лекарств мало. Не трать перевязочные материалы на мелочь».',
+@@ -385,23 +423,23 @@ const CONFIG = {
+       { id: 'vestibule', name: 'Вестибюль',               level: 1,  status: 'active',  legacyFloor: 'vestibule' },   // 0.9
+       { id: 'upper',     name: 'Служебный ярус',          level: 0,  status: 'active',  legacyFloor: 'upper' },
+       { id: 'platform',  name: 'Платформа',               level: -1, status: 'active',  legacyFloor: 'platform' },
+-      { id: 'utility',   name: 'Хозяйственно-жилой ярус', level: -2, status: 'planned', legacyFloor: null },
++      { id: 'utility',   name: 'Хозяйственно-жилой ярус', level: -2, status: 'active',  legacyFloor: 'utility' },   // 1.0
+     ],
+     plannedRooms: [
+       { id: 'hq',          floor: 'upper',     name: 'Штаб начальника',  type: 'command',  circuit: 'critical' },
+       { id: 'armory',      floor: 'upper',     name: 'Оружейная',        type: 'security', circuit: 'technical' },
+       { id: 'ventilation', floor: 'upper',     name: 'Вентиляция',       type: 'air',      circuit: 'technical' },
+-      { id: 'living-pods', floor: 'utility',   name: 'Жилые ячейки',     type: 'housing',  circuit: 'living' },
+-      { id: 'mushrooms',   floor: 'utility',   name: 'Грибница',         type: 'food',     circuit: 'technical' },
+-      { id: 'tea-ferment', floor: 'utility',   name: 'Ферментация чая',  type: 'food',     circuit: 'technical' },
+-      { id: 'pigsty',      floor: 'utility',   name: 'Свинарник',        type: 'food',     circuit: 'technical' },
+-      { id: 'storeroom',   floor: 'utility',   name: 'Склад',            type: 'storage',  circuit: 'technical' },
+-      { id: 'drainage',    floor: 'utility',   name: 'Дренаж',           type: 'water',    circuit: 'technical' },
++    ],
++    // 1.0: будущие механики помещений — только записи для реестра; в игре кнопок и действий нет.
++    plannedFeatures: [
++      { id: 'station-stock',  room: 'storeroom', name: 'Общий склад материалов и хлама с вылазок' },
++      { id: 'crafting',       room: 'workshop',  name: 'Изготовление фильтров и боеприпасов, ремонт противогазов и оружия' },
++      { id: 'drain-service',  room: 'drainage',  name: 'Обслуживание насосов дренажа' },
++      { id: 'hero-junk',      room: null,        name: 'Хлам при герое, ≈100 единиц' },
+     ],
+     plannedConnectors: [
+       { id: 'tunnel-sportivnaya', type: 'tunnel', from: 'platform', to: null, via: 'west-checkpoint', name: 'Тоннель к «Спортивной»' },
+       { id: 'tunnel-moskovskaya', type: 'tunnel', from: 'platform', to: null, via: 'east-checkpoint', name: 'Тоннель к «Московской»' },
+-      { id: 'utility-stair',      type: 'stair',  from: 'platform', to: 'utility',   name: 'Служебная лестница вниз' },
+     ],
+   },
+ };
+@@ -724,6 +762,7 @@ function buildStationPlan(cfg, rooms) {
+       ...cfg.GATES.map(g => ({ id: 'gate-' + g.id, type: 'gate', from: g.a.floor, to: g.b.floor, status: act })),
+       ...st.plannedConnectors.map(c => ({ ...c, status: 'planned' })),
+     ],
++    features: (st.plannedFeatures || []).map(f => ({ ...f, status: 'planned' })),
+     interactions: [
+       ...cfg.STAIRS.flatMap(s => [{ id: `stair-${s.id}-bottom`, kind: 'stair', floor: s.from, trigger: s.bottom.trigger },
+                                   { id: `stair-${s.id}-top`, kind: 'stair', floor: s.to, trigger: s.top.trigger }]),
+@@ -785,7 +824,7 @@ function validateStationPlan(plan, cfg) {
+       else {
+         if (n.floor !== i.floor) err.push(`разговор ${i.id}: NPC ${i.npc} на другом этаже`);
+         const [na, nb] = n.walk || [n.x, n.x];
+-        if ((f.legacyFloor === 'upper' || f.legacyFloor === 'vestibule') && !plan.rooms.some(r => r.status === 'active' && r.floor === f.legacyFloor && r.y && na >= r.x[0] + 4 && nb <= r.x[1] - 4))
++        if (plan.rooms.some(r => r.status === 'active' && r.floor === f.legacyFloor && r.y) && !plan.rooms.some(r => r.status === 'active' && r.floor === f.legacyFloor && r.y && na >= r.x[0] + 4 && nb <= r.x[1] - 4))
+           err.push(`разговор ${i.id}: NPC ${i.npc} ходит не в пределах одной комнаты`);
+       }
+     }
+@@ -800,6 +839,8 @@ function validateStationPlan(plan, cfg) {
+     const r = plan.rooms.find(x => x.id === e.room && x.status === 'active');
+     if (!r || !r.x || !r.y || e.x < r.x[0] + 4 || e.x > r.x[1] - 4 || e.y < r.y[0] + 4 || e.y > r.y[1] - 11) err.push(`аварийный светильник ${e.id} вне комнаты ${e.room}`);
+   }
++  for (const ft of cfg.STATION.plannedFeatures || [])                        // 1.0: будущие механики привязаны к существующим комнатам
++    if (ft.room !== null && !plan.rooms.some(r => r.id === ft.room && r.status === 'active')) err.push(`будущая функция ${ft.id}: нет действующей комнаты ${ft.room}`);
+   for (const r of plan.rooms) {                                              // действующие комнаты яруса — достижимы
+     if (r.status !== 'active' || !r.y || !r.x) continue;                     // комнаты ярусов (с 0.9 — и вестибюля)
+     const U = cfg.FLOORS[r.floor];
+@@ -839,13 +880,17 @@ const SURF_H = 280 - (CONFIG.FLOORS.surface.y + 61);   // слой поверх
+ const GROUND_Y = CONFIG.FLOORS.surface.y;
+ const surfRow = y => y + SURF_H;        // мировой y → строка канваса поверхности
+ // Области, за которые не выходит свет: зал (ниже перекрытия) и полоса верхнего яруса.
+-const HALL_CLIP = { x0: -Infinity, x1: Infinity, y0: 108, y1: Infinity };
++const HALL_CLIP = { x0: -Infinity, x1: Infinity, y0: 108, y1: 270 };   // 1.0: свет зала не уходит под пути, на ярус −2
+ const UPPER_CLIP = { x0: -Infinity, x1: Infinity, y0: 15, y1: 107 };
+ const SURF_CLIP = { x0: -Infinity, x1: Infinity, y0: -SURF_H, y1: CONFIG.FLOORS.surface.y + 11 };
+ const VEST_CLIP = { x0: -Infinity, x1: Infinity, y0: 19 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y, y1: 100 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y };
++/** 1.0: ярус −2 — отдельный заранее нарисованный канвас во всю ширину мира, y [270, WORLD_BOTTOM). */
++const UTIL = { y0: H, y1: CONFIG.FLOORS.utility.y + 24 };
++const WORLD_BOTTOM = UTIL.y1;
++const UTIL_CLIP = { x0: -Infinity, x1: Infinity, y0: 19 + CONFIG.FLOORS.utility.y - CONFIG.FLOORS.upper.y, y1: 100 + CONFIG.FLOORS.utility.y - CONFIG.FLOORS.upper.y };
+ /** 0.9: слой вестибюля — отдельный заранее нарисованный канвас в мировых координатах [VX0, VX1) × [VY0, 0). */
+ const VEST = { x0: 1160, x1: 1880, y0: CONFIG.FLOORS.surface.y - 4, shell: [1170, 1870, -106] };
+-const WORLD = { sky: null, ruins: null, surface: null, vest: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
++const WORLD = { sky: null, ruins: null, surface: null, vest: null, util: null, rubble: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
+ 
+ /** Регистрирует источник света. layer: 'main' | 'back'. circuit — цепь питания; не задана — определится по зоне
+     (assignCircuits), null — неэлектрический источник. */
+@@ -878,12 +923,13 @@ const BEACONS = [[500, 142], [980, 142], [1460, 142], [800, 30], [1010, 30], [14
+ function floorAtY(y) {
+   if (y < GROUND_Y + 12) return 'surface';
+   if (y < 8) return 'vestibule';
+-  return y < 108 ? 'upper' : 'platform';
++  if (y < 108) return 'upper';
++  return y < 276 ? 'platform' : 'utility';
+ }
+ /** Комната яруса или вестибюля в точке мира. */
+ function roomAt(x, y) {
+   const f = floorAtY(y);
+-  return f === 'upper' || f === 'vestibule' ? ROOMS.find(r => roomFloor(r) === f && x >= r.x && x < r.x + r.w) || null : null;
++  return ROOM_FLOORS.includes(f) ? ROOMS.find(r => roomFloor(r) === f && x >= r.x && x < r.x + r.w) || null : null;
+ }
+ /** Прямоугольник, за который не выходит свет комнаты. */
+ function roomClip(r) { const dy = roomDY(r); return { x0: r.x + 4, x1: r.x + r.w - 4, y0: 19 + dy, y1: 100 + dy }; }
+@@ -893,7 +939,7 @@ function assignCircuits() {
+     const mx = layer === 'back' ? (x - 25) / CONFIG.PARALLAX.BACK : x;
+     const f = floorAtY(y);
+     if (f === 'surface') return CONFIG.CIRCUIT_ZONES.surface;
+-    if (f === 'upper' || f === 'vestibule') { const r = roomAt(mx, y); return r ? r.circuit : 'technical'; }
++    if (ROOM_FLOORS.includes(f)) { const r = roomAt(mx, y); return r ? r.circuit : 'technical'; }
+     return CONFIG.CIRCUIT_ZONES.hall.find(([to]) => mx < to)[1];
+   };
+   for (const l of WORLD.lights) if (l.circuit === undefined) l.circuit = l.mode === 'fire' ? null : zone(l.x, l.y, l.layer);
+@@ -969,11 +1015,11 @@ function mainTexel(x, y, o) {
+ const ROOMS = [
+   { id: 'habitation', x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
+   { id: 'kitchen',    x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
+-  { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },
++  { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА', plate: null, type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },  // 1.0: без крупной таблички (указатели ЖИЛЬЁ/ТЕХ остаются)
+   { id: 'workshop',   x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
+   { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
+   { id: 'power',      x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
+-  { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'lock',     tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },
++  { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ', plate: null, type: 'lock', tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },  // 1.0: табличка «ШЛЮЗ» — у гермоворот в зале вестибюля
+   { id: 'water',      x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
+   // 0.9: вестибюль +1. Рисуются тем же кодом, что комнаты яруса, со сдвигом по y (FLOORS.vestibule.y − FLOORS.upper.y).
+   { id: 'quarantine',     floor: 'vestibule', x: 1180, w: 150, label: 'КАРАНТИН',    type: 'quarantine', tint: [80, 94, 92],  light: [214, 234, 230], circuit: 'critical' },
+@@ -981,9 +1027,20 @@ const ROOMS = [
+   { id: 'checkpoint',     floor: 'vestibule', x: 1460, w: 136, label: 'КПП',         type: 'checkpoint', tint: [66, 72, 78],  light: [214, 226, 236], circuit: 'technical' },
+   { id: 'vestibule-hall', floor: 'vestibule', x: 1606, w: 144, label: 'ЦЕНТРАЛЬНЫЙ ЗАЛ', type: 'hall',   tint: [70, 74, 78],  light: [222, 226, 228], circuit: 'technical' },
+   { id: 'guardroom',      floor: 'vestibule', x: 1760, w: 100, label: 'КАРАУЛЬНАЯ',  type: 'guardroom',  tint: [88, 76, 62],  light: [255, 200, 140], circuit: 'living' },
++  // 1.0: ярус −2 — тот же код комнат со сдвигом на +270 по y (под путями). id совпадают с прежними planned-записями генплана.
++  { id: 'living-pods',  floor: 'utility', x: 300,  w: 220, label: 'ЖИЛЫЕ ЯЧЕЙКИ', type: 'cells',     tint: [86, 72, 58],  light: [255, 190, 120], circuit: 'living',    future: [] },
++  { id: 'mushrooms',    floor: 'utility', x: 530,  w: 200, label: 'ГРИБНИЦА',     type: 'mushrooms', tint: [58, 64, 56],  light: [196, 214, 180], circuit: 'technical', future: [] },
++  { id: 'tea-ferment',  floor: 'utility', x: 740,  w: 180, label: 'ФЕРМЕНТАЦИЯ',  type: 'ferment',   tint: [92, 74, 56],  light: [255, 200, 140], circuit: 'technical', future: [] },
++  { id: 'pigsty',       floor: 'utility', x: 930,  w: 210, label: 'СВИНАРНИК',    type: 'piggery',   tint: [84, 74, 60],  light: [255, 206, 150], circuit: 'living',    future: [] },
++  { id: 'storeroom',    floor: 'utility', x: 1150, w: 220, label: 'СКЛАД',        type: 'storage',   tint: [70, 72, 70],  light: [230, 226, 206], circuit: 'technical', future: ['station-stock'] },
++  { id: 'utility-stairwell', floor: 'utility', x: 1380, w: 240, label: 'ЛЕСТНИЦА', plate: null, type: 'utilstairs', tint: [66, 68, 68], light: [255, 206, 150], circuit: 'technical', future: [] },
++  { id: 'drainage',     floor: 'utility', x: 1630, w: 230, label: 'ДРЕНАЖНАЯ',    type: 'drainage',  tint: [56, 66, 70],  light: [200, 220, 230], circuit: 'technical', future: ['drain-service'] },
+ ];
+ /** Этаж и сдвиг комнаты: комнаты вестибюля рисуются по шаблону яруса, сдвинутые на dy. */
+ const roomFloor = r => r.floor || 'upper';
++const ROOM_FLOORS = ['upper', 'vestibule', 'utility'];                 // 1.0: этажи, где есть комнаты
++/** 1.0: видимая табличка над дверью. label — название помещения (HUD, реестр); plate: null — таблички нет. */
++const roomPlate = r => (r.plate === undefined ? r.label : r.plate);
+ const roomDY = r => CONFIG.FLOORS[roomFloor(r)].y - CONFIG.FLOORS.upper.y;
+ let ROOM_DY = 0;                         // сдвиг мировых y для света/свечения, пока рисуется комната вестибюля
+ function drawRoom(g, r) {
+@@ -1005,7 +1062,7 @@ function drawRoomBody(g, r) {
+   R(g, x + 4, 100, w - 8, 1, '#24221f');
+   const firstLight = WORLD.lights.length;
+   let lamps = w > 200 ? [x + Math.round(w * 0.22), x + Math.round(w * 0.78)] : [x + Math.round(w * 0.8)];
+-  const ph = (textWidth(r.label) + 12) / 2;                               // 0.9: лампа не прячется под табличку (узкие комнаты вестибюля)
++  const ph = roomPlate(r) ? (textWidth(roomPlate(r)) + 12) / 2 : 0;                               // 0.9: лампа не прячется под табличку (узкие комнаты вестибюля)
+   if (lamps.length === 1 && Math.abs(lamps[0] - cx) < ph + 5) lamps = [cx + ph + 6 <= x + w - 9 ? Math.round(cx + ph + 6) : Math.round(cx - ph - 6)];
+   lamps.forEach(lx => {
+     R(g, lx, 19, 1, 7, '#1d1f21'); R(g, lx - 4, 26, 9, 2, '#5a6062'); R(g, lx - 4, 26, 9, 1, '#7a8082');
+@@ -1014,7 +1071,7 @@ function drawRoomBody(g, r) {
+   });
+   ROOM_DRAW[r.type](g, r);
+   for (let i = firstLight; i < WORLD.lights.length; i++) WORLD.lights[i].clip = { x0: x + 4, x1: x + w - 4, y0: 19 + dy, y1: 100 + dy };
+-  plate(g, cx, 22, r.label, '#1e2426', '#e0c48c', '#4a5254');
++  if (roomPlate(r)) plate(g, cx, 22, roomPlate(r), '#1e2426', '#e0c48c', '#4a5254');   // 1.0: табличка может отличаться от названия или отсутствовать
+ }
+ const ROOM_DRAW = {
+   bunks(g, r) {
+@@ -1093,6 +1150,121 @@ const ROOM_DRAW = {
+     for (let k = 0; k < r.w - 8; k++) R(g, r.x + 4 + k, 92, 1, 4, ((k >> 2) % 2) ? '#b8922e' : '#1c1c1c');
+   },
+   /** Шлюз: гермоворота в задней стене (створки рисуются в кадре — они открываются), оружейная стойка. */
++  /* ---- 1.0: ярус −2 (координаты шаблона комнаты яруса: пол 96, потолок 19) ---- */
++  /** Жилые ячейки: двухъярусные нары за занавесками, ящики, личные вещи, самодельная лампа. */
++  cells(g, r) {
++    for (let i = 0; i < 2; i++) {
++      const bx = r.x + 12 + i * 70;
++      R(g, bx, 54, 2, 42, '#4a4440'); R(g, bx + 52, 54, 2, 42, '#4a4440');
++      [[70, i ? '#6a5a3a' : '#5a4a6a'], [88, i ? '#4a5a4a' : '#7a3b34']].forEach(([y, blanket], k) => {
++        R(g, bx + 2, y, 50, 4, '#7c6c52'); R(g, bx + 2, y + 4, 50, 1, '#36302a');
++        R(g, bx + 16 + k * 4, y - 2, 36 - k * 4, 4, blanket); R(g, bx + 4, y - 3, 10, 3, '#b8ae94');
++      });
++      for (let y = 50; y < 92; y += 2) R(g, bx + 55, y, 5, 1, i ? '#8a6a4a' : '#6a7a6a');   // занавеска
++      R(g, bx + 54, 49, 8, 1, '#3a3632');
++      R(g, bx + 30, 38, 14, 10, '#b8a98a'); R(g, bx + 31, 39, 12, 6, i ? '#7a6a5a' : '#5a6a7a');   // картинка/фото
++    }
++    crate(g, r.x + 160, 82, 18, 14); crate(g, r.x + 180, 86, 14, 10); crate(g, r.x + 164, 72, 12, 10);
++    R(g, r.x + 156, 64, 50, 1, '#2a2622');                                   // верёвка с бельём
++    [[160, '#8a8070'], [172, '#6a7a8a'], [186, '#9a6a5a']].forEach(([x, c]) => R(g, r.x + x, 65, 8, 9, c));
++    R(g, r.x + 196, 76, 8, 6, '#3a3e40'); R(g, r.x + 198, 74, 4, 2, '#2a2e30');   // примус
++    // самодельная лампа на проводе: тёплый слабый свет жилой цепи
++    L(g, r.x + 150, 19, r.x + 150, 34, '#1a1c1e'); R(g, r.x + 148, 34, 5, 4, '#d8b070');
++    const l = addLight(r.x + 150, 38, 30, [255, 176, 100], 'flicker', 0.45); addEmissive(r.x + 149, 35, 3, 2, [255, 214, 150], l);
++  },
++  /** Грибница: стеллажи с ящиками субстрата, бледные шляпки, влажные стены, трубы, бак. Капли — в FX. */
++  mushrooms(g, r) {
++    for (let k = 0; k < 7; k++) {                                            // сырые потёки по стене
++      const x = r.x + 10 + ((hash(k, 51) * (r.w - 20)) | 0);
++      for (let y = 22; y < 92; y++) if (hash(x, y) > 0.35) R(g, x, y, 1, 1, rgb([40, 50, 44], 0.9));
++    }
++    R(g, r.x + 6, 24, r.w - 12, 3, '#4a5250'); R(g, r.x + 6, 24, r.w - 12, 1, '#6a7270');   // труба под потолком
++    for (let x = r.x + 20; x < r.x + r.w - 10; x += 40) R(g, x, 27, 2, 3, '#3a4240');
++    for (let sh = 0; sh < 2; sh++) {
++      const sx = r.x + 14 + sh * 84;
++      R(g, sx, 44, 2, 52, '#4a4034'); R(g, sx + 68, 44, 2, 52, '#4a4034');
++      for (let t = 0; t < 3; t++) {
++        const y = 50 + t * 16;
++        R(g, sx, y + 8, 70, 2, '#5a4a36');
++        R(g, sx + 3, y + 2, 64, 6, '#3e3226'); R(g, sx + 3, y + 2, 64, 1, '#56463a');     // ящик субстрата
++        for (let m = 0; m < 6; m++) {
++          const mx = sx + 6 + m * 10 + ((hash(m, t + sh * 3) * 4) | 0);
++          R(g, mx, y + 1, 1, 2, '#b8b0a0'); R(g, mx - 2, y - 1, 5, 2, hash(m, t) > 0.5 ? '#d8d0bc' : '#c8bca4');   // шляпки
++        }
++      }
++    }
++    R(g, r.x + r.w - 26, 70, 18, 26, '#5a6a70'); R(g, r.x + r.w - 26, 70, 18, 1, '#7a8a90'); R(g, r.x + r.w - 20, 66, 6, 4, '#4a5a60');   // бак
++    R(g, r.x + r.w - 24, 94, 22, 2, '#2e3a40');                              // лужа
++  },
++  /** Ферментационная: бочки, большой чан, полки с банками, сушилка с листьями. */
++  ferment(g, r) {
++    for (let k = 0; k < 4; k++) barrel(g, r.x + 10 + k * 15, 80, k % 2 ? [92, 64, 40] : [104, 74, 46]);
++    R(g, r.x + 74, 62, 34, 34, '#6a5034'); R(g, r.x + 74, 62, 34, 2, '#8a6a46'); R(g, r.x + 72, 70, 38, 2, '#3a2a1a'); R(g, r.x + 72, 84, 38, 2, '#3a2a1a');   // чан
++    R(g, r.x + 80, 58, 22, 4, '#4a3a2a');
++    for (let t = 0; t < 2; t++) {                                            // полки с банками
++      const y = 44 + t * 14;
++      R(g, r.x + 116, y + 8, 56, 2, '#5a4632');
++      for (let j = 0; j < 7; j++) { const c = [[150, 110, 50], [120, 80, 40], [170, 140, 60], [90, 110, 60]][(j + t) % 4]; R(g, r.x + 119 + j * 7, y + 2, 5, 6, rgb(c)); R(g, r.x + 119 + j * 7, y + 1, 5, 1, '#c8c0b0'); }
++    }
++    R(g, r.x + 116, 74, 56, 1, '#2a2622'); R(g, r.x + 116, 74, 1, 22, '#4a3a2a'); R(g, r.x + 171, 74, 1, 22, '#4a3a2a');   // сушилка
++    for (let j = 0; j < 9; j++) { const x = r.x + 120 + j * 6; R(g, x, 75, 3, 6 + (j % 3), j % 2 ? '#6a7a3a' : '#7a6a32'); }
++    R(g, r.x + 122, 88, 44, 8, '#4a3a2a'); R(g, r.x + 124, 86, 12, 2, '#a89878'); R(g, r.x + 140, 86, 10, 2, '#a89878');   // стол с посудой
++  },
++  /** Свинарник: загон из досок, кормушка, солома, вентиляционная труба. Свиньи — актёры в пределах загона. */
++  piggery(g, r) {
++    const x0 = r.x + 30, x1 = r.x + 194;
++    for (let x = x0; x < x1; x++) if (hash(x, 95) > 0.35) R(g, x, 93 + ((hash(x, 7) * 3) | 0), 1, 3, hash(x, 9) > 0.5 ? '#a8904a' : '#8a7438');   // солома
++    [80, 88].forEach(y => { R(g, x0, y, x1 - x0, 2, '#6a5034'); R(g, x0, y, x1 - x0, 1, '#8a6a46'); });   // жерди загона
++    for (let x = x0; x <= x1; x += 41) R(g, x, 76, 3, 20, '#4a3624');
++    R(g, x0 + 120, 90, 26, 6, '#5a5e5c'); R(g, x0 + 120, 90, 26, 1, '#7a7e7a'); R(g, x0 + 122, 91, 22, 2, '#7a6a3a');   // кормушка
++    R(g, r.x + 10, 22, 6, 74, '#5a6266'); R(g, r.x + 10, 22, 2, 74, '#7a8286'); R(g, r.x + 6, 30, 14, 6, '#4a5256');   // вентиляция
++    for (let k = 0; k < 3; k++) R(g, r.x + 8, 32 + k * 2, 10, 1, '#2a3034');
++    R(g, r.x + r.w - 36, 56, 22, 18, '#3a3430'); R(g, r.x + r.w - 33, 59, 16, 3, '#6a5a3a'); R(g, r.x + r.w - 33, 64, 16, 3, '#6a5a3a');   // мешки с кормом на полке
++  },
++  /** Склад: стеллажи с подписанными полками, мешки, металлические ящики, канистры, детали. */
++  storage(g, r) {
++    for (let k = 0; k < 2; k++) {
++      const sx = r.x + 10 + k * 70;
++      R(g, sx, 36, 2, 60, '#5a5e5c'); R(g, sx + 60, 36, 2, 60, '#5a5e5c');
++      for (let t = 0; t < 3; t++) {
++        const y = 54 + t * 14; R(g, sx, y, 62, 2, '#6a6e6c');
++        for (let j = 0; j < 4; j++) { const c = [[80, 90, 70], [110, 90, 60], [90, 80, 70], [70, 80, 90]][(j + t + k) % 4]; R(g, sx + 4 + j * 14, y - 9, 11, 9, rgb(c)); R(g, sx + 4 + j * 14, y - 9, 11, 1, rgb(c, 1.3)); }
++      }
++      const lab = k ? 'ДЕТАЛИ' : 'ПРОДУКТЫ', lw = textWidth(lab) + 4;           // подпись стеллажа — на верхней полке
++      R(g, sx + 31 - lw / 2, 36, lw, 9, '#2a2e2c'); drawText(g, lab, sx + 33 - lw / 2, 37, '#d8d0b0', null);
++    }
++    for (let k = 0; k < 3; k++) { R(g, r.x + 152 + k * 9, 84, 9, 12, '#a89870'); R(g, r.x + 152 + k * 9, 84, 9, 2, '#c8b890'); }   // мешки
++    R(g, r.x + 150, 74, 30, 10, '#4a5258'); R(g, r.x + 150, 74, 30, 1, '#6a7278'); R(g, r.x + 163, 76, 4, 2, '#2a3236');   // металлический ящик
++    for (let k = 0; k < 3; k++) { const cx = r.x + 184 + k * 10; R(g, cx, 82, 8, 14, '#8a2e24'); R(g, cx + 2, 80, 3, 2, '#5a1e18'); R(g, cx, 82, 8, 1, '#aa4a3a'); }   // канистры — у стены, отдельно
++    drawText(g, 'НЕ КУРИТЬ', r.x + 150, 40, '#c84a3a', 'rgba(0,0,0,.5)');
++  },
++  /** Лестничный холл яруса −2: низ лестницы на платформу, указатели, трубы. */
++  utilstairs(g, r) {
++    R(g, r.x + 8, 26, r.w - 16, 3, '#4a4e50'); R(g, r.x + 8, 26, r.w - 16, 1, '#6a6e70');
++    for (let x = r.x + 20; x < r.x + r.w; x += 46) R(g, x, 29, 2, 4, '#3a3e40');
++    const sx = r.x + 6; R(g, sx, 46, 50, 11, '#2f3c3e'); R(g, sx, 46, 50, 1, '#4a5254');
++    for (let k = 0; k < 4; k++) R(g, sx + 6 - k, 49 + k, 1 + 2 * k, 1, '#e0c48c');   // стрелка вверх
++    drawText(g, 'ПЕРРОН', sx + 13, 48, '#e0c48c', 'rgba(0,0,0,.5)');
++    drawText(g, '◀ ЖИЛЬЕ', r.x + 8, 62, '#c8b88a', 'rgba(0,0,0,.45)');
++    drawText(g, 'ДРЕНАЖ ▶', r.x + r.w - 50, 62, '#c8b88a', 'rgba(0,0,0,.45)');
++  },
++  /** Дренажная: насосы, большие трубы, шкафы, задвижки, решётка, лужи, тревожная лампа. */
++  drainage(g, r) {
++    R(g, r.x + 6, 30, r.w - 12, 8, '#4a5a5e'); R(g, r.x + 6, 30, r.w - 12, 2, '#6a7a7e'); R(g, r.x + 6, 37, r.w - 12, 1, '#2a3236');   // магистраль
++    for (let x = r.x + 30; x < r.x + r.w - 20; x += 54) { R(g, x, 28, 6, 12, '#3a464a'); }
++    for (let k = 0; k < 2; k++) {                                            // насосы
++      const px = r.x + 24 + k * 70;
++      R(g, px, 70, 40, 26, '#3e5a64'); R(g, px, 70, 40, 2, '#5e7a84'); disc(g, px + 12, 83, 8, '#2e4a54'); disc(g, px + 12, 83, 4, '#6a8a94');
++      R(g, px + 30, 38, 6, 32, '#4a5a5e'); R(g, px + 28, 50, 10, 4, '#3a4a4e');
++      disc(g, px + 33, 58, 4, '#8a3a30'); R(g, px + 31, 57, 5, 1, '#c85a4a');      // задвижка
++    }
++    R(g, r.x + r.w - 40, 44, 26, 40, '#4a5258'); R(g, r.x + r.w - 40, 44, 26, 1, '#6a7278'); R(g, r.x + r.w - 27, 45, 1, 39, '#2e3438');   // шкаф
++    for (let k = 0; k < 3; k++) addEmissive(r.x + r.w - 36 + k * 6, 50, 2, 1, k === 2 ? [255, 90, 60] : [110, 230, 120], null, 'main', 'blink');
++    R(g, r.x + 160, 92, 26, 4, '#1a1e20'); for (let x = r.x + 161; x < r.x + 186; x += 3) R(g, x, 92, 1, 4, '#4a5254');   // решётка
++    R(g, r.x + 8, 94, 40, 2, '#2e4048'); R(g, r.x + 110, 94, 34, 2, '#2e4048'); R(g, r.x + 112, 94, 10, 1, '#5a7480');   // лужи
++    // тревожная лампа уровня воды: мигает, цепь technical
++    R(g, r.x + 150, 40, 8, 6, '#3a3e40'); const l = addLight(r.x + 154, 46, 40, [255, 120, 50], 'pulse', 0.5); addEmissive(r.x + 151, 41, 6, 4, [255, 150, 70], l);
++  },
+   /** 0.9: шлюз яруса 0 — нижний пост у марша в вестибюль. Гермоворота переехали наверх, в центральный зал. */
+   lock(g, r) {
+     R(g, r.x + 10, 52, 22, 32, '#3a3430'); R(g, r.x + 10, 52, 22, 1, '#5a5048');            // оружейная стойка
+@@ -1140,7 +1312,8 @@ const ROOM_DRAW = {
+     for (let y = 44; y < 60; y++) R(g, gx - 23, y, 46, 1, rgb([60, 66, 70], 0.5 - (y - 44) / 40));   // ступени наверх, в павильон
+     for (let x = gx - 28; x < gx + 28; x++) R(g, x, 92, 1, 4, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
+     for (let k = 0; k < 3; k++) { const tx = r.x + r.w - 52 + k * 14; R(g, tx, 76, 2, 20, '#7a7e7a'); R(g, tx - 4, 80, 10, 2, '#9a9e96'); R(g, tx - 4, 86, 10, 1, '#6a6e6a'); }   // турникеты
+-    const wx = r.x + r.w - 52; R(g, wx, 56, textWidth('ВЫХОД') + 6, 11, '#2f5660'); R(g, wx, 56, textWidth('ВЫХОД') + 6, 1, '#6f9a98'); drawText(g, 'ВЫХОД', wx + 3, 58, '#dfe6d6', null);
++    plate(g, gx + 28 + 6 + textWidth('ШЛЮЗ') / 2 + 5, 44, 'ШЛЮЗ', '#1e2426', '#e0c48c', '#4a5254');   // 1.0: табличка у настоящих гермоворот
++    const wx = r.x + r.w - 52; R(g, wx, 61, textWidth('ВЫХОД') + 6, 11, '#2f5660'); R(g, wx, 61, textWidth('ВЫХОД') + 6, 1, '#6f9a98'); drawText(g, 'ВЫХОД', wx + 3, 63, '#dfe6d6', null);
+     addBeacon(g, gx, 36);                                                     // аварийный маяк над воротами (переехал из шлюза яруса 0)
+     WORLD.gate = { x: gx, top: 44 + ROOM_DY, open: 0 };
+   },
+@@ -1338,8 +1511,7 @@ function drawProps(g) {
+   [1648, 1662].forEach(px => { R(g, px, 122, 6, 92, '#4e5a5e'); R(g, px, 122, 2, 92, '#6e7a7e');
+     R(g, px - 2, 150, 10, 3, '#3a4448'); R(g, px - 2, 190, 10, 3, '#3a4448'); });
+   disc(g, 1651, 172, 5, '#8a3a30'); disc(g, 1651, 172, 3, '#4e5a5e');
+-  for (let x = 1580; x < 1626; x++) R(g, x, 196, 1, 4, ((x >> 2) % 2) ? '#c8a03c' : '#1a1a1a');            // ограждение
+-  R(g, 1582, 200, 2, 14, '#3a3a38'); R(g, 1622, 200, 2, 14, '#3a3a38');
++  // 1.0: полосатое ограждение 1580–1626 снято — здесь проём лестницы на ярус −2 с перилами
+   barrel(g, 1690, 198, [90, 62, 44]); barrel(g, 1704, 199, [80, 70, 54]);
+   R(g, 1730, 206, 16, 8, '#6a2a24'); R(g, 1730, 206, 16, 1, '#8a3a30');                                     // ящик с инструментом
+   L(g, 1772, 122, 1776, 150, '#1a1a1a', 2);                                                                 // оборванный кабель
+@@ -1425,11 +1597,13 @@ function drawBackDecor(g) {
+ }
+ 
+ /* ---------- FORE: силуэты переднего плана ---------- */
+-function drawFore(g, w) {
++function drawRubble(g, w) {
+   for (let x = 0; x < w; x += 1) {                                      // щебень у нижнего края
+     const h = Math.max(0, Math.round((noise1(x * 0.06, 41) - 0.55) * 26));
+     if (h > 0) { R(g, x, H - h, 1, h, '#07090b'); R(g, x, H - h, 1, 1, '#1a1e22'); }
+   }
++}
++function drawFore(g, w) {
+   [520, 1180, 1640].forEach(mx => {                                     // ближние провисшие кабели под перекрытием
+     const x = toFore(mx); cable(g, x, x + 90, 118, 9, '#0a0c0e'); cable(g, x + 10, x + 70, 119, 6, '#121518');
+   });
+@@ -1443,6 +1617,7 @@ const VEST_DOORWAYS = [[1326, 1344], [1446, 1464], [1592, 1610], [1746, 1764]];
+ const GALLERIES = [
+   { floor: 'upper', x0: 744, x1: 856, stair: 'main' },
+   { floor: 'vestibule', x0: 1536, x1: 1592, stair: 'vestibule' },        // 0.9: над проёмом марша в КПП; проём в зал — с 1592
++  { floor: 'platform', x0: 1470, x1: 1610, stair: 'utility' },           // 1.0: настил над проёмом лестницы на ярус −2
+ ];
+ function drawDoorways(g, list = DOORWAYS) {
+   list.forEach(([a, b]) => {
+@@ -1464,7 +1639,7 @@ function stairTopY(s, x) {
+ /** Бетонный марш (только изображение, маршрут задаёт stairTopY): ступени лежат на наклонной несущей плите
+     толщиной ~10 px; под плитой — просвет со стеной станции. Внизу — опорная тумба, посередине — одна стойка,
+     верхний конец заделан в перекрытие у площадки. */
+-function drawStairs(g) {
++function drawStairs(g, main = false) {
+   CONFIG.STAIRS.forEach(s => {
+     const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1 } = s.run, [h0, h1] = s.hole, [hy0, hy1] = s.holeY;
+     const d = x1 > x0 ? 1 : -1;                                          // 0.9: направление подъёма по x
+@@ -1475,6 +1650,13 @@ function drawStairs(g) {
+     R(g, h0, hy0, h1 - h0, hy1 - hy0, '#121417');                       // проём сквозь пол и перекрытие
+     R(g, d > 0 ? h0 - 1 : h1, hy0, 1, hy1 - hy0, '#6e706c'); R(g, h0 - 1, hy1 - 1, h1 - h0 + 1, 1, '#3a3c3e');
+     drawGallery(g, h0, h1, yt - CONFIG.FLOORS.upper.y);
++    if (main && s.to === 'platform') {                                   // 1.0: рельсы над проёмом — на мостике из швеллеров
++      const RAIL = y => (y >= 236 && y <= 239) || (y >= 247 && y <= 262);
++      paintRegion(g, h0, 236, h1 - h0, 27, (x, y, o) => (RAIL(y) && !(y >= 251 && y <= 257 && (x % 22) >= 12) ? mainTexel(x, y, o) : false));
++      R(g, h0, 263, h1 - h0, 3, '#3a3e40'); R(g, h0, 263, h1 - h0, 1, '#5a5e5c');
++      for (let x = h0 + 8; x < h1 - 4; x += 30) { L(g, x, 266, x + 10, 282, '#3a3e40', 2); }
++      R(g, h0 - 2, 214, 2, 72, '#5a5c58'); R(g, h1, 214, 2, 72, '#3a3c3e');   // края проёма
++    }
+     // Опорная тумба у подножия.
+     for (let k = -6; k < 26; k++) for (let y = yb - 14; y < yb; y++)
+       conc(x0 + d * k, y, y === yb - 14 ? 138 : k === -6 ? 116 : y >= yb - 2 ? 62 : 92);
+@@ -1541,6 +1723,35 @@ function buildVestibule() {
+   WORLD.vest = c;
+ }
+ 
++/* ---------- UTILITY (1.0): ярус −2 под путями ---------- */
++/** Плита под путями, толща грунта между комнатами, плита пола. */
++function utilTexel(x, y, o) {
++  const n = (hash(x, y + 377) - 0.5) * 10, F = CONFIG.FLOORS.utility.y;
++  if (y < H + 15) {                                                      // плита под путевой зоной
++    let v = 64 + n * 1.2; if (x % 48 === 0 || x % 48 === 1) v -= 12; if (y === H) v -= 26; if (y >= H + 13) v -= 30;
++    return setC(o, v - 4, v, v + 1);
++  }
++  if (y >= F + 9) {                                                      // плита пола
++    let v = 58 + n * 1.2; if (x % 48 === 0 || x % 48 === 1) v -= 12; if (y === F + 9) v += 22;
++    return setC(o, v - 4, v, v + 1);
++  }
++  const wet = Math.sin(x * 0.05 + Math.sin(y * 0.2)) > 0.92 ? -5 : 0;    // сырые потёки в грунте
++  return setC(o, 24, 26, 29, n * 0.8 + Math.sin(y * 0.45 + Math.sin(x * 0.021) * 2.2) * 3 + wet);
++}
++/** Проёмы между комнатами яруса −2 (в координатах шаблона комнаты). */
++const UTIL_DOORWAYS = [[516, 534], [726, 744], [916, 934], [1136, 1154], [1366, 1384], [1616, 1634]];
++function buildUtility() {
++  const c = makeCanvas(W, UTIL.y1 - UTIL.y0), g = c.getContext('2d', { willReadFrequently: true });
++  g.translate(0, -UTIL.y0);                                              // мировые координаты
++  paintRegion(g, 0, UTIL.y0, W, UTIL.y1 - UTIL.y0, utilTexel);
++  const dy = CONFIG.FLOORS.utility.y - CONFIG.FLOORS.upper.y;
++  ROOMS.filter(r => roomFloor(r) === 'utility').forEach(r => drawRoom(g, r));
++  g.save(); g.translate(0, dy); drawDoorways(g, UTIL_DOORWAYS); g.restore();
++  CONFIG.EMERGENCY_LAMPS.filter(e => ROOMS.find(r => r.id === e.room && roomFloor(r) === 'utility')).forEach(e => addEmergencyLamp(g, e));
++  drawStairs(g);                                                         // низ марша на платформу — в тех же мировых координатах
++  WORLD.util = c;
++}
++
+ /* ---------- SURFACE: улица над станцией и павильон ---------- */
+ function buildSurface() {
+   // Небо: пыльные сумерки, ступенчатый градиент с дизерингом и полосами облаков.
+@@ -1644,17 +1855,20 @@ function buildWorld() {
+   CONFIG.EMERGENCY_GLOW.forEach(e => { const l = addLight(e.x, e.y, e.r, [255, 52, 40], 'pulse', 0.75, 'main', 'emergency'); l.clip = HALL_CLIP; l.pool = true; });
+   drawEnds(gm);
+   drawProps(gm);
+-  drawStairs(gm);
++  drawStairs(gm, true);
+   const back = makeCanvas(W, H), gb = back.getContext('2d', { willReadFrequently: true });
+   paintRegion(gb, 0, 122, W, 92, backTexel);
+   drawBackDecor(gb);
+   const fw = Math.ceil(W * CONFIG.PARALLAX.FORE) + 40, fore = makeCanvas(fw, H), gf = fore.getContext('2d');
+   drawFore(gf, fw);
+-  buildSurface(); buildVestibule();
++  buildSurface(); buildVestibule(); buildUtility();
+   WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
++  WORLD.rubble = makeCanvas(fw, H); drawRubble(WORLD.rubble.getContext('2d'), fw);   // 1.0: щебень низа кадра — отдельно, гаснет при взгляде на ярус −2
+   WORLD.lights.forEach(l => { if (!l.clip) l.clip = HALL_CLIP; });
+   assignCircuits();
+   WORLD.drips = [470, 1238, 1560].map((x, i) => ({ x, y: 0, v: 0, wait: 0.5 + i * 0.9, active: false }));
++  const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: сырые потолки грибницы и дренажной
++  [[566, 0.3], [668, 1.1], [1700, 0.7], [1792, 1.6]].forEach(([x, w]) => WORLD.drips.push({ x, y: 0, v: 0, wait: w, active: false, y0: UY - 76, y1: UY - 2 }));
+ }
+ 
+ /* ============================ PLAYER_SPRITE ===============================
+@@ -1786,6 +2000,19 @@ function makeLying(PAL, rise, blanket) {
+ }
+ /** Мутант: сгорбленный, длинные руки до земли. 6 кадров походки, лицом вправо. */
+ const MUT_W = 34, MUT_H = 40;
++/** 1.0: свинья 22×13 — шаг (4 кадра) и поворот головы (head 1 — морда к земле). */
++const PIG_W = 22, PIG_H = 13;
++function drawPigFrame(i, head) {
++  const c = makeCanvas(PIG_W, PIG_H), g = c.getContext('2d'), body = '#c49a8a', sh = '#9a7468', dark = '#5e4038', hi = '#dcb4a2';
++  const lg = [[1, 0], [0, 1], [-1, 0], [0, -1]][i % 4];
++  [[4, lg[0]], [8, -lg[0]], [13, lg[1]], [17, -lg[1]]].forEach(([x, o]) => R(g, x + o, 9, 2, 4, sh));   // ноги
++  R(g, 3, 3, 16, 7, body); R(g, 4, 2, 14, 1, body); R(g, 4, 3, 13, 1, hi); R(g, 3, 9, 16, 1, sh);
++  R(g, 1, 4, 2, 2, sh); R(g, 0, 3, 1, 1, sh);                            // хвостик
++  const hy = head ? 5 : 3;
++  R(g, 18, hy, 4, 5, body); R(g, 21, hy + 2, 1, 3, '#b07c70'); R(g, 21, hy + 3, 1, 1, dark);   // голова и пятачок
++  R(g, 18, hy - 1, 2, 2, sh); R(g, 19, hy + 1, 1, 1, dark);              // ухо и глаз
++  return c;
++}
+ function drawMutantFrame(i) {
+   const c = makeCanvas(MUT_W, MUT_H), g = c.getContext('2d', { willReadFrequently: true }), p = (i / 6) * Math.PI * 2;
+   const skin = '#8a9578', sh = '#5f6b55', dark = '#2e352b', rag = '#4a3e34', ragSh = '#352c24';
+@@ -1830,6 +2057,7 @@ function buildSprites() {
+   SETS.resB    = personSet(RES_B_PAL,   { noPack: true, sit: true, blanket: '#465a6c' });
+   SETS.resC    = personSet(RES_C_PAL,   { noPack: true, sit: true });
+   SETS.mutant  = { walk: [0, 1, 2, 3, 4, 5].map(drawMutantFrame) };
++  SETS.pig     = { walk: [0, 1, 2, 3].map(i => drawPigFrame(i, 0)), idle: [drawPigFrame(0, 0), drawPigFrame(0, 1)] };   // 1.0
+ }
+ 
+ /* ================================ ACTORS ==================================
+@@ -1840,7 +2068,7 @@ const ACTORS = [];
+ function actor(kind, set, x, y, o = {}) {
+   const a = { kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
+     wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed,
+-    bubble: null, id: o.id || null, lampType: o.lamp || null, tunnel: o.tunnel || 0, floor: o.floor || floorAtY(y),
++    bubble: null, id: o.id || null, lampType: o.lamp || null, tunnel: o.tunnel || 0, floor: o.floor || floorAtY(o.bed ? o.bed[1] : y),   // 1.0: спящий — по высоте кровати
+     lamp: 0, lampWant: false, lampDelay: 0, talkT: 0 };
+   ACTORS.push(a); return a;
+ }
+@@ -1857,6 +2085,11 @@ function placeActors() {
+   actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+   actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
+   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
++  const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: ярус −2 — спящие в ячейках и свиньи в загоне
++  actor('sleeper', 'resA', 0, 0, { bed: [316, UY - 10] }); actor('sleeper', 'resB', 0, 0, { bed: [386, UY - 28] });
++  actor('pig', 'pig', 990, UY, { minX: 972, maxX: 1040, speed: 7, facing: 1 });
++  actor('pig', 'pig', 1062, UY, { minX: 1046, maxX: 1110, speed: 6, facing: -1 });
++  actor('pig', 'pig', 1086, UY, { minX: 1086, maxX: 1086, facing: -1 });     // третья стоит у кормушки и вертит головой
+   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
+   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
+   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+@@ -1897,10 +2130,11 @@ function updateActors(dt) {
+     if (a.lampWant && a.tunnel) { a.facing = a.tunnel; continue; }       // блэкаут: охрана светит в тоннель и не оглядывается
+     if (a.talkT > 0) { a.talkT -= dt; a.moving = false; continue; }       // разговаривает с героем — стоит на месте
+     if (a.kind === 'guard' || a.kind === 'idle') { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = (a.kind === 'guard' ? 3 : 6) + rand() * 5; } }
+-    if (a.kind !== 'walker' && a.kind !== 'mutant') continue;
++    if (a.kind === 'pig' && a.minX === a.maxX) { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = 2 + rand() * 4; } continue; }
++    if (a.kind !== 'walker' && a.kind !== 'mutant' && a.kind !== 'pig') continue;
+     if (a.wait > 0) { a.wait -= dt; a.moving = false; continue; }
+     const d = a.tx - a.x;
+-    if (Math.abs(d) < 1) { a.wait = (a.kind === 'mutant' ? 0.8 : 1.5) + rand() * 3; a.tx = a.minX + rand() * (a.maxX - a.minX); a.moving = false; continue; }
++    if (Math.abs(d) < 1) { a.wait = (a.kind === 'mutant' ? 0.8 : a.kind === 'pig' ? 2.5 : 1.5) + rand() * 3; a.tx = a.minX + rand() * (a.maxX - a.minX); a.moving = false; continue; }
+     const step = Math.min(Math.abs(d), a.speed * dt);
+     a.x += Math.sign(d) * step; a.facing = Math.sign(d); a.walkDist += step; a.moving = true;
+   }
+@@ -1926,12 +2160,12 @@ function updateLamps(dt) {
+ }
+ /** Цепь, от которой зависит свет вокруг NPC: на ярусе — цепь комнаты, на платформе — зона зала. */
+ function actorCircuit(a) {
+-  if (a.floor === 'upper' || a.floor === 'vestibule') { const r = roomAt(a.x, a.y); return r ? r.circuit : 'technical'; }
++  if (ROOM_FLOORS.includes(a.floor)) { const r = roomAt(a.x, a.y); return r ? r.circuit : 'technical'; }
+   return CONFIG.CIRCUIT_ZONES.hall.find(([to]) => a.x < to)[1];
+ }
+ /** Прямоугольник, за который свет NPC не выходит: комната яруса или зал. */
+ function actorClip(a) {
+-  if (a.floor === 'upper' || a.floor === 'vestibule') { const r = roomAt(a.x, a.y); return r ? roomClip(r) : a.floor === 'upper' ? UPPER_CLIP : VEST_CLIP; }
++  if (ROOM_FLOORS.includes(a.floor)) { const r = roomAt(a.x, a.y); return r ? roomClip(r) : { upper: UPPER_CLIP, vestibule: VEST_CLIP, utility: UTIL_CLIP }[a.floor]; }
+   return a.floor === 'surface' ? SURF_CLIP : HALL_CLIP;
+ }
+ /** Точка света в руке NPC (мировые координаты). */
+@@ -1944,6 +2178,7 @@ function lampPoint(a) {
+ function actorSprite(a) {
+   const s = SETS[a.set];
+   if (a.kind === 'mutant') return s.walk[a.moving ? Math.floor(a.walkDist / 3) % 6 : 0];
++  if (a.kind === 'pig') return a.moving ? s.walk[Math.floor(a.walkDist / 2) % 4] : s.idle[Math.floor(a.t / 0.6 + a.x) % 3 === 0 ? 1 : 0];   // 1.0
+   if (a.kind === 'sitter' || a.kind === 'sitguard') return s.sit[Math.floor(a.t / 0.9) % 2];
+   if (a.kind === 'sleeper') return s.lie[Math.floor(a.t / 1.6) % 2];
+   if (a.moving) return s.walk[Math.floor(a.walkDist / CONFIG.PLAYER.STRIDE) % 8];
+@@ -2157,7 +2392,8 @@ const Camera = {
+       На марше камера плавно переходит от цели одного этажа к другому по высоте героя. */
+   floorY(f) {
+     const maxY = H - this.viewH, F = CONFIG.FLOORS[f];
+-    return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;
++    if (F.bottom) return Math.max(-SURF_H, WORLD_BOTTOM - this.viewH);    // 1.0: ярус −2 — низ кадра = низ мира
++    return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;   // старые этажи — как в 0.9
+   },
+   targetY(p) {
+     if (p.state === 'stairs' && p.path) {
+@@ -2202,10 +2438,11 @@ const FX = {
+     this.embers = this.embers.filter(e => (e.life -= dt) > 0 && ((e.x += e.vx * dt + Math.sin(t * 5 + e.y) * 0.08), (e.y += e.vy * dt), true));
+     // Капли с потолка.
+     for (const d of WORLD.drips) {
+-      if (!d.active) { d.wait -= dt; if (d.wait <= 0) { d.active = true; d.y = 132; d.v = 0; } continue; }
++      if (!d.active) { d.wait -= dt; if (d.wait <= 0) { d.active = true; d.y = d.y0 || 132; d.v = 0; } continue; }
+       d.v += 260 * dt; d.y += d.v * dt;
+-      if (d.y >= 214) { d.active = false; d.wait = 1.4 + rand() * 2.2;
+-        for (let k = 0; k < 3; k++) this.splashes.push({ x: d.x, y: 213, vx: (rand() - 0.5) * 24, vy: -18 - rand() * 14, life: 0.35 }); }
++      const fl = d.y1 || 214;                                            // 1.0: у капли свой потолок и пол
++      if (d.y >= fl) { d.active = false; d.wait = 1.4 + rand() * 2.2;
++        for (let k = 0; k < 3; k++) this.splashes.push({ x: d.x, y: fl - 1, vx: (rand() - 0.5) * 24, vy: -18 - rand() * 14, life: 0.35, floor: fl - 1 }); }
+     }
+     this.splashes = this.splashes.filter(s => (s.life -= dt) > 0 && ((s.vy += 200 * dt), (s.x += s.vx * dt), (s.y += s.vy * dt), true));
+     // Оборванный кабель искрит.
+@@ -2310,6 +2547,7 @@ const Render = {
+     // 2. Станция и створки гермоворот.
+     g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
+     g.drawImage(WORLD.main, -camI, yo);
++    if (WORLD.util && yo + H < this.viewH) g.drawImage(WORLD.util, -camI, yo + H);   // 1.0: ярус −2 — только когда виден
+     this.drawGate(g, camI, yo);
+     if (yo > 0) this.drawScavenge(g, camI, yo);
+     // 3. Динамика под освещением (освещается картой света).
+@@ -2351,6 +2589,8 @@ const Render = {
+     // 6. Светящиеся элементы поверх темноты.
+     this.drawEmissive(camX, frac, t);
+     // 7. Передний план и виньетка.
++    const below = this.viewH - yo - H;                                  // 1.0: сколько кадра ниже путей (ярус −2)
++    if (below < 30) { g.globalAlpha = clamp(1 - below / 30, 0, 1); g.drawImage(WORLD.rubble, this.sx(0, PF, camX, frac), yo); g.globalAlpha = 1; }
+     g.drawImage(WORLD.fore, this.sx(0, PF, camX, frac), yo);
+     g.drawImage(this.vignette, 0, 0);
+     // 8. На экран: целый масштаб, сдвиг на дробные части камеры по X и Y.
+@@ -2380,10 +2620,10 @@ const Render = {
+         if (x < vw && x + spr.c.width > 0 && y < vh && y + spr.c.height > 0) g.drawImage(spr.c, x, y);
+         continue;
+       }
+-      const x = Math.round(a.x) - camI, foot = a.y + yo, top = foot - (a.kind === 'mutant' ? 39 : 40);
++      const x = Math.round(a.x) - camI, foot = a.y + yo, top = foot - (a.kind === 'mutant' ? 39 : a.kind === 'pig' ? PIG_H : 40);
+       if (x + 20 < 0 || x - 20 > vw || top > vh || foot < 0) continue;
+       if (a.kind !== 'sitter' && a.kind !== 'sitguard') { g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(x - 8, foot, 17, 1); }
+-      const half = a.kind === 'mutant' ? 17 : 13;
++      const half = a.kind === 'mutant' ? 17 : a.kind === 'pig' ? 10 : 13;
+       blit(g, spr, x, top, a.facing, half);
+       this.occ.push({ spr, cx: x, top, facing: a.facing, half, alpha: 1 });
+     }
+@@ -2459,7 +2699,7 @@ const Render = {
+       gl.beginPath(); gl.rect(this.sx(c.x0, 1, camX, frac), c.y0 + yo, c.x1 - c.x0, c.y1 - c.y0); gl.clip();
+       gl.globalAlpha = 0.8 * cd.lamp * (0.82 + 0.18 * noise1(t * 7, 33)); gl.drawImage(tex, x - 40, y - 40); gl.restore(); n++;
+     }
+-    const pClip = Player.state !== 'walk' ? null : { surface: SURF_CLIP, vestibule: VEST_CLIP, upper: UPPER_CLIP }[Player.floor] || HALL_CLIP;
++    const pClip = Player.state !== 'walk' ? null : { surface: SURF_CLIP, vestibule: VEST_CLIP, upper: UPPER_CLIP, utility: UTIL_CLIP }[Player.floor] || HALL_CLIP;
+     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
+     this.drawnLights = n;
+   },
+@@ -2663,9 +2903,19 @@ const Visual = {
+   init() {
+     const $ = id => document.getElementById(id);
+     this.els = { root: $('opts'), btn: $('opt') };
+-    const stop = e => e.stopPropagation();
+-    this.els.root.addEventListener('pointerdown', stop); this.els.btn.addEventListener('pointerdown', stop);
+-    this.els.btn.addEventListener('click', e => { e.preventDefault(); this.toggle(); });
++    const stop = e => e.stopPropagation(), btn = this.els.btn;
++    this.els.root.addEventListener('pointerdown', stop);
++    // 1.0: на iPhone «click» после касания мог не прийти (палец чуть сдвинулся) — переключаем по отпусканию пальца на кнопке.
++    let down = null;
++    btn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); down = e.pointerId; btn.classList.add('press'); try { btn.setPointerCapture(e.pointerId); } catch (_) { /* не обязателен */ } });
++    btn.addEventListener('pointerup', e => {
++      e.stopPropagation(); e.preventDefault(); btn.classList.remove('press');
++      if (down !== e.pointerId) return; down = null;
++      const r = btn.getBoundingClientRect(), m = 12;                    // отпустили на кнопке (с запасом на дрожание пальца)
++      if (e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m) { this.toggle(); this.skipClick = true; }
++    });
++    btn.addEventListener('pointercancel', () => { down = null; btn.classList.remove('press'); });
++    btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (this.skipClick) { this.skipClick = false; return; } this.toggle(); });   // клавиатура
+     this.els.root.querySelectorAll('button[data-b]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.set(b.dataset.b); }));
+     document.addEventListener('pointerdown', () => this.hide());       // касание мимо панели — закрыть
+     this.render();
+@@ -2787,9 +3037,10 @@ const Game = {
+       lit: () => Render.litLamps || 0,
+       toggleGen: () => { Power.toggle(); this.savePower(); return Power.generator.on; },
+       section: () => {                                                  // 0.9: полный вертикальный разрез из готовых слоёв (без света) — для документации
+-        const c = makeCanvas(W, SURF_H + H), g = c.getContext('2d');
+-        [WORLD.sky, WORLD.ruins, WORLD.surface].forEach(l => g.drawImage(l, 0, 0)); g.drawImage(WORLD.vest, VEST.x0, SURF_H + VEST.y0);
+-        [WORLD.back, WORLD.main, WORLD.fore].forEach(l => g.drawImage(l, 0, SURF_H));
++        const c = makeCanvas(W, SURF_H + WORLD_BOTTOM), g = c.getContext('2d');
++        for (let x = 0; x < W; x += WORLD.sky.width) g.drawImage(WORLD.sky, x, 0);   // небо уже мира (параллакс) — повторяем
++        [WORLD.ruins, WORLD.surface].forEach(l => g.drawImage(l, 0, 0)); g.drawImage(WORLD.vest, VEST.x0, SURF_H + VEST.y0);
++        [WORLD.back, WORLD.main, WORLD.fore].forEach(l => g.drawImage(l, 0, SURF_H)); g.drawImage(WORLD.util, 0, SURF_H + H);
+         return { png: c.toDataURL(), sh: SURF_H, floors: CONFIG.FLOORS };
+       },
+       scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
+@@ -2909,9 +3160,9 @@ const Game = {
+     if (Player.state === 'stairs') z = 'Лестница';
+     else if (Player.state === 'gate') z = 'Шлюз';
+     else if (Player.floor === 'surface') z = 'Поверхность · павильон';
+-    else if (Player.floor === 'upper' || Player.floor === 'vestibule') {
++    else if (ROOM_FLOORS.includes(Player.floor)) {
+       const r = ROOMS.find(r => roomFloor(r) === Player.floor && Player.x >= r.x - 5 && Player.x < r.x + r.w + 5);
+-      z = r ? (r.label.length <= 3 ? r.label : r.label[0] + r.label.slice(1).toLowerCase()) : Player.floor === 'upper' ? 'Верхний ярус' : 'Вестибюль';
++      z = r ? (r.label.length <= 3 ? r.label : r.label[0] + r.label.slice(1).toLowerCase()) : { upper: 'Верхний ярус', vestibule: 'Вестибюль', utility: 'Хозяйственный ярус' }[Player.floor];
+     } else z = CONFIG.ZONES.find(z => Player.x < z.to).name;
+     if (z !== this.zone) { this.zone = z; this.els.zone.textContent = z; }
+   },

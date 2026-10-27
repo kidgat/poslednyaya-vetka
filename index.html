@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 0.9</title>
+<title>Последняя ветка 1.0</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -110,7 +110,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.9</button></div>
+  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0</button></div>
 </div>
 <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -136,7 +136,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 0.9 «Вестибюль +1»<br>
+    <p>Станция «Гагаринская» · прототип 1.0 «Подземное хозяйство»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -145,7 +145,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.9 «Вестибюль +1»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0 «Подземное хозяйство»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -156,7 +156,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '0.9',
+  VERSION: '1.0',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -3038,7 +3038,8 @@ const Game = {
       toggleGen: () => { Power.toggle(); this.savePower(); return Power.generator.on; },
       section: () => {                                                  // 0.9: полный вертикальный разрез из готовых слоёв (без света) — для документации
         const c = makeCanvas(W, SURF_H + WORLD_BOTTOM), g = c.getContext('2d');
-        [WORLD.sky, WORLD.ruins, WORLD.surface].forEach(l => g.drawImage(l, 0, 0)); g.drawImage(WORLD.vest, VEST.x0, SURF_H + VEST.y0);
+        for (let x = 0; x < W; x += WORLD.sky.width) g.drawImage(WORLD.sky, x, 0);   // небо уже мира (параллакс) — повторяем
+        [WORLD.ruins, WORLD.surface].forEach(l => g.drawImage(l, 0, 0)); g.drawImage(WORLD.vest, VEST.x0, SURF_H + VEST.y0);
         [WORLD.back, WORLD.main, WORLD.fore].forEach(l => g.drawImage(l, 0, SURF_H)); g.drawImage(WORLD.util, 0, SURF_H + H);
         return { png: c.toDataURL(), sh: SURF_H, floors: CONFIG.FLOORS };
       },
