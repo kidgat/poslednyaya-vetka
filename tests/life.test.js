@@ -77,4 +77,12 @@ ok('W02 у новых NPC — короткие реакции и автоном�
 ok('W03 ворота наверх — только из вестибюля (обхода нет)', CONFIG.GATES.length === 1 && G.a.floor === 'vestibule' && G.b.floor === 'surface');
 ok('W04 реплики КПП — прежние 7 реплик охранника внешних ворот', CONFIG.INSPECTS.find(i => i.id === 'talk-kpp').lines[0] === '«На улице спокойно только издалека. Не верь тишине».');
 ok('W05 аварийный свет в карантине и на КПП', ['quarantine', 'checkpoint'].every(r => CONFIG.EMERGENCY_LAMPS.some(e => e.room === r)));
+
+// 1.0: жители яруса −2
+const U3 = { 'mushroom-grower': 'talk-mushrooms', storekeeper: 'talk-storeroom', 'drain-tech': 'talk-drainage' };
+ok('X01 грибник, кладовщик, дренажный техник — на ярусе −2, у каждого ≥5 разных реплик', Object.entries(U3).every(([n, t]) => { const i = CONFIG.INSPECTS.find(x => x.id === t); return N[n] && N[n].floor === 'utility' && i && i.npc === n && i.lines.length >= 5 && new Set(i.lines).size === i.lines.length; }));
+ok('X02 короткие реакции на блэкаут и возврат сети, без Ъ, ≤ 22 знаков', Object.keys(U3).every(n => N[n].onBlackout.length >= 3 && N[n].onRestore.length >= 2 && [...N[n].onBlackout, ...N[n].onRestore].every(t => t.length <= 22 && !/Ъ/.test(t))));
+ok('X03 ручной свет: налобные у грибника и техника, фонарь у кладовщика', N['mushroom-grower'].lamp === 'headlamp' && N['drain-tech'].lamp === 'headlamp' && N.storekeeper.lamp === 'lantern');
+ok('X04 у ходячих — свой участок, участки не пересекаются', N['mushroom-grower'].walk && N['drain-tech'].walk && N['mushroom-grower'].walk[1] < N.storekeeper.x && N.storekeeper.x < N['drain-tech'].walk[0]);
+ok('X05 атмосферные реплики из ТЗ на месте', CONFIG.INSPECTS.some(i => i.lines.some(l => l.includes('насосы снова встанут'))) && CONFIG.INSPECTS.some(i => i.lines.some(l => l.includes('Грибам свет'))) && CONFIG.INSPECTS.some(i => i.lines.some(l => l.includes('ржавые гайки'))));
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

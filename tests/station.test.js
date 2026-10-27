@@ -40,14 +40,16 @@ c = clone(CONFIG); c.INSPECTS[0].trigger = [640, 660];
 ok('N02 пересечение с лестницей поймано', hit(errsOf(c), /пересекаются/));
 c = clone(CONFIG); c.INSPECTS[2].trigger = [1860, 1880];
 ok('N03 недостижимый триггер за maxX пойман', hit(errsOf(c), /недостижимо/));
-c = clone(CONFIG); c.STATION.plannedConnectors.push({ id: 'x', type: 'stair', from: 'platform', to: 'utility' }); c.STATION.plannedConnectors.at(-1).status = 'active';
+// 1.0: все пять уровней действующие — для «плановых» проверок добавляется вымышленный плановый уровень −3
+const withDepot = () => { const c = clone(CONFIG); c.STATION.floors.push({ id: 'depot', name: 'Депо', level: -3, status: 'planned', legacyFloor: null }); return c; };
+c = withDepot(); c.STATION.plannedConnectors.push({ id: 'x', type: 'stair', from: 'utility', to: 'depot' }); c.STATION.plannedConnectors.at(-1).status = 'active';
 const pl = buildStationPlan(c, ROOMS); pl.connectors.at(-1).status = 'active';
 ok('N04 active-связь на planned-уровень поймана', hit(validateStationPlan(pl, c), /плановый/));
 c = clone(CONFIG); c.SPACES[0].door = [170, 190];
 ok('N05 достижимая дверь поста поймана', hit(errsOf(c), /достижима/));
 c = clone(CONFIG); c.SPACES[1].circuit = 'wifi';
 ok('N06 неизвестная цепь поймана', hit(errsOf(c), /неизвестная цепь/));
-c = clone(CONFIG); c.INSPECTS[0].floor = 'utility';
+c = withDepot(); c.INSPECTS[0].floor = 'depot';
 ok('N07 осмотр на плановом уровне пойман', hit(errsOf(c), /неактивном уровне/));
 c = clone(CONFIG); c.STATION.floors.find(f => f.id === 'upper').legacyFloor = 'roof';
 ok('N08 рассинхрон с CONFIG.FLOORS пойман', hit(errsOf(c), /CONFIG\.FLOORS/));
@@ -104,7 +106,7 @@ ok('W02 пять помещений вестибюля, цепи: каранти
 const ids = plan.rooms.map(r => r.id);
 ok('W03 дублей помещений нет (карантин и караульная ушли из planned)', ids.length === new Set(ids).size && !CONFIG.STATION.plannedRooms.some(r => r.id in want));
 const act = plan.connectors.filter(c => c.status === 'active').map(c => c.from + '>' + c.to).sort().join();
-ok('W04 действующие связи: platform→upper, upper→vestibule, vestibule→surface; прямой upper→surface нет', act === 'platform>upper,upper>vestibule,vestibule>surface', act);
+ok('W04 действующие связи: platform→upper, upper→vestibule, vestibule→surface, utility→platform; прямых перескоков нет', act === 'platform>upper,upper>vestibule,utility>platform,vestibule>surface', act);
 ok('W05 нет плановой связи vestibule-gates (стала действующей)', !CONFIG.STATION.plannedConnectors.some(c => c.id === 'vestibule-gates'));
 c = clone(CONFIG); c.GATES[0].a.floor = 'upper'; c.GATES[0].a.x = 1635;
 ok('W06 ворота прямо с яруса 0 на улицу пойманы (перескок уровня)', hit(errsOf(c), /перескакивает/));
@@ -123,5 +125,30 @@ ok('W13 проём марша не задевает проёмы вестибю�
 ok('W14 верх марша (1530) и низ (1704) в пределах ходьбы своих этажей', V.top.x >= CONFIG.FLOORS.vestibule.minX && V.top.x <= CONFIG.FLOORS.vestibule.maxX && V.bottom.x <= CONFIG.FLOORS.upper.maxX);
 ok('W15 проём в плите пересекает y = 0 (марш непрерывен между слоями)', V.holeY[0] < 0 && V.holeY[1] > 0);
 ok('W16 главный марш не задет: проёмы яруса 0 прежние', DW.length === 7 && GAL[0].x0 === 744 && GAL[0].x1 === 856);
+
+// 1.0 «Подземное хозяйство»: ярус −2, лестница с платформы, задел под будущие механики
+const UL = S('utility'), UF = CONFIG.FLOORS.utility, PF = CONFIG.FLOORS.platform;
+ok('U01 все пять уровней действующие, у каждого рабочий этаж', plan.floors.every(f => f.status === 'active' && CONFIG.FLOORS[f.legacyFloor]) && plan.floors.length === 5);
+const uw = { 'living-pods': 'living', mushrooms: 'technical', 'tea-ferment': 'technical', pigsty: 'living', storeroom: 'technical', drainage: 'technical', 'utility-stairwell': 'technical' };
+ok('U02 шесть помещений −2 + лестничный холл; цепи: жильё и свинарник living, остальное technical', Object.entries(uw).every(([id, c]) => { const r = plan.rooms.filter(x => x.id === id); return r.length === 1 && r[0].floor === 'utility' && r[0].circuit === c && r[0].status === 'active'; }));
+ok('U03 planned-записи яруса −2 стали действующими — без дублей, плановой лестницы нет', !CONFIG.STATION.plannedRooms.some(r => r.floor === 'utility') && !CONFIG.STATION.plannedConnectors.some(c => c.to === 'utility' || c.from === 'utility') && ids.length === new Set(ids).size);
+const ur = ROOMS.filter(r => r.floor === 'utility').sort((a, b) => a.x - b.x), UD = Function(`${cut('const UTIL_DOORWAYS = ', ';')} return UTIL_DOORWAYS;`)();
+const joins = ur.slice(1).map((r, i) => [ur[i].x + ur[i].w, r.x]);
+ok('U04 ярус проходим насквозь: между соседними комнатами — проём, границы ходьбы внутри крайних комнат', joins.every(([a, b]) => UD.some(([d0, d1]) => d0 <= a - 4 && d1 >= b + 4)) && UF.minX >= ur[0].x + 4 && UF.maxX <= ur.at(-1).x + ur.at(-1).w - 4, joins.map(j => j.join('–')).join(' '));
+const up = []; for (let x = UL.run.x0; x <= UL.run.x1; x++) up.push(stairTopY(UL, x));
+ok('U05 лестница −2: от (1422,368) вправо вверх к (1606,219), 24 ступени, монотонно', stairTopY(UL, UL.run.x0 - 1) === UF.y && stairTopY(UL, UL.run.x1) === PF.y && up.every((y, i) => !i || y <= up[i - 1]) && new Set(up).size === UL.run.steps, new Set(up).size);
+const COLS = []; for (let x = 180; x <= 1820; x += 160) COLS.push(x);
+ok('U06 проём в платформе не задевает колонны (±7) и пульты/двери постов', COLS.every(c => c + 7 < UL.hole[0] || c - 7 > UL.hole[1]) && UL.hole[1] < 1826);
+ok('U07 над ступенями хватает высоты: у края проёма голова героя (−40) ниже плиты яруса (285)', stairTopY(UL, UL.hole[0]) - 40 >= UF.y - 98 + 15, stairTopY(UL, UL.hole[0]));
+ok('U08 верх лестницы — на настиле над проёмом, низ — в лестничном холле −2', UL.top.trigger[0] >= UL.hole[1] && UL.bottom.trigger[0] >= 1384 && UL.bottom.trigger[1] <= UL.run.x0 && GAL.some(g => g.stair === 'utility' && g.floor === 'platform' && g.x0 <= UL.hole[0] && g.x1 >= UL.hole[1]));
+ok('U09 старые этажи: камера и границы как в 0.9 (у платформы и яруса нет bottom/cam)', !PF.bottom && !PF.cam && !CONFIG.FLOORS.upper.bottom && !CONFIG.FLOORS.upper.cam && PF.minX === 176 && PF.maxX === 1850 && CONFIG.FLOORS.upper.minX === 150);
+ok('U10 будущие механики — только записи реестра с существующими комнатами; действий и кнопок для них нет', plan.features.length >= 3 && plan.features.every(f => f.status === 'planned') && CONFIG.INSPECTS.every(i => ['talk', 'inspect', 'gate_locked'].includes(i.type)));
+ok('U11 аварийный свет −2: жильё, лестничный холл, дренажная', ['living-pods', 'utility-stairwell', 'drainage'].every(r => CONFIG.EMERGENCY_LAMPS.some(e => e.room === r)));
+c = clone(CONFIG); c.NPCS.storekeeper.x = 1406;
+ok('U12 кладовщик у подножия лестницы — пересечение с лестницей поймано', hit(errsOf(c), /пересекаются/));
+c = clone(CONFIG); c.NPCS.storekeeper.x = 1374;
+ok('U13 кладовщик в проёме между комнатами — пойман', hit(errsOf(c), /не в пределах одной комнаты/));
+c = clone(CONFIG); c.STATION.plannedFeatures.push({ id: 'x', room: 'garage', name: 'x' });
+ok('U14 будущая функция без комнаты — поймана', hit(errsOf(c), /будущая функция/));
 
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
