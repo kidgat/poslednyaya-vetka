@@ -25,8 +25,12 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 .station{background:var(--panel);border:1px solid var(--line);padding:6px 10px 7px;line-height:1.3}
 .station b{display:block;font-size:13px;letter-spacing:.16em;color:var(--gold)}
 .station span{font-size:11px;color:var(--muted);letter-spacing:.03em}
-#opt{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:13px;
-  padding:4px 9px;cursor:pointer;margin-right:6px;min-height:30px}
+/* 1.0: сенсорная область ⚙ — 44×44 CSS px (прозрачная), видимый значок — прежняя маленькая плашка внутри */
+#opt{pointer-events:auto;position:relative;width:44px;height:44px;margin:-8px 0 0 0;padding:0;background:transparent;border:0;
+  cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;font:inherit}
+#opt i{display:flex;align-items:center;justify-content:center;width:30px;height:28px;box-sizing:border-box;background:var(--panel);
+  border:1px solid var(--line);color:var(--muted);font-style:normal;font-size:13px;pointer-events:none}
+#opt.press i,#opt[aria-expanded="true"] i{border-color:rgba(232,184,106,.75);color:var(--gold)}
 #opts{position:fixed;z-index:6;top:calc(env(safe-area-inset-top) + 48px);right:calc(env(safe-area-inset-right) + 12px);
   background:rgba(7,9,11,.94);border:1px solid var(--line);padding:8px 10px;font-size:11px;color:var(--ink);display:none;touch-action:none}
 #opts.show{display:block}
@@ -106,7 +110,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false">⚙</button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.9</button></div>
+  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.9</button></div>
 </div>
 <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -969,11 +973,11 @@ function mainTexel(x, y, o) {
 const ROOMS = [
   { id: 'habitation', x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
   { id: 'kitchen',    x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
-  { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },
+  { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА', plate: null, type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },  // 1.0: без крупной таблички (указатели ЖИЛЬЁ/ТЕХ остаются)
   { id: 'workshop',   x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
   { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
   { id: 'power',      x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
-  { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'lock',     tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },
+  { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ', plate: null, type: 'lock', tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },  // 1.0: табличка «ШЛЮЗ» — у гермоворот в зале вестибюля
   { id: 'water',      x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
   // 0.9: вестибюль +1. Рисуются тем же кодом, что комнаты яруса, со сдвигом по y (FLOORS.vestibule.y − FLOORS.upper.y).
   { id: 'quarantine',     floor: 'vestibule', x: 1180, w: 150, label: 'КАРАНТИН',    type: 'quarantine', tint: [80, 94, 92],  light: [214, 234, 230], circuit: 'critical' },
@@ -984,6 +988,8 @@ const ROOMS = [
 ];
 /** Этаж и сдвиг комнаты: комнаты вестибюля рисуются по шаблону яруса, сдвинутые на dy. */
 const roomFloor = r => r.floor || 'upper';
+/** 1.0: видимая табличка над дверью. label — название помещения (HUD, реестр); plate: null — таблички нет. */
+const roomPlate = r => (r.plate === undefined ? r.label : r.plate);
 const roomDY = r => CONFIG.FLOORS[roomFloor(r)].y - CONFIG.FLOORS.upper.y;
 let ROOM_DY = 0;                         // сдвиг мировых y для света/свечения, пока рисуется комната вестибюля
 function drawRoom(g, r) {
@@ -1005,7 +1011,7 @@ function drawRoomBody(g, r) {
   R(g, x + 4, 100, w - 8, 1, '#24221f');
   const firstLight = WORLD.lights.length;
   let lamps = w > 200 ? [x + Math.round(w * 0.22), x + Math.round(w * 0.78)] : [x + Math.round(w * 0.8)];
-  const ph = (textWidth(r.label) + 12) / 2;                               // 0.9: лампа не прячется под табличку (узкие комнаты вестибюля)
+  const ph = roomPlate(r) ? (textWidth(roomPlate(r)) + 12) / 2 : 0;                               // 0.9: лампа не прячется под табличку (узкие комнаты вестибюля)
   if (lamps.length === 1 && Math.abs(lamps[0] - cx) < ph + 5) lamps = [cx + ph + 6 <= x + w - 9 ? Math.round(cx + ph + 6) : Math.round(cx - ph - 6)];
   lamps.forEach(lx => {
     R(g, lx, 19, 1, 7, '#1d1f21'); R(g, lx - 4, 26, 9, 2, '#5a6062'); R(g, lx - 4, 26, 9, 1, '#7a8082');
@@ -1014,7 +1020,7 @@ function drawRoomBody(g, r) {
   });
   ROOM_DRAW[r.type](g, r);
   for (let i = firstLight; i < WORLD.lights.length; i++) WORLD.lights[i].clip = { x0: x + 4, x1: x + w - 4, y0: 19 + dy, y1: 100 + dy };
-  plate(g, cx, 22, r.label, '#1e2426', '#e0c48c', '#4a5254');
+  if (roomPlate(r)) plate(g, cx, 22, roomPlate(r), '#1e2426', '#e0c48c', '#4a5254');   // 1.0: табличка может отличаться от названия или отсутствовать
 }
 const ROOM_DRAW = {
   bunks(g, r) {
@@ -1140,7 +1146,8 @@ const ROOM_DRAW = {
     for (let y = 44; y < 60; y++) R(g, gx - 23, y, 46, 1, rgb([60, 66, 70], 0.5 - (y - 44) / 40));   // ступени наверх, в павильон
     for (let x = gx - 28; x < gx + 28; x++) R(g, x, 92, 1, 4, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
     for (let k = 0; k < 3; k++) { const tx = r.x + r.w - 52 + k * 14; R(g, tx, 76, 2, 20, '#7a7e7a'); R(g, tx - 4, 80, 10, 2, '#9a9e96'); R(g, tx - 4, 86, 10, 1, '#6a6e6a'); }   // турникеты
-    const wx = r.x + r.w - 52; R(g, wx, 56, textWidth('ВЫХОД') + 6, 11, '#2f5660'); R(g, wx, 56, textWidth('ВЫХОД') + 6, 1, '#6f9a98'); drawText(g, 'ВЫХОД', wx + 3, 58, '#dfe6d6', null);
+    plate(g, gx + 28 + 6 + textWidth('ШЛЮЗ') / 2 + 5, 44, 'ШЛЮЗ', '#1e2426', '#e0c48c', '#4a5254');   // 1.0: табличка у настоящих гермоворот
+    const wx = r.x + r.w - 52; R(g, wx, 61, textWidth('ВЫХОД') + 6, 11, '#2f5660'); R(g, wx, 61, textWidth('ВЫХОД') + 6, 1, '#6f9a98'); drawText(g, 'ВЫХОД', wx + 3, 63, '#dfe6d6', null);
     addBeacon(g, gx, 36);                                                     // аварийный маяк над воротами (переехал из шлюза яруса 0)
     WORLD.gate = { x: gx, top: 44 + ROOM_DY, open: 0 };
   },
@@ -2663,9 +2670,19 @@ const Visual = {
   init() {
     const $ = id => document.getElementById(id);
     this.els = { root: $('opts'), btn: $('opt') };
-    const stop = e => e.stopPropagation();
-    this.els.root.addEventListener('pointerdown', stop); this.els.btn.addEventListener('pointerdown', stop);
-    this.els.btn.addEventListener('click', e => { e.preventDefault(); this.toggle(); });
+    const stop = e => e.stopPropagation(), btn = this.els.btn;
+    this.els.root.addEventListener('pointerdown', stop);
+    // 1.0: на iPhone «click» после касания мог не прийти (палец чуть сдвинулся) — переключаем по отпусканию пальца на кнопке.
+    let down = null;
+    btn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); down = e.pointerId; btn.classList.add('press'); try { btn.setPointerCapture(e.pointerId); } catch (_) { /* не обязателен */ } });
+    btn.addEventListener('pointerup', e => {
+      e.stopPropagation(); e.preventDefault(); btn.classList.remove('press');
+      if (down !== e.pointerId) return; down = null;
+      const r = btn.getBoundingClientRect(), m = 12;                    // отпустили на кнопке (с запасом на дрожание пальца)
+      if (e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m) { this.toggle(); this.skipClick = true; }
+    });
+    btn.addEventListener('pointercancel', () => { down = null; btn.classList.remove('press'); });
+    btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (this.skipClick) { this.skipClick = false; return; } this.toggle(); });   // клавиатура
     this.els.root.querySelectorAll('button[data-b]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.set(b.dataset.b); }));
     document.addEventListener('pointerdown', () => this.hide());       // касание мимо панели — закрыть
     this.render();
