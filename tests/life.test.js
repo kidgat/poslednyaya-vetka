@@ -1,0 +1,65 @@
+/* 0.8.1 «Жизнь в темноте»: режимы яркости, очередь реакций NPC, данные NPC и аварийного света (без браузера).
+   node tests/life.test.js — модели вынимаются из index.html (SCAVENGE:BEGIN/END), данные — из CONFIG. */
+const fs = require('fs'), path = require('path');
+const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a)));
+const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
+const { parseVisual, createReactions } = Function(`${cut('/* SCAVENGE:BEGIN */', '/* SCAVENGE:END */')}; return { parseVisual, createReactions };`)();
+const BEACONS = Function(`return ${cut('const BEACONS = ', ';').slice('const BEACONS = '.length)}`)();
+let pass = 0, fail = 0;
+const ok = (name, cond, info = '') => { (cond ? pass++ : fail++); console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${info ? '  [' + info + ']' : ''}`); };
+const V = CONFIG.VISUAL, lum = c => 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2];
+
+// Режимы яркости
+ok('V01 три режима, по умолчанию «Нормально»', V.ORDER.join() === 'dark,normal,bright' && V.DEFAULT === 'normal' && V.ORDER.every(k => V.PRESETS[k]));
+ok('V02 подписи: Атмосферно / Нормально / Светлее', V.ORDER.map(k => V.PRESETS[k].label).join() === 'Атмосферно,Нормально,Светлее');
+ok('V03 по возрастанию: ambient, blackout, surface светлее; виньетка слабее', ['ambient', 'blackout', 'surface'].every(f => lum(V.PRESETS.dark[f]) < lum(V.PRESETS.normal[f]) && lum(V.PRESETS.normal[f]) < lum(V.PRESETS.bright[f]))
+  && V.PRESETS.dark.vignette > V.PRESETS.normal.vignette && V.PRESETS.normal.vignette > V.PRESETS.bright.vignette);
+ok('V04 в каждом режиме блэкаут заметно темнее сети (≥25%)', V.ORDER.every(k => lum(V.PRESETS[k].blackout) <= 0.75 * lum(V.PRESETS[k].ambient)));
+ok('V05 «Нормально» светлее 0.8 и при сети, и в блэкаут', lum(V.PRESETS.normal.ambient) > lum([74, 80, 100]) * 1.5 && lum(V.PRESETS.normal.blackout) > lum([38, 42, 56]) * 1.5);
+ok('V06 холодный тон темноты сохранён (синий ≥ красного)', V.ORDER.every(k => V.PRESETS[k].ambient[2] >= V.PRESETS[k].ambient[0] && V.PRESETS[k].blackout[2] >= V.PRESETS[k].blackout[0]));
+ok('V07 сохранение: верные значения читаются', ['dark', 'normal', 'bright'].every(k => parseVisual(V, JSON.stringify({ v: 1, brightness: k })) === k));
+ok('V08 битое/чужое — только «Нормально»', [null, '', '{', '{"v":2,"brightness":"dark"}', '{"v":1,"brightness":"ultra"}', '{"v":1}', '[]', '{"v":1,"brightness":"__proto__"}', '{"v":1,"brightness":"toString"}']
+  .every(r => parseVisual(V, r) === 'normal'));
+ok('V09 ключ отдельный: pv.visual.v1, не pv.power.v1 / pv.scavenge.v1', V.SAVE_KEY === 'pv.visual.v1' && V.SAVE_KEY !== CONFIG.POWER.SAVE_KEY && V.SAVE_KEY !== CONFIG.SCAVENGE.SAVE_KEY);
+
+// Очередь реакций
+const RC = CONFIG.REACT, ids = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+let Q = createReactions(RC);
+ok('R01 блэкаут: не больше 5 реплик в очереди', Q.trigger('blackout', ids, 0) === 5);
+const at = Q.queue.map(e => e.at), gaps = at.slice(1).map((t, i) => t - at[i]);
+ok('R02 первая через ~1 с, дальше разнос 0.6–1.5 с', Math.abs(at[0] - RC.FIRST) < 1e-9 && gaps.every(g => g >= 0.6 - 1e-9 && g <= 1.5 + 1e-9), gaps.map(g => g.toFixed(2)).join());
+ok('R03 в момент 0 ничего не показывается, к 1 с — одна', Q.due(0).length === 0 && Q.due(1.0).length === 1);
+ok('R04 возврат сети отменяет старые аварийные фразы', Q.trigger('restore', ['a', 'b'], 2) === 2 && Q.queue.every(e => e.kind === 'restore'));
+ok('R05 облегчение — не больше 3', createReactions(RC).trigger('restore', ids, 0) === 3);
+Q = createReactions(RC); const lens = [];
+for (let k = 0; k < 6; k++) { Q.trigger(k % 2 ? 'restore' : 'blackout', ids, k * 0.5); lens.push(Q.queue.length); }
+ok('R06 частые ВКЛ/ВЫКЛ: очередь не растёт, повтор в пределах 6 с — 1 фраза', Math.max(...lens) <= 5 && lens.slice(2).every(n => n <= 1), lens.join());
+ok('R07 после паузы > 6 с — снова полная реакция', Q.trigger('blackout', ids, 100) === 5);
+const Lq = createReactions(RC), lines = ['X', 'Y', 'Z'];
+ok('R08 фразы одного NPC идут по кругу, без повтора подряд', [1, 2, 3, 4].map(() => Lq.line('m', lines)).join() === 'X,Y,Z,X');
+ok('R09 длительность пузыря 2–4 с', ['ОК', 'НАСОСЫ СНОВА В СЕТИ!'].every(t => Lq.duration(t) >= 2 && Lq.duration(t) <= 4));
+ok('R10 без кандидатов — пустая очередь, без ошибок', createReactions(RC).trigger('blackout', [], 0) === 0);
+
+// NPC и свет
+const N = CONFIG.NPCS;
+ok('N01 охрана шлюза: 2 NPC с id, фонари, x 1600/1670, ярус', ['guard-airlock-west', 'guard-airlock-east'].every(id => N[id] && N[id].floor === 'upper' && N[id].lamp === 'beam')
+  && N['guard-airlock-west'].x === 1600 && N['guard-airlock-east'].x === 1670);
+ok('N02 рабочие мастерской и насосной: прежние участки ходьбы, фонари', N['worker-workshop'].walk.join() === '900,1100' && N['worker-pumps'].walk.join() === '1748,1852' && N['worker-workshop'].lamp && N['worker-pumps'].lamp);
+ok('N03 механик: налобный фонарь, участок 1340–1460 прежний', N.mechanic.lamp === 'headlamp' && N.mechanic.walk.join() === '1340,1460');
+const place = cut('function placeActors() {', '\n}');
+ok('N04 в placeActors не осталось копий охраны шлюза, рабочих и жителя столовой', !/actor\('guard', 'guard', 16[07]0/.test(place) && !/actor\('walker', 'worker'/.test(place) && !/actor\('sitter', 'resA', 492/.test(place));
+ok('N05 разговоры охраны шлюза: по 7 разных реплик, радиус ≤ 14', ['talk-airlock-west', 'talk-airlock-east'].every(id => { const i = CONFIG.INSPECTS.find(x => x.id === id); return i && i.lines.length === 7 && new Set(i.lines).size === 7 && i.radius <= 14; }));
+const G = CONFIG.GATES[0], zone = id => { const i = CONFIG.INSPECTS.find(x => x.id === id), n = N[i.npc]; return [n.x - i.radius, n.x + i.radius]; };
+ok('N06 зоны разговора не задевают ворота шлюза (1623–1647)', ['talk-airlock-west', 'talk-airlock-east'].every(id => { const z = zone(id); return z[1] < G.a.x - G.radius || z[0] > G.a.x + G.radius; }), ['talk-airlock-west', 'talk-airlock-east'].map(zone).join(' '));
+const reacting = Object.keys(N).filter(id => N[id].onBlackout);
+ok('N07 реакции на блэкаут у охраны, рабочих, медика, повара, жителей', ['guard-west', 'guard-airlock-west', 'mechanic', 'worker-pumps', 'worker-workshop', 'medic', 'cook', 'diner', 'resident-platform'].every(id => reacting.includes(id)), reacting.length);
+const allEm = [...BEACONS, [1635, 36], [32, 158], [1924, 128], ...CONFIG.EMERGENCY_LAMPS.map(e => [e.x, e.y])];
+let close = [];
+for (let i = 0; i < allEm.length; i++) for (let j = i + 1; j < allEm.length; j++) if (Math.hypot(allEm[i][0] - allEm[j][0], allEm[i][1] - allEm[j][1]) < 30) close.push(allEm[i] + '~' + allEm[j]);
+ok('N08 новые аварийные светильники не дублируют маяки (≥30 px от любого)', close.length === 0, close.join(' '));
+ok('N09 аварийные светильники: мастерская, медпункт, энергоблок, насосная', ['workshop', 'medical', 'power', 'water'].every(r => CONFIG.EMERGENCY_LAMPS.some(e => e.room === r)));
+ok('N10 отсветы у обоих постов, в доступной охране зоне платформы', CONFIG.EMERGENCY_GLOW.length === 2 && CONFIG.EMERGENCY_GLOW.every(e => e.x >= CONFIG.FLOORS.platform.minX - 60 && e.x <= CONFIG.FLOORS.platform.maxX + 10));
+ok('N11 расход аварийной цепи прежний: EMERGENCY = 0.35', CONFIG.POWER.EMERGENCY === 0.35);
+ok('N12 лимит ручных огней в кадре задан', Number.isInteger(CONFIG.LAMP_CAP) && CONFIG.LAMP_CAP >= 6 && CONFIG.LAMP_CAP <= 12);
+console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

@@ -78,4 +78,17 @@ ok('N16 ярус снова закрыт слева — жилой блок не
 c = clone(CONFIG); c.SCAVENGE.SPOTS[2].trigger = [1640, 1660];
 ok('N17 находка на воротах шлюза — пересечение поймано', hit(errsOf(c), /пересекаются/));
 
+// 0.8.1: охрана шлюза, техперсонал, аварийный свет
+ok('S19 разговоры охраны шлюза в реестре, зоны не задевают ворота', ['talk-airlock-west', 'talk-airlock-east'].every(id => plan.interactions.some(i => i.id === id)));
+c = clone(CONFIG); c.NPCS['guard-airlock-west'].x = 1630;
+ok('N18 охранник шлюза встал на ворота — пересечение поймано', hit(errsOf(c), /пересекаются/));
+c = clone(CONFIG); c.NPCS.mechanic.onBlackout = ['ОЧЕНЬ ДЛИННАЯ ФРАЗА ДЛЯ ПУЗЫРЯ НАД ГОЛОВОЙ'];
+ok('N19 длинная реакция поймана', hit(errsOf(c), /плохие onBlackout/));
+c = clone(CONFIG); c.EMERGENCY_LAMPS[0].x = 1300;
+ok('N20 аварийный светильник вне своей комнаты пойман', hit(errsOf(c), /вне комнаты/));
+c = clone(CONFIG); c.NPCS['worker-pumps'].lamp = 'laser';
+ok('N21 неизвестный тип света пойман', hit(errsOf(c), /неизвестный свет/));
+c = clone(CONFIG); c.NPCS['worker-pumps'].x = 1700;
+ok('N22 старт NPC вне участка ходьбы пойман', hit(errsOf(c), /вне участка/));
+
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

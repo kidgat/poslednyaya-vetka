@@ -1,0 +1,593 @@
+diff --git a/index.html b/index.html
+index 9f0bc7d..91e394a 100644
+--- a/index.html
++++ b/index.html
+@@ -10,7 +10,7 @@
+ <meta name="theme-color" content="#06080a">
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" href="icon-180.png">
+-<title>Последняя ветка 0.8</title>
++<title>Последняя ветка 0.8.1</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -25,6 +25,16 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ .station{background:var(--panel);border:1px solid var(--line);padding:6px 10px 7px;line-height:1.3}
+ .station b{display:block;font-size:13px;letter-spacing:.16em;color:var(--gold)}
+ .station span{font-size:11px;color:var(--muted);letter-spacing:.03em}
++#opt{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:13px;
++  padding:4px 9px;cursor:pointer;margin-right:6px;min-height:30px}
++#opts{position:fixed;z-index:6;top:calc(env(safe-area-inset-top) + 48px);right:calc(env(safe-area-inset-right) + 12px);
++  background:rgba(7,9,11,.94);border:1px solid var(--line);padding:8px 10px;font-size:11px;color:var(--ink);display:none;touch-action:none}
++#opts.show{display:block}
++#opts b{display:block;color:var(--gold);letter-spacing:.12em;font-size:11px;margin-bottom:6px}
++#opts button{display:block;width:100%;font:inherit;font-size:12px;color:var(--ink);background:rgba(232,184,106,.10);border:1px solid rgba(232,184,106,.35);
++  min-height:36px;min-width:140px;margin-top:5px;cursor:pointer;text-align:left;padding:0 10px}
++#opts button[aria-pressed="true"]{background:rgba(232,184,106,.32);border-color:rgba(232,184,106,.9)}
++.hud-r{display:flex;align-items:flex-start}
+ #ver{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:11px;
+   padding:6px 9px;letter-spacing:.08em;cursor:pointer}
+ #hint{position:fixed;z-index:3;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
+@@ -96,10 +106,13 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ <div id="touch"></div>
+ <div id="hud">
+   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
+-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.8</button>
++  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false">⚙</button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.8.1</button></div>
+ </div>
+ <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
+ <div id="act" role="button" aria-label="Действие"></div>
++<div id="opts" role="dialog" aria-label="Яркость сцены"><b>ЯРКОСТЬ СЦЕНЫ</b>
++  <button type="button" data-b="dark">Атмосферно</button><button type="button" data-b="normal">Нормально</button><button type="button" data-b="bright">Светлее</button>
++</div>
+ <div id="card" role="dialog" aria-label="Осмотр">
+   <div class="gen-head"><b id="cardTitle"></b><span id="cardIdx"></span><button id="cardClose" type="button" aria-label="Закрыть">✕</button></div>
+   <div id="cardText" class="card-text"></div>
+@@ -119,7 +132,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 0.8 «Живая станция»<br>
++    <p>Станция «Гагаринская» · прототип 0.8.1 «Жизнь в темноте»<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -128,7 +141,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.8 «Живая станция»
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.8.1 «Жизнь в темноте»
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -139,7 +152,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '0.8',
++  VERSION: '0.8.1',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+@@ -170,9 +183,17 @@ const CONFIG = {
+     SMOOTH_Y: 0.45,         // плавность вертикальной камеры
+     SURFACE_FEET: 0.72 },   // на поверхности ступни героя — на 72% высоты кадра
+   PARALLAX: { BACK: 0.9, FORE: 1.22, SKY: 0.15, RUINS: 0.5 },
+-  AMBIENT: [74, 80, 100],             // цвет «темноты» в карте освещения при работающей сети
+-  AMBIENT_BLACKOUT: [38, 42, 56],     // то же при блэкауте: темно, но пути различимы
+-  AMBIENT_SURFACE: [168, 150, 124],   // пыльные сумерки снаружи — от сети не зависят
++  /* Яркость сцены (0.8.1): три режима. ambient — «темнота» карты освещения при сети, blackout — без сети,
++     surface — сумерки улицы (от сети не зависят), vignette — максимальная прозрачность тёмных краёв кадра.
++     В 0.8 было: ambient [74,80,100], blackout [38,42,56], surface [168,150,124], vignette 0.55. */
++  VISUAL: {
++    SAVE_KEY: 'pv.visual.v1', DEFAULT: 'normal', ORDER: ['dark', 'normal', 'bright'],
++    PRESETS: {
++      dark:   { label: 'Атмосферно', ambient: [96, 104, 118],  blackout: [60, 68, 82],   surface: [164, 146, 122], vignette: 0.45 },
++      normal: { label: 'Нормально',  ambient: [146, 154, 166], blackout: [96, 104, 118], surface: [176, 158, 132], vignette: 0.30 },
++      bright: { label: 'Светлее',    ambient: [176, 184, 196], blackout: [124, 132, 146], surface: [188, 170, 144], vignette: 0.22 },
++    },
++  },
+   /* Энергосистема 0.6. Единицы условные (не кВт и не литры), время — секунды активной симуляции.
+      Нормальный спрос 1.4 + 1.2 + 0.8 + 0.8 = 4.2 при выработке 5.0: хватает на сеть и зарядку 0.4/с. */
+   POWER: {
+@@ -210,16 +231,48 @@ const CONFIG = {
+   /* Собеседники и охрана с фонарями (0.8): один источник истины для расстановки, разговоров и проверки реестра.
+      walk — участок, где ходит NPC; lamp — что он зажигает при блэкауте; tunnel — куда светит охрана поста. */
+   NPCS: {
+-    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1, react: ['ТИХО...', 'НОРМ'] },
++    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1,
++      onBlackout: ['ДЕРЖИТЕ ПОСТ!', 'СМОТРИ В ТОННЕЛЬ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
+     'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
+-    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1 },
++    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1,
++      onBlackout: ['СМОТРИ В ТОННЕЛЬ!', 'ДЕРЖИТЕ ПОСТ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
+     'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard',   x: 1884, facing: -1, lamp: 'lantern' },
+-    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', x: 400, walk: [240, 630], speed: 20, lamp: 'candle', react: ['ТЕМНО!', 'О СВЕТ!'] },
+-    cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle' },
+-    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 382, facing: -1, lamp: 'candle' },
+-    medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16 },
+-    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', x: 1400, walk: [1340, 1460], speed: 24, react: ['ГЕНЕРАТОР!', 'РАБОТАЕТ'] },
+-  },
++    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', x: 400, walk: [240, 630], speed: 20, lamp: 'candle',
++      onBlackout: ['ЭТО НАДОЛГО?', 'СВЕТ ПРОПАЛ!', 'ПОШЛИ К БОЧКЕ!'], onRestore: ['О, ЗАРАБОТАЛО!', 'ПРОНЕСЛО...'] },
++    cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle',
++      onBlackout: ['ГДЕ СПИЧКИ?', 'ЧАЙ ЕЩЁ ГОРЯЧИЙ!', 'СВЕЧУ ПРИНЕСИТЕ!'], onRestore: ['ВОТ И СВЕТ!', 'ТЕПЕРЬ ВИДНО КОТЁЛ'] },
++    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 492, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
++      onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
++    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 382, facing: -1, lamp: 'candle',
++      onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
++    medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
++      onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
++    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
++      onBlackout: ['СЕТЬ УПАЛА!', 'ПРОВЕРЮ МОТОР!', 'НЕ ТРОГАЙТЕ ЩИТОК!'], onRestore: ['ВОССТАНОВИЛИ СЕТЬ!', 'ДВИГАТЕЛЬ ПОШЁЛ!'] },
++    'worker-workshop': { floor: 'upper', kind: 'walker', set: 'worker', x: 1000, walk: [900, 1100], speed: 22, lamp: 'beam',   // 0.8.1: из placeActors
++      onBlackout: ['НЕ ВИЖУ ИНСТРУМЕНТ!', 'ДАЙТЕ СВЕТ!', 'ОПЯТЬ ГЕНЕРАТОР?'], onRestore: ['РАБОТАЕМ ДАЛЬШЕ', 'ДРУГОЕ ДЕЛО!'] },
++    'worker-pumps':    { floor: 'upper', kind: 'walker', set: 'worker', x: 1800, walk: [1748, 1852], speed: 18, lamp: 'beam',  // 0.8.1: из placeActors
++      onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
++    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: -1,          // светит на подход со станции
++      onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
++    'guard-airlock-east': { floor: 'upper', kind: 'guard', set: 'guard', x: 1670, facing: -1, lamp: 'beam', aim: -1,         // светит на гермоворота
++      onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
++  },
++  /* Короткие реакции на блэкаут и возвращение сети: очередь с разносом во времени (0.8.1). */
++  REACT: { FIRST: 1.0, GAP: [0.6, 1.5], DUR: [2, 4], MAX_BLACKOUT: 5, MAX_RESTORE: 3, COOLDOWN: 6, MAX_ON: 3 },
++  /* Аварийные светильники в помещениях (0.8.1, цепь emergency, гаснут при пустом аккумуляторе) и красные отсветы
++     у постов, где охрана стоит перед маяком двери. Существующие маяки (BEACONS, шлюз, посты) не дублируются. */
++  EMERGENCY_LAMPS: [
++    { id: 'em-workshop', room: 'workshop', x: 886,  y: 40 },   // у входа со стороны лестницы
++    { id: 'em-medical',  room: 'medical',  x: 1172, y: 40 },   // над входом в медпункт
++    { id: 'em-power',    room: 'power',    x: 1508, y: 44 },   // над щитом у пульта
++    { id: 'em-pumps',    room: 'water',    x: 1744, y: 40 },   // над входом в насосную
++  ],
++  EMERGENCY_GLOW: [
++    { id: 'glow-post1', x: 124, y: 200, r: 92 },               // отсвет маяка Поста 1 на мешках и охране
++    { id: 'glow-post2', x: 1836, y: 200, r: 92 },              // отсвет маяка Поста 2 у доступной зоны
++  ],
++  LAMP_CAP: 8,                        // не больше 8 ручных огней в кадре (ближайшие к центру, охрана — первой)
+   /* Осмотры и разговоры: data-driven, порядок после лестниц, ворот и генератора. trigger — неподвижный участок;
+      npc + radius — разговор с NPC, участок считается от его текущей позиции. lines — реплики по кругу («Далее» / E). */
+   INSPECTS: [
+@@ -249,6 +302,22 @@ const CONFIG = {
+         '«За запасные батарейки готовы отдать половину ужина».',
+         '«До смены ещё далеко. Хочешь поговорить — говори тихо».',
+         '«Обе двери держим закрытыми. Лишняя осторожность никому не мешала».'] },
++    { id: 'talk-airlock-west', type: 'talk', floor: 'upper', npc: 'guard-airlock-west', radius: 12, label: '◎ Поговорить с охраной', title: 'ОХРАНА ШЛЮЗА · ВНУТРЕННИЙ ПОДХОД', lines: [
++        '«Сегодня наверху видели мутантов возле домов. Без нужды не суйся».',
++        '«Фильтр проверил? Даже целая маска без фильтра ничего не стоит».',
++        '«Выходишь один — отметься в журнале. Иначе искать никто не успеет».',
++        '«Если услышишь стрельбу у входа, обратно не беги вслепую — дай условный сигнал».',
++        '«Вчера разведчики нашли пустую канистру. За топливом теперь ходят всё дальше».',
++        '«Когда свет гаснет, мы прежде всего проверяем гермозатвор».',
++        '«После отбоя без приказа никто не проходит, даже знакомые».'] },
++    { id: 'talk-airlock-east', type: 'talk', floor: 'upper', npc: 'guard-airlock-east', radius: 12, label: '◎ Поговорить с охраной', title: 'ОХРАНА ШЛЮЗА · ВНЕШНИЕ ВОРОТА', lines: [
++        '«На улице спокойно только издалека. Не верь тишине».',
++        '«У заброшенной машины заметили следы. Большие. Лучше не проверяй».',
++        '«Патруль задерживается. Передали по связи, что обходят завал».',
++        '«Не задерживайся возле входа: свет из шлюза видно издалека».',
++        '«После грозы вода течёт по стенам перехода. Под ноги смотри».',
++        '«Если выключится освещение, держись ближе к красным маякам».',
++        '«Запомни: услышишь три удара в дверь — отойди и позови дежурного».'] },
+     { id: 'talk-medic', type: 'talk', floor: 'upper', npc: 'medic', radius: 14, label: '◎ Поговорить с медиком', title: 'МЕДИК', lines: [
+         '«Сначала вымой руки, потом подходи к койкам».',
+         '«Лекарств мало. Не трать перевязочные материалы на мелочь».',
+@@ -395,7 +464,8 @@ const FONT_SRC = {
+   '8':'01110100011000101110100011000101110','9':'01110100011000101111000010001001100',' ':'00000000000000000000000000000000000',
+   '-':'00000000000000011111000000000000000',':':'00000001000010000000001000010000000','.':'00000000000000000000000000000000100',
+   '!':'00100001000010000100001000000000100','№':'10010110101011010111100101001010011',
+-  '◀':'00010001100111011110011100011000010','▶':'01000011000111001111011100110001000',
++  '◀':'00010001100111011110011100011000010','?':'01110100010000100010001000000000100',
++  'Ё':'01010111111000011110100001000011111',',':'00000000000000000000000000010001000','▶':'01000011000111001111011100110001000',
+ };
+ /** Рисует строку пиксельным шрифтом. Возвращает ширину. */
+ function drawText(g, str, x, y, color, shadow = null, scale = 1) {
+@@ -572,6 +642,36 @@ function createDialogCursor() {
+     peek(id) { return last.get(id) ?? -1; },
+   };
+ }
++/** Режим яркости из сохранения: неизвестное или испорченное — «Нормально». */
++function parseVisual(cfg, raw) {
++  let v = null;
++  try { v = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (_) { v = null; }
++  return v && v.v === 1 && typeof v.brightness === 'string' && Object.prototype.hasOwnProperty.call(cfg.PRESETS, v.brightness) ? v.brightness : cfg.DEFAULT;
++}
++/** Очередь коротких реакций NPC: новая авария отменяет старую очередь; реплики разнесены во времени;
++    повтор того же события в пределах COOLDOWN — не больше одной реплики (защита от частых ВКЛ/ВЫКЛ). */
++function createReactions(cfg) {
++  return {
++    queue: [], last: {}, turn: {},
++    trigger(kind, ids, now) {
++      this.queue.length = 0;
++      const recent = now - (this.last[kind] ?? -1e9) < cfg.COOLDOWN;
++      this.last[kind] = now;
++      const max = recent ? 1 : kind === 'blackout' ? cfg.MAX_BLACKOUT : cfg.MAX_RESTORE;
++      let at = now + cfg.FIRST;
++      ids.slice(0, max).forEach((id, k) => {
++        this.queue.push({ id, kind, at });
++        at += cfg.GAP[0] + ((k * 0.37 + (this.turn[id] || 0) * 0.23) % 1) * (cfg.GAP[1] - cfg.GAP[0]);
++      });
++      return this.queue.length;
++    },
++    cancel() { this.queue.length = 0; },
++    due(now) { const out = this.queue.filter(e => e.at <= now); if (out.length) this.queue = this.queue.filter(e => e.at > now); return out; },
++    /** Следующая фраза персонажа по кругу: у соседей разные, у одного — не повторяется подряд. */
++    line(id, lines) { const k = this.turn[id] = (this.turn[id] ?? -1) + 1; return lines[k % lines.length]; },
++    duration(text) { return Math.max(cfg.DUR[0], Math.min(cfg.DUR[1], 1.6 + text.length * 0.09)); },
++  };
++}
+ /* SCAVENGE:END */
+ 
+ /* =============================== STATION ==================================
+@@ -665,6 +765,16 @@ function validateStationPlan(plan, cfg) {
+       }
+     }
+   }
++  for (const [id, n] of Object.entries(cfg.NPCS)) {                          // реплики реакций — короткие строки
++    for (const key of ['onBlackout', 'onRestore']) if (n[key] !== undefined
++      && (!Array.isArray(n[key]) || !n[key].length || n[key].some(t => typeof t !== 'string' || !t.trim() || t.length > 22))) err.push(`NPC ${id}: плохие ${key}`);
++    if (n.walk && !(n.walk[0] <= n.x && n.x <= n.walk[1])) err.push(`NPC ${id}: старт вне участка ходьбы`);
++    if (n.lamp && !['beam', 'lantern', 'candle', 'headlamp'].includes(n.lamp)) err.push(`NPC ${id}: неизвестный свет ${n.lamp}`);
++  }
++  for (const e of cfg.EMERGENCY_LAMPS || []) {                               // аварийный свет — внутри своей комнаты
++    const r = plan.rooms.find(x => x.id === e.room && x.status === 'active');
++    if (!r || !r.x || e.x < r.x[0] + 4 || e.x > r.x[1] - 4 || e.y < 19 || e.y > 96) err.push(`аварийный светильник ${e.id} вне комнаты ${e.room}`);
++  }
+   for (const r of plan.rooms) {                                              // действующие комнаты яруса — достижимы
+     if (r.status !== 'active' || r.floor !== 'upper' || !r.x) continue;
+     const U = cfg.FLOORS.upper;
+@@ -678,6 +788,7 @@ function validateStationPlan(plan, cfg) {
+ /* STATION:END */
+ const Power = createPower(CONFIG.POWER);
+ const Scavenge = createScavenge(CONFIG.SCAVENGE);
++const Reactions = createReactions(CONFIG.REACT);
+ /** Видимый уровень цепей: плавно догоняет модель (доли секунды), один и тот же для света, свечения и ореолов. */
+ const PowerView = {
+   levels: {}, main: 1,
+@@ -726,6 +837,14 @@ function addBeacon(g, x, y) {
+   l.clip = room ? { x0: room.x + 4, x1: room.x + room.w - 4, y0: 19, y1: 100 } : HALL_CLIP;
+   addEmissive(x - 2, y, 5, 3, [255, 66, 48], l, 'main', null, 'emergency');
+ }
++/** Аварийный светильник в помещении (0.8.1): короб с красноватым стеклом, ровный свет цепи emergency, только внутри комнаты. */
++function addEmergencyLamp(g, e) {
++  const r = ROOMS.find(x => x.id === e.room), { x, y } = e;
++  R(g, x - 4, y - 2, 9, 5, '#2a2e30'); R(g, x - 3, y - 1, 7, 3, '#5a3430'); R(g, x - 4, y - 2, 9, 1, '#4a4e50');
++  const l = addLight(x, y + 3, 54, [255, 104, 80], 'steady', 0.85, 'main', 'emergency');
++  l.clip = { x0: r.x + 4, x1: r.x + r.w - 4, y0: 19, y1: 100 };
++  addEmissive(x - 3, y - 1, 7, 2, [255, 128, 104], l, 'main', null, 'emergency');
++}
+ const BEACONS = [[500, 142], [980, 142], [1460, 142], [800, 30], [1010, 30], [1430, 30]];   // [x, y] на колоннах и в комнатах
+ /** Цепи для приборов, у которых она не задана: огонь — null, свечение с источником — как у источника, остальное — по зоне. */
+ function assignCircuits() {
+@@ -893,6 +1012,8 @@ const ROOM_DRAW = {
+     R(g, cx - 2, 36, 5, 15, '#9a3b34'); R(g, cx - 7, 41, 15, 5, '#9a3b34');
+     R(g, r.x + 12, 80, 58, 4, '#d0cfc4'); R(g, r.x + 12, 84, 58, 2, '#7e8a8c'); R(g, r.x + 14, 86, 2, 10, '#5e6a6c');
+     R(g, r.x + 66, 86, 2, 10, '#5e6a6c'); R(g, r.x + 14, 77, 12, 3, '#e6e4da');
++    R(g, r.x + 54, 78, 5, 2, '#7a6646'); R(g, r.x + 55, 77, 3, 1, '#9a8458'); R(g, r.x + 56, 73, 1, 4, '#e8e0cc');   // подсвечник на столе (0.8.1)
++    WORLD.candle = { x: r.x + 56, y: 72, lamp: 0, want: false, delay: 0, clip: { x0: r.x + 4, x1: r.x + r.w - 4, y0: 19, y1: 100 } };
+     R(g, r.x + 74, 50, 1, 46, '#9aa4a6'); R(g, r.x + 71, 52, 7, 9, '#b8d0cc');
+     R(g, r.x + r.w - 36, 54, 24, 42, '#b8bcb4'); R(g, r.x + r.w - 33, 58, 18, 16, '#6c9090'); R(g, r.x + r.w - 33, 78, 18, 14, '#9ca09a');
+   },
+@@ -1387,6 +1508,8 @@ function buildWorld() {
+   COLUMNS.forEach((cx, i) => drawColumn(gm, cx, i));
+   drawHallLamps(gm);
+   BEACONS.forEach(([x, y]) => addBeacon(gm, x, y));
++  CONFIG.EMERGENCY_LAMPS.forEach(e => addEmergencyLamp(gm, e));
++  CONFIG.EMERGENCY_GLOW.forEach(e => { const l = addLight(e.x, e.y, e.r, [255, 52, 40], 'pulse', 0.75, 'main', 'emergency'); l.clip = HALL_CLIP; l.pool = true; });
+   drawEnds(gm);
+   drawProps(gm);
+   drawStairs(gm);
+@@ -1585,24 +1708,22 @@ const ACTORS = [];
+ function actor(kind, set, x, y, o = {}) {
+   const a = { kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
+     wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed,
+-    react: o.react || null, bubble: null, id: o.id || null, lampType: o.lamp || null, tunnel: o.tunnel || 0,
++    bubble: null, id: o.id || null, lampType: o.lamp || null, tunnel: o.tunnel || 0,
+     lamp: 0, lampWant: false, lampDelay: 0, talkT: 0 };
+   ACTORS.push(a); return a;
+ }
+ /** Персонаж из CONFIG.NPCS (охрана постов, собеседники, жители со свечами). */
+ function npcActor(id) {
+   const n = CONFIG.NPCS[id], [a, b] = n.walk || [n.x, n.x];
+-  return actor(n.kind, n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, facing: n.facing, minX: a, maxX: b, speed: n.speed, react: n.react, lamp: n.lamp, tunnel: n.tunnel });
++  return actor(n.kind, n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, facing: n.facing, minX: a, maxX: b, speed: n.speed, lamp: n.lamp, tunnel: n.tunnel || n.aim });
+ }
+ const npcById = id => ACTORS.find(a => a.id === id) || null;
+ function placeActors() {
+   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
+   Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
+-  actor('guard', 'guard', 1600, U, { facing: 1 }); actor('guard', 'guard', 1670, U, { facing: -1 });       // шлюз на поверхность
+-  actor('walker', 'worker', 1000, U, { minX: 900, maxX: 1100, speed: 22 });                                // мастерская
+-  actor('walker', 'worker', 1800, U, { minX: 1748, maxX: 1852, speed: 18 });                               // насосная
++  // охрана шлюза, рабочие мастерской и насосной, житель столовой — с 0.8.1 в CONFIG.NPCS (без копий здесь)
+   actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+-  actor('sitter', 'resA', 492, U, { facing: 1 }); actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
++  actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
+   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
+   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
+   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
+@@ -1611,12 +1732,30 @@ function placeActors() {
+   actor('stand', 'resA', 832, P, { facing: 1 });
+ }
+ /** Лёгкая реакция на свет: житель останавливается, оглядывается и говорит короткую фразу. */
+-function actorsReact(blackout) {
+-  for (const a of ACTORS) {
+-    if (!a.react) continue;
+-    a.bubble = { text: a.react[blackout ? 0 : 1], t: 2.8 };
+-    if (a.kind === 'walker') { a.wait = Math.max(a.wait, blackout ? 3 : 1.2); a.moving = false; }
+-    if (blackout) a.facing *= -1;
++/** Реакция на блэкаут или возвращение сети: очередь коротких реплик видимых NPC (0.8.1).
++    Кандидаты — в кадре, ближе к герою; собеседник героя молчит; старые аварийные фразы снимаются. */
++function actorsReact(blackout, now) {
++  const key = blackout ? 'onBlackout' : 'onRestore';
++  if (!blackout) for (const a of ACTORS) if (a.bubble && a.bubble.kind === 'blackout') a.bubble = null;
++  const ids = ACTORS.filter(a => a.id && CONFIG.NPCS[a.id][key] && actorVisible(a) && !(InfoCard.open && InfoCard.item.npc === a.id))
++    .sort((p, q) => reactRank(p) - reactRank(q)).map(a => a.id);
++  Reactions.trigger(blackout ? 'blackout' : 'restore', ids, now);
++}
++const reactRank = a => Math.abs(a.x - Player.x) + (Math.abs(a.y - Player.y) > 20 ? 300 : 0);
++function actorVisible(a) {
++  return a.x > Camera.x - 6 && a.x < Camera.x + Camera.viewW + 6 && a.y > Camera.y + 30 && a.y - 40 < Camera.y + Camera.viewH;
++}
++/** Показать реплики, которым подошло время, — если NPC всё ещё в кадре и не разговаривает с героем. */
++function updateReactions(now) {
++  let shown = ACTORS.reduce((k, a) => k + (a.bubble && a.bubble.kind ? 1 : 0), 0);
++  for (const e of Reactions.due(now)) {
++    const a = npcById(e.id), n = CONFIG.NPCS[e.id], lines = n && n[e.kind === 'blackout' ? 'onBlackout' : 'onRestore'];
++    if (!a || !lines || !actorVisible(a) || (InfoCard.open && InfoCard.item.npc === e.id)) continue;
++    if (shown >= CONFIG.REACT.MAX_ON) { Reactions.queue.push({ ...e, at: now + 0.5 }); continue; }   // не больше MAX_ON фраз сразу
++    shown++;
++    const text = Reactions.line(e.id, lines);
++    a.bubble = { text, t: Reactions.duration(text), kind: e.kind };
++    if (a.kind === 'walker') { a.wait = Math.max(a.wait, 1.6); a.moving = false; }
+   }
+ }
+ function updateActors(dt) {
+@@ -1637,6 +1776,12 @@ function updateActors(dt) {
+ /** Ручные фонари и свечи: при обесточенной цепи своего места NPC зажигает свет через 0.5–2 с (по порядку),
+     при возвращении питания — гасит. Свет независимый: не от сети и не от аккумулятора. */
+ function updateLamps(dt) {
++  const c = WORLD.candle;                                                // свеча медпункта: при обесточенной critical, не от сети
++  if (c) {
++    const want = Power.level('critical') === 0;
++    if (want !== c.want) { c.want = want; c.delay = want ? 1.4 : 0.6; }
++    if (c.delay > 0) c.delay -= dt; else c.lamp = clamp(c.lamp + (want ? dt * 1.5 : -dt), 0, 1);
++  }
+   let k = 0;
+   for (const a of ACTORS) {
+     if (!a.lampType) continue;
+@@ -1661,6 +1806,7 @@ function actorClip(a) {
+ function lampPoint(a) {
+   const sit = a.kind === 'sitter' || a.kind === 'sitguard';
+   if (a.lampType === 'beam') return [Math.round(a.x) + a.facing * 7, a.y - 25];
++  if (a.lampType === 'headlamp') return [Math.round(a.x) + a.facing * 4, a.y - 35];
+   return [Math.round(a.x) + a.facing * (sit ? 8 : 7), a.y - (sit ? 13 : 19)];
+ }
+ function actorSprite(a) {
+@@ -1995,7 +2141,7 @@ const Render = {
+   makeVignette() {
+     const c = makeCanvas(this.viewW + 1, this.viewH), g = c.getContext('2d'), w = c.width, h = c.height;
+     const grd = g.createRadialGradient(w / 2, h * 0.55, h * 0.35, w / 2, h * 0.55, Math.max(w, h) * 0.72);
+-    grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, 'rgba(0,0,0,0.55)');
++    grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(1, `rgba(0,0,0,${Visual.preset().vignette})`);   // край — по режиму яркости
+     g.fillStyle = grd; g.fillRect(0, 0, w, h); return c;
+   },
+   /** Перевод мировой координаты в координату буфера для слоя с параллаксом p. */
+@@ -2095,12 +2241,12 @@ const Render = {
+     }
+   },
+   drawLightmap(camX, frac, t, playerSX, playerFY) {
+-    const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, m = PowerView.main, D = CONFIG.AMBIENT_BLACKOUT;
+-    const A = CONFIG.AMBIENT.map((v, k) => Math.round(D[k] + (v - D[k]) * m));   // без сети внизу темнее
++    const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, m = PowerView.main, VP = Visual.preset(), D = VP.blackout;
++    const A = VP.ambient.map((v, k) => Math.round(D[k] + (v - D[k]) * m));   // без сети внизу темнее (режим яркости — VP)
+     gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
+     gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
+     const gy = Math.min(this.viewH, yo - 50);                           // снаружи — светлее: пыльные сумерки
+-    if (gy > 0) { const S = CONFIG.AMBIENT_SURFACE; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }
++    if (gy > 0) { const S = VP.surface; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }
+     gl.globalCompositeOperation = 'lighter';
+     let n = 0;
+     /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
+@@ -2113,10 +2259,8 @@ const Render = {
+         gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip();
+       }
+       gl.translate(x, y); if (sy !== 1) gl.scale(1, sy);
+-      const grd = gl.createRadialGradient(0, 0, 0, 0, 0, r);
+-      grd.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`); grd.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},.5)`);
+-      grd.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+-      gl.globalAlpha = Math.min(1, a); gl.fillStyle = grd; gl.fillRect(-r, -r, r * 2, r * 2); gl.restore(); n++;
++      const rr = Math.round(r);                                          // 0.8.1: готовое пятно того же профиля вместо градиента в каждом кадре
++      gl.globalAlpha = Math.min(1, a); gl.drawImage(this.lampDisc(rr, c), -rr, -rr); gl.restore(); n++;
+     };
+     for (const l of WORLD.lights) {
+       const p = l.layer === 'back' ? CONFIG.PARALLAX.BACK : 1;
+@@ -2126,8 +2270,12 @@ const Render = {
+       if (l.pool) blob(x, 215 + yo, l.r * 0.75, l.c, l.i * 0.55, 0.22, l.clip, p);  // пятно света на полу
+     }
+     // Ручные фонари и свечи NPC: свой свет, не зависит от сети; не выходит за стены комнаты и перекрытия.
+-    for (const a of ACTORS) {
+-      if (a.lamp < 0.01) continue;
++    const cx = camX + this.viewW / 2;                                    // не больше LAMP_CAP огней: охрана первой, затем ближние к центру
++    const lit = ACTORS.filter(a => a.lamp >= 0.01 && a.x > camX - 130 && a.x < camX + this.viewW + 130 && a.y + yo > -20 && a.y - 60 + yo < this.viewH)
++      .sort((p, q) => (p.lampType === 'beam' ? 0 : 1000) + Math.abs(p.x - cx) - (q.lampType === 'beam' ? 0 : 1000) - Math.abs(q.x - cx))
++      .slice(0, CONFIG.LAMP_CAP);
++    this.litLamps = lit.length;
++    for (const a of lit) {
+       const [wx, wy] = lampPoint(a), x = this.sx(wx, 1, camX, frac), y = wy + yo, clip = actorClip(a);
+       const fl = a.lampType === 'candle' ? 0.82 + 0.18 * noise1(t * 7, a.x) : 1;
+       const disc = (r, c, al, dy = 0) => {                              // готовое пятно света (кэш текстур, без градиента в кадре)
+@@ -2137,7 +2285,14 @@ const Render = {
+         gl.beginPath(); gl.rect(cx0, cc.y0 + yo, cx1 - cx0, (cc.y1 < 1e9 ? cc.y1 + yo : this.viewH) - (cc.y0 + yo)); gl.clip();
+         gl.globalAlpha = Math.min(1, al); gl.drawImage(tex, x - r, y + dy - r); gl.restore(); n++;
+       };
+-      if (a.lampType === 'beam') {
++      if (a.lampType === 'headlamp') {                                  // налобный фонарь: короче и уже, от головы
++        disc(18, [200, 210, 225], 0.3 * a.lamp, 10);
++        gl.save();
++        const c = clip, cx0 = c.x0 > -1e9 ? this.sx(c.x0, 1, camX, frac) : 0, cx1 = c.x1 < 1e9 ? this.sx(c.x1, 1, camX, frac) : vw;
++        gl.beginPath(); gl.rect(cx0, c.y0 + yo, cx1 - cx0, (c.y1 < 1e9 ? c.y1 + yo : this.viewH) - (c.y0 + yo)); gl.clip();
++        gl.globalAlpha = 0.85 * a.lamp; gl.translate(x, y); gl.scale(a.facing * 0.7, 0.7); gl.drawImage(this.beamTex, -2, -18);
++        gl.restore(); n++;
++      } else if (a.lampType === 'beam') {
+         disc(26, [200, 210, 225], 0.35 * a.lamp, 6);                          // рассеянный свет вокруг охранника
+         gl.save();                                                       // конус из готовой текстуры: от руки к тоннелю, чуть вниз
+         const c = clip, cx0 = c.x0 > -1e9 ? this.sx(c.x0, 1, camX, frac) : 0, cx1 = c.x1 < 1e9 ? this.sx(c.x1, 1, camX, frac) : vw;
+@@ -2148,6 +2303,13 @@ const Render = {
+         gl.restore(); n++;
+       } else disc(a.lampType === 'lantern' ? 46 : 36, [255, 172, 96], (a.lampType === 'lantern' ? 0.8 : 0.7) * a.lamp * fl);
+     }
++    const cd = WORLD.candle;                                             // свеча на столе медпункта: только когда зажжена
++    if (cd && cd.lamp > 0.01) {
++      const x = this.sx(cd.x, 1, camX, frac), y = cd.y + yo, c = cd.clip, tex = this.lampDisc(40, [255, 176, 100]);
++      gl.save();
++      gl.beginPath(); gl.rect(this.sx(c.x0, 1, camX, frac), c.y0 + yo, c.x1 - c.x0, c.y1 - c.y0); gl.clip();
++      gl.globalAlpha = 0.8 * cd.lamp * (0.82 + 0.18 * noise1(t * 7, 33)); gl.drawImage(tex, x - 40, y - 40); gl.restore(); n++;
++    }
+     const pClip = Player.state !== 'walk' ? null : Player.floor === 'surface' ? SURF_CLIP : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
+     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
+     this.drawnLights = n;
+@@ -2195,6 +2357,12 @@ const Render = {
+       grd.addColorStop(0, `rgba(${l.c[0]},${l.c[1]},${l.c[2]},${0.32 * l.i * l.power})`); grd.addColorStop(1, 'rgba(0,0,0,0)');
+       tg.globalCompositeOperation = 'lighter'; tg.fillStyle = grd; tg.fillRect(x - r, y - r, r * 2, r * 2); tg.globalCompositeOperation = 'source-over';
+     }
++    const cd = WORLD.candle;                                             // пламя свечи медпункта — тоже позади персонажей
++    if (cd && cd.lamp > 0.05) {
++      const x = cd.x - camI, y = cd.y + yo, tg = route(x - 1, y - 2, x + 2, y + 2);
++      tg.globalAlpha = cd.lamp; tg.fillStyle = noise1(t * 9, 7) > 0.5 ? '#ffe2a0' : '#ffb860'; tg.fillRect(x, y - 1, 1, 2);
++      tg.fillStyle = 'rgba(255,200,120,.45)'; tg.fillRect(x - 1, y - 1, 3, 2); tg.globalAlpha = 1;
++    }
+     if (d) this.flushGlow(d, this.occ);                                    // персонажи стоят перед стеной: свечение — за ними
+     this.drawFireLayer(camX, frac, t, camI, yo);
+     g.fillStyle = '#dcec78';                                             // глаза мутантов — часть самого мутанта
+@@ -2231,7 +2399,8 @@ const Render = {
+         tg = gg; d = d ? [Math.min(d[0], x - 4), Math.min(d[1], y - 4), Math.max(d[2], x + 5), Math.max(d[3], y + 4)] : [x - 4, y - 4, x + 5, y + 4];
+       }
+       tg.globalAlpha = a.lamp;
+-      if (a.lampType === 'beam') { tg.fillStyle = '#3a3e40'; tg.fillRect(x - a.facing * 3, y, 4, 2); tg.fillStyle = '#f2f6ff'; tg.fillRect(x + (a.facing > 0 ? 1 : -1), y, 1, 2); }
++      if (a.lampType === 'headlamp') { tg.fillStyle = '#f2f6ff'; tg.fillRect(x, y, 1, 1); }
++      else if (a.lampType === 'beam') { tg.fillStyle = '#3a3e40'; tg.fillRect(x - a.facing * 3, y, 4, 2); tg.fillStyle = '#f2f6ff'; tg.fillRect(x + (a.facing > 0 ? 1 : -1), y, 1, 2); }
+       else if (a.lampType === 'lantern') { tg.fillStyle = '#4a3a2a'; tg.fillRect(x - 1, y - 3, 3, 1); tg.fillStyle = '#ffd08a'; tg.fillRect(x - 1, y - 2, 3, 3); }
+       else { tg.fillStyle = '#e8e0cc'; tg.fillRect(x, y, 1, 3); tg.fillStyle = noise1(t * 9, a.x) > 0.5 ? '#ffe2a0' : '#ffb860'; tg.fillRect(x, y - 2, 1, 2); }
+       tg.globalAlpha = 1;
+@@ -2262,8 +2431,12 @@ const Render = {
+       if (!a.bubble) continue;
+       const w = textWidth(a.bubble.text) + 4, x = Math.round(a.x) - camI - (w >> 1), y = a.y + yo - 52;
+       if (x + w < 0 || x > this.viewW + 1 || y < 0 || y > this.viewH) continue;
+-      g.fillStyle = 'rgba(8,10,12,.82)'; g.fillRect(x, y, w, 11);
+-      drawText(g, a.bubble.text, x + 2, y + 2, '#f0e4c4');
++      if (!a.bubble.img || a.bubble.imgText !== a.bubble.text) {        // 0.8.1: текст пузыря рисуется один раз, дальше — готовой картинкой
++        const c = makeCanvas(w, 11), b = c.getContext('2d');
++        b.fillStyle = 'rgba(8,10,12,.82)'; b.fillRect(0, 0, w, 11); drawText(b, a.bubble.text, 2, 2, '#f0e4c4');
++        a.bubble.img = c; a.bubble.imgText = a.bubble.text;
++      }
++      g.drawImage(a.bubble.img, x, y);
+     }
+   },
+   /** Пламя и искры бочки — в отдельном маленьком слое, из которого вырезаются силуэты героя и жителей:
+@@ -2315,6 +2488,35 @@ const Debug = {
+   },
+ };
+ 
++/* ================================ VISUAL ==================================
++   Режим яркости сцены: «Атмосферно» / «Нормально» (по умолчанию) / «Светлее». Меняет карту освещения и виньетку,
++   HUD и карточки не трогает. Своё сохранение pv.visual.v1 — ресурсы (pv.power.v1, pv.scavenge.v1) не затрагиваются. */
++const Visual = {
++  id: CONFIG.VISUAL.DEFAULT, els: {},
++  preset() { return CONFIG.VISUAL.PRESETS[this.id]; },
++  load() { try { this.id = parseVisual(CONFIG.VISUAL, localStorage.getItem(CONFIG.VISUAL.SAVE_KEY)); } catch (_) { this.id = CONFIG.VISUAL.DEFAULT; } },
++  set(id) {
++    if (!CONFIG.VISUAL.PRESETS[id]) return;
++    this.id = id;
++    try { localStorage.setItem(CONFIG.VISUAL.SAVE_KEY, JSON.stringify({ v: 1, brightness: id })); } catch (_) { /* хранилище недоступно */ }
++    if (Render.canvas) Render.vignette = Render.makeVignette();          // маска виньетки — только при смене режима
++    this.render();
++  },
++  init() {
++    const $ = id => document.getElementById(id);
++    this.els = { root: $('opts'), btn: $('opt') };
++    const stop = e => e.stopPropagation();
++    this.els.root.addEventListener('pointerdown', stop); this.els.btn.addEventListener('pointerdown', stop);
++    this.els.btn.addEventListener('click', e => { e.preventDefault(); this.toggle(); });
++    this.els.root.querySelectorAll('button[data-b]').forEach(b => b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.set(b.dataset.b); }));
++    document.addEventListener('pointerdown', () => this.hide());       // касание мимо панели — закрыть
++    this.render();
++  },
++  toggle() { if (this.els.root.classList.contains('show')) this.hide(); else { this.els.root.classList.add('show'); this.els.btn.setAttribute('aria-expanded', 'true'); } },
++  hide() { this.els.root.classList.remove('show'); this.els.btn.setAttribute('aria-expanded', 'false'); },
++  render() { this.els.root?.querySelectorAll('button[data-b]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.b === this.id))); },
++};
++
+ /* =============================== INFO CARD ================================
+    Карточка осмотра поста или доски: заголовок, текст, ✕. Свой слой ввода, ничего не меняет в игре. */
+ const InfoCard = {
+@@ -2403,13 +2605,13 @@ const Game = {
+     const t0 = performance.now();
+     buildWorld(); buildSprites(); placeActors(); FX.init();
+     this.buildMs = Math.round(performance.now() - t0);
+-    this.loadPower(); this.loadScavenge(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+-    GenPanel.init(); InfoCard.init();
++    Visual.load(); this.loadPower(); this.loadScavenge(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
++    GenPanel.init(); InfoCard.init(); Visual.init();
+     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
+     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
+     addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); });
+     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); } });
+-    Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); };
++    Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); Visual.hide(); };
+     Render.init(document.getElementById('screen'));
+     Debug.init();
+     if (Debug.on) window.pvDebug = Object.freeze({                      // только с ?debug: снимок модели и ускорение для тестов
+@@ -2421,6 +2623,11 @@ const Game = {
+       actors: () => ACTORS.map(a => ({ id: a.id, kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing, lamp: a.lamp })),
+       scavenge: () => ({ ...Scavenge.snapshot(), message: Scavenge.message }),
+       cardState: () => (InfoCard.open ? { id: InfoCard.item.id, idx: InfoCard.idx, text: document.getElementById('cardText').textContent } : null),
++      visual: () => ({ id: Visual.id, preset: { ...Visual.preset() } }),
++      reactions: () => ({ queue: Reactions.queue.map(e => ({ ...e })), bubbles: ACTORS.filter(a => a.bubble).map(a => ({ id: a.id, text: a.bubble.text, kind: a.bubble.kind || null })) }),
++      candle: () => (WORLD.candle ? { lamp: WORLD.candle.lamp, want: WORLD.candle.want } : null),
++      lit: () => Render.litLamps || 0,
++      toggleGen: () => { Power.toggle(); this.savePower(); return Power.generator.on; },
+       scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
+     });
+     Player.onStep = (x, f, y) => FX.step(x, f, y);
+@@ -2491,7 +2698,8 @@ const Game = {
+   updatePower(dt) {
+     Power.step(dt); PowerView.sync(false);
+     const on = Power.level('platform') > 0;
+-    if (on !== this.mainOn) { this.mainOn = on; actorsReact(!on); this.savePower(); }
++    if (on !== this.mainOn) { this.mainOn = on; actorsReact(!on, this.t); this.savePower(); }   // только при смене логического состояния
++    updateReactions(this.t);
+     this.saveT = (this.saveT || 0) + dt;
+     if (this.saveT >= 2) { this.saveT = 0; this.savePower(); }
+     const pw = this.els.power, txt = on ? '' : Power.battery.charge > 0
+diff --git a/sw.js b/sw.js
+index 70e2914..ef02c5a 100644
+--- a/sw.js
++++ b/sw.js
+@@ -5,13 +5,14 @@
+    — остальные файлы игры (иконки, манифест): сначала кэш, в фоне — обновление из сети.
+    При выпуске новой версии поменяйте CACHE — старый кэш игры удалится, кэши других приложений не трогаются. */
+ const PREFIX = 'poslednyaya-vetka-';
+-const CACHE = PREFIX + '0.8';
++const CACHE = PREFIX + '0.8.1';
+ const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
+ const SCOPE = new URL('./', self.location).pathname;             // папка игры на сервере
+ const NET_TIMEOUT = 3000;
+ 
+ self.addEventListener('install', e => {
+-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
++  // cache:'reload' — свежие файлы с сервера, мимо HTTP-кэша браузера (иначе новая версия могла бы закэшировать старую страницу)
++  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
+ });
+ 
+ self.addEventListener('activate', e => {
+@@ -22,7 +23,9 @@ self.addEventListener('activate', e => {
+ 
+ /** Запрос в сеть с ограничением по времени; удачный ответ кладётся в кэш (запись привязана к событию). */
+ function fromNetwork(e, cache, timeout) {
+-  const net = fetch(e.request).then(r => {
++  // страница — с проверкой у сервера (no-cache): HTTP-кэш хостинга (у GitHub Pages ~10 мин) не задерживает новую версию
++  const req = timeout ? new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : e.request;
++  const net = fetch(req).then(r => {
+     if (r.ok) e.waitUntil(cache.put(e.request, r.clone()));
+     return r;
+   });

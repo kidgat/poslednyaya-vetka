@@ -5,13 +5,14 @@
    — остальные файлы игры (иконки, манифест): сначала кэш, в фоне — обновление из сети.
    При выпуске новой версии поменяйте CACHE — старый кэш игры удалится, кэши других приложений не трогаются. */
 const PREFIX = 'poslednyaya-vetka-';
-const CACHE = PREFIX + '0.8';
+const CACHE = PREFIX + '0.8.1';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 const SCOPE = new URL('./', self.location).pathname;             // папка игры на сервере
 const NET_TIMEOUT = 3000;
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache:'reload' — свежие файлы с сервера, мимо HTTP-кэша браузера (иначе новая версия могла бы закэшировать старую страницу)
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -22,7 +23,9 @@ self.addEventListener('activate', e => {
 
 /** Запрос в сеть с ограничением по времени; удачный ответ кладётся в кэш (запись привязана к событию). */
 function fromNetwork(e, cache, timeout) {
-  const net = fetch(e.request).then(r => {
+  // страница — с проверкой у сервера (no-cache): HTTP-кэш хостинга (у GitHub Pages ~10 мин) не задерживает новую версию
+  const req = timeout ? new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : e.request;
+  const net = fetch(req).then(r => {
     if (r.ok) e.waitUntil(cache.put(e.request, r.clone()));
     return r;
   });
