@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 0.8.1</title>
+<title>Последняя ветка 0.8.2</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -106,7 +106,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false">⚙</button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.8.1</button></div>
+  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false">⚙</button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.8.2</button></div>
 </div>
 <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -132,7 +132,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 0.8.1 «Жизнь в темноте»<br>
+    <p>Станция «Гагаринская» · прототип 0.8.2 «Полировка»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -141,7 +141,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.8.1 «Жизнь в темноте»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.8.2 «Полировка»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -152,7 +152,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '0.8.1',
+  VERSION: '0.8.2',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -253,7 +253,7 @@ const CONFIG = {
       onBlackout: ['НЕ ВИЖУ ИНСТРУМЕНТ!', 'ДАЙТЕ СВЕТ!', 'ОПЯТЬ ГЕНЕРАТОР?'], onRestore: ['РАБОТАЕМ ДАЛЬШЕ', 'ДРУГОЕ ДЕЛО!'] },
     'worker-pumps':    { floor: 'upper', kind: 'walker', set: 'worker', x: 1800, walk: [1748, 1852], speed: 18, lamp: 'beam',  // 0.8.1: из placeActors
       onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
-    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: -1,          // светит на подход со станции
+    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // 0.8.2: светит на гермоворота (слева сразу стена — луч упирался в неё)
       onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
     'guard-airlock-east': { floor: 'upper', kind: 'guard', set: 'guard', x: 1670, facing: -1, lamp: 'beam', aim: -1,         // светит на гермоворота
       onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
@@ -278,7 +278,7 @@ const CONFIG = {
   INSPECTS: [
     { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Поговорить с охраной',
       title: 'ПОСТ 1 · К «СПОРТИВНОЙ» · ОХРАНА', lines: [
-        '«За этой дверью дорога к „Спортивной“. Пока закрыто».',
+        '«За этой дверью дорога к станции Спортивная. Пока закрыто».',
         '«Ночью за воротами снова кто-то стучал по рельсам».',
         '«Фонарь проверяю каждый час. Когда сеть падает, он важнее винтовки».',
         '«Пропуск? Нужна отметка начальника. Для своих правила те же».',
@@ -297,7 +297,7 @@ const CONFIG = {
         'Пропажа ключа. Кто нашёл связку с красной биркой — сдать начальнику смены.'] },
     { id: 'inspect-east-post', space: 'east-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [1828, 1850], label: '◎ Поговорить с охраной',
       title: 'ПОСТ 2 · К «МОСКОВСКОЙ» · ОХРАНА', lines: [
-        '«„Московская“ там, за гермозатвором. Но сегодня никто не проходит».',
+        '«Станция Московская там, за гермозатвором. Но сегодня никто не проходит».',
         '«Разведчики говорили, что в тоннеле стало сыро».',
         '«За запасные батарейки готовы отдать половину ужина».',
         '«До смены ещё далеко. Хочешь поговорить — говори тихо».',
@@ -2110,6 +2110,13 @@ const Render = {
     grd.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`); grd.addColorStop(0.4, `rgba(${c[0]},${c[1]},${c[2]},.5)`); grd.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
     b.fillStyle = grd; b.fillRect(0, 0, 2 * r, 2 * r); return (this.discs[key] = t);
   },
+  /** Масштаб луча (0.8.2): если стена комнаты ближе длины луча, луч укорачивается целиком и плавно гаснет у стены,
+      вместо резкого вертикального среза. Не короче 40% — у самой стены остаётся короткое пятно. */
+  beamFit(a, clip, scale) {
+    const [hx] = lampPoint(a), L = 120 * scale;
+    const room = a.facing > 0 ? (clip.x1 < 1e9 ? clip.x1 - hx : Infinity) : (clip.x0 > -1e9 ? hx - clip.x0 : Infinity);
+    return room >= L ? 1 : Math.max(0.4, room / L);
+  },
   /** Текстура луча ручного фонаря (один раз): конус длиной 120 с затуханием; вершина — в точке (2, 18). */
   makeBeam() {
     const L = 120, c = makeCanvas(L + 4, 60), b = c.getContext('2d'), ax = 2, ay = 18;
@@ -2290,7 +2297,8 @@ const Render = {
         gl.save();
         const c = clip, cx0 = c.x0 > -1e9 ? this.sx(c.x0, 1, camX, frac) : 0, cx1 = c.x1 < 1e9 ? this.sx(c.x1, 1, camX, frac) : vw;
         gl.beginPath(); gl.rect(cx0, c.y0 + yo, cx1 - cx0, (c.y1 < 1e9 ? c.y1 + yo : this.viewH) - (c.y0 + yo)); gl.clip();
-        gl.globalAlpha = 0.85 * a.lamp; gl.translate(x, y); gl.scale(a.facing * 0.7, 0.7); gl.drawImage(this.beamTex, -2, -18);
+        const k = 0.7 * this.beamFit(a, clip, 0.7);
+        gl.globalAlpha = 0.85 * a.lamp; gl.translate(x, y); gl.scale(a.facing * k, k); gl.drawImage(this.beamTex, -2, -18);
         gl.restore(); n++;
       } else if (a.lampType === 'beam') {
         disc(26, [200, 210, 225], 0.35 * a.lamp, 6);                          // рассеянный свет вокруг охранника
@@ -2298,8 +2306,8 @@ const Render = {
         const c = clip, cx0 = c.x0 > -1e9 ? this.sx(c.x0, 1, camX, frac) : 0, cx1 = c.x1 < 1e9 ? this.sx(c.x1, 1, camX, frac) : vw;
         gl.beginPath(); gl.rect(cx0, c.y0 + yo, cx1 - cx0, (c.y1 < 1e9 ? c.y1 + yo : this.viewH) - (c.y0 + yo)); gl.clip();
         gl.globalAlpha = a.lamp;
-        if (a.facing > 0) gl.drawImage(this.beamTex, x - 2, y - 18);
-        else { gl.translate(x, 0); gl.scale(-1, 1); gl.drawImage(this.beamTex, -2, y - 18); }
+        const k = this.beamFit(a, clip, 1);                                // 0.8.2: луч гаснет у стены, а не обрезается ею
+        gl.translate(x, y); gl.scale(a.facing * k, k); gl.drawImage(this.beamTex, -2, -18);
         gl.restore(); n++;
       } else disc(a.lampType === 'lantern' ? 46 : 36, [255, 172, 96], (a.lampType === 'lantern' ? 0.8 : 0.7) * a.lamp * fl);
     }
@@ -2337,6 +2345,7 @@ const Render = {
       if (!e.light) k *= powerLevel(e.circuit);                       // у свечения с источником уровень уже в e.light.i
       const c = e.mode === 'gen' ? (Power.running() ? [110, 230, 120] : [230, 80, 60]) : e.c;
       if (k < 0.12) continue;
+      if (e.mode === 'garland' && this.behindColumn(x, e.w, e.y, camX, frac)) continue;   // 0.8.2: лампочка за колонной не видна
       const tg = route(x, e.y + yo, x + e.w, e.y + yo + e.h);
       tg.fillStyle = rgb(c, 0.35 + 0.65 * k);
       tg.fillRect(x, e.y + yo, e.w, e.h);
@@ -2369,6 +2378,14 @@ const Render = {
     for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
     this.drawHandLights(camI, yo, t);
     this.drawBubbles(camI, yo);
+  },
+  /** Закрыта ли точка дальней стены колонной зала (колонны — на основном слое, ствол 14 px, капитель 18 px). */
+  behindColumn(x, w, y, camX, frac) {
+    if (y < 127 || y > 214) return false;
+    const i = Math.round((x + camX - COLUMNS[0]) / 160);                // колонны через 160 px: проверяем одну ближайшую
+    if (i < 0 || i >= COLUMNS.length) return false;
+    const s = this.sx(COLUMNS[i], 1, camX, frac);
+    return x + w > s - 9 && x < s + 9;
   },
   /** Вырезать силуэты из использованного прямоугольника буфера, перенести его в кадр и очистить. */
   flushGlow(d, list) {

@@ -62,4 +62,13 @@ ok('N09 аварийные светильники: мастерская, мед�
 ok('N10 отсветы у обоих постов, в доступной охране зоне платформы', CONFIG.EMERGENCY_GLOW.length === 2 && CONFIG.EMERGENCY_GLOW.every(e => e.x >= CONFIG.FLOORS.platform.minX - 60 && e.x <= CONFIG.FLOORS.platform.maxX + 10));
 ok('N11 расход аварийной цепи прежний: EMERGENCY = 0.35', CONFIG.POWER.EMERGENCY === 0.35);
 ok('N12 лимит ручных огней в кадре задан', Number.isInteger(CONFIG.LAMP_CAP) && CONFIG.LAMP_CAP >= 6 && CONFIG.LAMP_CAP <= 12);
+// 0.8.2 «Полировка»
+const post2 = CONFIG.INSPECTS.find(i => i.id === 'inspect-east-post');
+ok('P01 Пост 2: первая реплика «Станция Московская там, за гермозатвором…»', post2.lines[0] === '«Станция Московская там, за гермозатвором. Но сегодня никто не проходит».', post2.lines[0]);
+const allLines = CONFIG.INSPECTS.flatMap(i => i.lines);
+ok('P02 в репликах нет вложенных кавычек „…“ внутри «…»', allLines.every(l => !/[„“]/.test(l)), allLines.filter(l => /[„“]/.test(l)).join(' | '));
+ok('P03 реплики — по-прежнему по 5–10 у каждого места, смысл постов сохранён', CONFIG.INSPECTS.find(i => i.id === 'inspect-west-post').lines[0].includes('Спортивн') && post2.lines.length === 5);
+ok('P04 левый охранник шлюза светит на гермоворота (вправо), правый — тоже на ворота (влево)', N['guard-airlock-west'].aim === 1 && N['guard-airlock-east'].aim === -1);
+const G2 = CONFIG.GATES[0].a.x;
+ok('P05 ворота шлюза между охранниками — оба луча направлены на них', N['guard-airlock-west'].x < G2 && N['guard-airlock-east'].x > G2);
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
