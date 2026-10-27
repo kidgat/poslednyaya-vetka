@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 0.6</title>
+<title>Последняя ветка 0.7</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -65,6 +65,14 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 .gen-btns{display:flex;gap:6px;margin-top:6px}
 #gen button{font:inherit;color:var(--ink);background:rgba(232,184,106,.14);border:1px solid rgba(232,184,106,.55);min-height:36px;padding:0 8px;cursor:pointer}
 #gen button:active{background:rgba(232,184,106,.34)}
+/* Карточка осмотра (посты, доска объявлений) — тот же язык, что у панели генератора. */
+#card{position:fixed;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);
+  width:min(330px,calc(100vw - 230px));min-width:240px;padding:7px 10px 9px;background:rgba(7,9,11,.9);border:1px solid var(--line);
+  font-size:11px;color:var(--ink);display:none;touch-action:none}
+#card.show{display:block}
+#card .gen-head b{flex:1}
+#card button{font:inherit;color:var(--ink);background:rgba(232,184,106,.14);border:1px solid rgba(232,184,106,.55);width:34px;min-height:30px;cursor:pointer}
+.card-text{font-size:11.5px;line-height:1.5}
 .gen-btns button{flex:1}
 #genClose{width:34px;min-height:30px!important;padding:0!important}
 #genReset{background:rgba(236,143,108,.16)!important;border-color:rgba(236,143,108,.6)!important}
@@ -91,12 +99,16 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span></div>
-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.6</button>
+  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.7</button>
 </div>
 <div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
 <div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
 <div class="pad" id="padR"><svg viewBox="0 0 24 24"><path d="M8.5 4 17 12l-8.5 8z"/></svg></div>
 <div id="act" role="button" aria-label="Действие"></div>
+<div id="card" role="dialog" aria-label="Осмотр">
+  <div class="gen-head"><b id="cardTitle"></b><button id="cardClose" type="button" aria-label="Закрыть">✕</button></div>
+  <div id="cardText" class="card-text"></div>
+</div>
 <div id="gen" role="dialog" aria-label="Генератор">
   <div class="gen-head"><b>ГЕНЕРАТОР</b><span id="genState"></span><button id="genClose" type="button" aria-label="Закрыть">✕</button></div>
   <div class="gen-row"><span>Топливо</span><div class="gen-bar"><i id="genFuelBar"></i></div><span id="genFuel"></span></div>
@@ -111,7 +123,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 0.6 «Энергия станции»<br>
+    <p>Станция «Гагаринская» · прототип 0.7 «Архитектура и охрана»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -120,7 +132,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.6 «Энергия станции»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.7 «Архитектура и охрана»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -131,7 +143,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '0.6',
+  VERSION: '0.7',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -147,7 +159,7 @@ const CONFIG = {
     run: { x0: 666, x1: 846, steps: 20 }, hole: [752, 846] }],
   STAIR_SPEED: 52,          // пикс/с по горизонтали при ходьбе по маршу
   // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
-  GATES: [{ radius: 12,
+  GATES: [{ id: 'airlock', radius: 12,
     a: { floor: 'upper',   x: 1635, dir: 'up',   label: '▲ На поверхность' },
     b: { floor: 'surface', x: 1650, dir: 'down', label: '▼ Вход в метро' } }],
   SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
@@ -183,11 +195,61 @@ const CONFIG = {
     hall: [[740, 'living'], [1300, 'platform'], [Infinity, 'technical']],   // зал платформы по x
   },
   GENERATOR: { floor: 'upper', x: 1508, trigger: [1482, 1532] },          // пульт генератора в энергоблоке
-  ZONES: [
-    { name: 'Жилой сектор',          to: 740 },
-    { name: 'Центральная платформа', to: 1300 },
-    { name: 'Техническая зона',      to: Infinity },
+  ZONES: [                            // подпись HUD на платформе по x
+    { name: 'Пост 1 · к «Спортивной»', to: 200 },
+    { name: 'Жилой сектор',            to: 740 },
+    { name: 'Центральная платформа',   to: 1300 },
+    { name: 'Техническая зона',        to: 1826 },
+    { name: 'Пост 2 · к «Московской»', to: Infinity },
   ],
+  /* Действующие пространства платформы (кроме комнат ROOMS): посты у тоннелей и место собраний.
+     door — закрытая дверь поста: стоит за границей ходьбы, перехода нет. */
+  SPACES: [
+    { id: 'west-checkpoint', floor: 'platform', name: 'Пост 1 «К Спортивной»', type: 'security', circuit: 'technical', x: [0, 200], door: [14, 50] },
+    { id: 'assembly',        floor: 'platform', name: 'Место собраний',       type: 'civic',    circuit: 'platform',  x: [836, 980] },
+    { id: 'east-checkpoint', floor: 'platform', name: 'Пост 2 «К Московской»', type: 'security', circuit: 'technical', x: [1826, 2000], door: [1886, 1962] },
+  ],
+  /* Осмотр без перехода: data-driven, порядок после лестниц, ворот и генератора. */
+  INSPECTS: [
+    { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Осмотреть пост',
+      title: 'ПОСТ 1 · К «СПОРТИВНОЙ»',
+      text: 'Тоннель в сторону «Спортивной». Проход закрыт: гермодверь заперта, на посту дежурит охрана. Выход к соседним станциям — в будущих версиях.' },
+    { id: 'inspect-assembly-board', space: 'assembly', type: 'inspect', floor: 'platform', trigger: [894, 924], label: '◎ Объявления',
+      title: 'МЕСТО СОБРАНИЙ · ДОСКА',
+      text: 'Дежурства на постах — по графику, смена в 8:00 и 20:00. Собрание жителей — у трибуны. Пайки выдают по талонам в столовой. Объявления пока справочные.' },
+    { id: 'inspect-east-post', space: 'east-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [1828, 1850], label: '◎ Спросить охрану',
+      title: 'ПОСТ 2 · К «МОСКОВСКОЙ»',
+      text: '«За гермозатвором 2 — тоннель к „Московской“. Проход закрыт, без приказа начальника станции никого не пускаем».' },
+  ],
+  /* Реестр «Гагаринской 3.0»: уровни и замыслы. active — уже есть в игре, planned — только план. */
+  STATION: {
+    floors: [
+      { id: 'surface',   name: 'Поверхность',             level: 2,  status: 'active',  legacyFloor: 'surface' },
+      { id: 'vestibule', name: 'Вестибюль',               level: 1,  status: 'planned', legacyFloor: null },
+      { id: 'upper',     name: 'Служебный ярус',          level: 0,  status: 'active',  legacyFloor: 'upper' },
+      { id: 'platform',  name: 'Платформа',               level: -1, status: 'active',  legacyFloor: 'platform' },
+      { id: 'utility',   name: 'Хозяйственно-жилой ярус', level: -2, status: 'planned', legacyFloor: null },
+    ],
+    plannedRooms: [
+      { id: 'hq',          floor: 'upper',     name: 'Штаб начальника',  type: 'command',  circuit: 'critical' },
+      { id: 'armory',      floor: 'upper',     name: 'Оружейная',        type: 'security', circuit: 'technical' },
+      { id: 'ventilation', floor: 'upper',     name: 'Вентиляция',       type: 'air',      circuit: 'technical' },
+      { id: 'quarantine',  floor: 'vestibule', name: 'Карантин',         type: 'medical',  circuit: 'critical' },
+      { id: 'guardroom',   floor: 'vestibule', name: 'Караульная',       type: 'security', circuit: 'technical' },
+      { id: 'living-pods', floor: 'utility',   name: 'Жилые ячейки',     type: 'housing',  circuit: 'living' },
+      { id: 'mushrooms',   floor: 'utility',   name: 'Грибница',         type: 'food',     circuit: 'technical' },
+      { id: 'tea-ferment', floor: 'utility',   name: 'Ферментация чая',  type: 'food',     circuit: 'technical' },
+      { id: 'pigsty',      floor: 'utility',   name: 'Свинарник',        type: 'food',     circuit: 'technical' },
+      { id: 'storeroom',   floor: 'utility',   name: 'Склад',            type: 'storage',  circuit: 'technical' },
+      { id: 'drainage',    floor: 'utility',   name: 'Дренаж',           type: 'water',    circuit: 'technical' },
+    ],
+    plannedConnectors: [
+      { id: 'tunnel-sportivnaya', type: 'tunnel', from: 'platform', to: null, via: 'west-checkpoint', name: 'Тоннель к «Спортивной»' },
+      { id: 'tunnel-moskovskaya', type: 'tunnel', from: 'platform', to: null, via: 'east-checkpoint', name: 'Тоннель к «Московской»' },
+      { id: 'vestibule-gates',    type: 'gate',   from: 'upper',    to: 'vestibule', name: 'Гермоворота вестибюля' },
+      { id: 'utility-stair',      type: 'stair',  from: 'platform', to: 'utility',   name: 'Служебная лестница вниз' },
+    ],
+  },
 };
 const W = CONFIG.WORLD_W, H = CONFIG.BASE_H;
 const COLUMNS = [];                       // x центров колонн
@@ -378,6 +440,82 @@ function createPower(cfg) {
   return P;
 }
 /* POWER:END */
+
+/* =============================== STATION ==================================
+   Реестр «Гагаринской 3.0»: проекция действующих данных (ROOMS, FLOORS, STAIRS, GATES, GENERATOR, SPACES, INSPECTS)
+   плюс замыслы из CONFIG.STATION. Второго источника истины нет — активное собирается из рабочих конфигов.
+   Блок между маркерами проверяется отдельно: node tests/station.test.js */
+/* STATION:BEGIN */
+function buildStationPlan(cfg, rooms) {
+  const st = cfg.STATION, act = 'active';
+  const plan = {
+    floors: st.floors.map(f => ({ ...f })),
+    circuits: [...Object.keys(cfg.POWER.DEMAND), 'emergency'],
+    rooms: [
+      ...rooms.map(r => ({ id: r.id, floor: 'upper', name: r.label, type: r.type, circuit: r.circuit, status: act, x: [r.x, r.x + r.w] })),
+      ...cfg.SPACES.map(sp => ({ ...sp, status: act })),
+      ...st.plannedRooms.map(r => ({ ...r, status: 'planned' })),
+    ],
+    connectors: [
+      ...cfg.STAIRS.map(s => ({ id: 'stair-' + s.id, type: 'stair', from: s.from, to: s.to, status: act })),
+      ...cfg.GATES.map(g => ({ id: 'gate-' + g.id, type: 'gate', from: g.a.floor, to: g.b.floor, status: act })),
+      ...st.plannedConnectors.map(c => ({ ...c, status: 'planned' })),
+    ],
+    interactions: [
+      ...cfg.STAIRS.flatMap(s => [{ id: `stair-${s.id}-bottom`, kind: 'stair', floor: s.from, trigger: s.bottom.trigger },
+                                  { id: `stair-${s.id}-top`, kind: 'stair', floor: s.to, trigger: s.top.trigger }]),
+      ...cfg.GATES.flatMap(g => [g.a, g.b].map((e, k) => ({ id: `gate-${g.id}-${k ? 'b' : 'a'}`, kind: 'gate', floor: e.floor, trigger: [e.x - g.radius, e.x + g.radius] }))),
+      { id: 'generator', kind: 'generator', floor: cfg.GENERATOR.floor, trigger: cfg.GENERATOR.trigger },
+      ...cfg.INSPECTS.map(i => ({ id: i.id, kind: 'inspect', floor: i.floor, trigger: i.trigger, space: i.space, type: i.type })),
+    ],
+  };
+  return plan;
+}
+/** Проверки реестра; возвращает список ошибок (пустой — всё согласовано). */
+function validateStationPlan(plan, cfg) {
+  const err = [], floor = id => plan.floors.find(f => f.id === id);
+  const all = [...plan.floors, ...plan.rooms, ...plan.connectors, ...plan.interactions];
+  const seen = new Set();
+  for (const o of all) { if (!o.id) err.push('объект без id'); else if (seen.has(o.id)) err.push(`повтор id: ${o.id}`); seen.add(o.id); }
+  for (const f of plan.floors) {
+    if (f.status === 'active' && !(f.legacyFloor in cfg.FLOORS)) err.push(`уровень ${f.id}: нет CONFIG.FLOORS.${f.legacyFloor}`);
+    if (f.status === 'planned' && f.legacyFloor !== null) err.push(`плановый уровень ${f.id} ссылается на рабочий этаж`);
+  }
+  for (const key of Object.keys(cfg.FLOORS))
+    if (plan.floors.filter(f => f.status === 'active' && f.legacyFloor === key).length !== 1) err.push(`CONFIG.FLOORS.${key} не связан ровно с одним active-уровнем`);
+  for (const r of plan.rooms) {
+    const f = floor(r.floor);
+    if (!f) { err.push(`помещение ${r.id}: нет уровня ${r.floor}`); continue; }
+    if (r.status === 'active' && f.status !== 'active') err.push(`помещение ${r.id} active на плановом уровне ${r.floor}`);
+    if (r.circuit !== null && !plan.circuits.includes(r.circuit)) err.push(`помещение ${r.id}: неизвестная цепь ${r.circuit}`);
+    if (r.door) {
+      const F = cfg.FLOORS[f.legacyFloor];
+      if (F && !(r.door[1] < F.minX || r.door[0] > F.maxX)) err.push(`дверь ${r.id} достижима — это был бы проход без механики`);
+    }
+  }
+  for (const c of plan.connectors) {
+    const a = floor(c.from), b = c.to === null ? null : floor(c.to);
+    if (!a) err.push(`связь ${c.id}: нет уровня ${c.from}`);
+    if (c.to !== null && !b) err.push(`связь ${c.id}: нет уровня ${c.to}`);
+    if (c.status === 'active' && (!a || !b || a.status !== 'active' || b.status !== 'active')) err.push(`действующая связь ${c.id} ведёт на плановый/несуществующий уровень`);
+    if (c.via && !plan.rooms.some(r => r.id === c.via)) err.push(`связь ${c.id}: нет помещения ${c.via}`);
+  }
+  const it = plan.interactions;
+  for (const i of it) {
+    const f = floor(i.floor);
+    if (!f || f.status !== 'active') { err.push(`действие ${i.id} на неактивном уровне ${i.floor}`); continue; }
+    const F = cfg.FLOORS[f.legacyFloor], [a, b] = i.trigger;
+    if (!F) continue;                                          // рассинхрон уровня уже записан выше
+    if (!(a < b)) err.push(`действие ${i.id}: пустой участок`);
+    if (b < F.minX || a > F.maxX) err.push(`действие ${i.id} недостижимо (${a}–${b} вне ${F.minX}–${F.maxX})`);
+    if (i.space && !plan.rooms.some(r => r.id === i.space && r.status === 'active')) err.push(`действие ${i.id}: нет действующего пространства ${i.space}`);
+  }
+  for (let m = 0; m < it.length; m++) for (let n = m + 1; n < it.length; n++)
+    if (it[m].floor === it[n].floor && it[m].trigger[0] <= it[n].trigger[1] && it[n].trigger[0] <= it[m].trigger[1])
+      err.push(`участки действий пересекаются: ${it[m].id} и ${it[n].id}`);
+  return err;
+}
+/* STATION:END */
 const Power = createPower(CONFIG.POWER);
 /** Видимый уровень цепей: плавно догоняет модель (доли секунды), один и тот же для света, свечения и ореолов. */
 const PowerView = {
@@ -503,14 +641,14 @@ function mainTexel(x, y, o) {
 
 /* ---------- MAIN: верхний ярус (декоративные помещения в разрезе) ---------- */
 const ROOMS = [
-  { x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
-  { x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
-  { x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },
-  { x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
-  { x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
-  { x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
-  { x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },
-  { x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
+  { id: 'habitation', x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
+  { id: 'kitchen',    x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
+  { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },
+  { id: 'workshop',   x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
+  { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
+  { id: 'power',      x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
+  { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },
+  { id: 'water',      x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
 ];
 function drawRoom(g, r) {
   const { x, w } = r, cx = x + w / 2;
@@ -687,20 +825,26 @@ function drawHallLamps(g) {
 
 /* ---------- MAIN: торцы станции ---------- */
 function drawEnds(g) {
-  // Запад: торцевая стена и баррикада у засыпанного тоннеля.
-  paintRegion(g, 0, 122, 38, 92, (x, y, o) => setC(o, 44, 46, 48, (hash(x, y) - 0.5) * 12 + (x === 37 ? 18 : 0)));
-  for (let k = 0; k < 9; k++) {                                         // листы железа
-    const sx = 40 + k * 11, top = 140 + ((hash(k, 9) * 14) | 0);
-    R(g, sx, top, 11, 214 - top, k % 2 ? '#4c5254' : '#5a6062');
-    for (let y = top; y < 214; y += 3) R(g, sx, y, 11, 1, 'rgba(0,0,0,.18)');
-    R(g, sx + 3, top + 6, 4, 10 + ((hash(9, k) * 20) | 0), 'rgba(122,70,40,.55)');
+  // Запад: пост 1 «К Спортивной» — бетонный торец с гермодверью, щит с бойницами, мешки, закрытый тоннель над путями.
+  paintRegion(g, 0, 122, 62, 92, (x, y, o) => setC(o, 52, 54, 56, (hash(x, y) - 0.5) * 12 + ((y - 122) % 18 === 0 ? -10 : 0) + (x === 61 ? 18 : 0)));
+  R(g, 14, 166, 36, 48, '#24282a'); R(g, 17, 169, 30, 45, '#566064'); R(g, 17, 169, 30, 1, '#7a868a'); R(g, 17, 169, 1, 45, '#6c787c');
+  for (let y = 175; y < 204; y += 9) R(g, 19, y, 26, 1, '#46505a');
+  for (let y = 204; y < 211; y++) for (let x = 17; x < 47; x++) R(g, x, y, 1, 1, ((x + y) >> 2) % 2 ? '#b8922e' : '#1e1e1e');
+  R(g, 27, 175, 10, 3, '#0e1012'); disc(g, 32, 192, 6, '#3a4246'); disc(g, 32, 192, 4, '#6a767a'); disc(g, 32, 192, 2, '#3a4246');
+  drawText(g, 'ПОСТ 1', 15, 142, '#c8b88a', 'rgba(0,0,0,.5)');
+  R(g, 54, 146, 2, 8, '#2a2c2e'); R(g, 51, 153, 9, 3, '#545a5c'); R(g, 51, 153, 9, 1, '#70767a');
+  const wl = addLight(56, 158, 74, [210, 226, 236], 'steady', 0.9, 'main', 'technical');          // служебная лампа поста
+  addEmissive(53, 156, 5, 1, [230, 246, 255], wl);
+  R(g, 68, 174, 66, 22, '#4c5254'); R(g, 68, 174, 66, 1, '#6c7274');                                  // бронещит с бойницами
+  for (let y = 177; y < 196; y += 3) R(g, 68, y, 66, 1, 'rgba(0,0,0,.16)');
+  R(g, 82, 181, 12, 3, '#0c0e10'); R(g, 108, 181, 12, 3, '#0c0e10'); R(g, 96, 178, 6, 12, 'rgba(122,70,40,.5)');
+  for (let k = 0; k < 7; k++) { const bx = 68 + k * 10; L(g, bx, 174, bx + 5, 168, '#6a6a68'); L(g, bx + 5, 168, bx + 10, 174, '#6a6a68'); }
+  for (let row = 0; row < 3; row++) for (let k = 0; k < 7; k++) {                                   // мешки с песком
+    const bx = 64 + k * 13 + (row % 2) * 6, by = 207 - row * 6;
+    R(g, bx, by, 12, 6, '#776c52'); R(g, bx + 1, by, 10, 1, '#9a8e6c'); R(g, bx, by + 5, 12, 1, '#4a4232');
   }
-  for (let row = 0; row < 4; row++) for (let k = 0; k < 7 - (row >> 1); k++) {   // мешки с песком
-    const bx = 42 + k * 14 + (row % 2) * 7, by = 207 - row * 6;
-    R(g, bx, by, 13, 6, '#776c52'); R(g, bx + 1, by, 11, 1, '#9a8e6c'); R(g, bx, by + 5, 13, 1, '#4a4232');
-  }
-  for (let k = 0; k < 10; k++) { const bx = 42 + k * 10; L(g, bx, 140, bx + 6, 134, '#6a6a68'); L(g, bx + 6, 134, bx + 10, 140, '#6a6a68'); }
-  plate(g, 92, 160, 'СТОЙ', '#5a2a22', '#e8c8a0', '#8a4a3a');
+  plate(g, 82, 128, 'К СПОРТИВНОЙ', '#2f5660', '#dfe6d6', '#6f9a98');
+  tunnelGrille(g, 0, 34);
   // Восток: гермозатвор.
   R(g, 1878, 122, 92, 92, '#2c3134'); R(g, 1878, 122, 92, 1, '#4a5054');
   R(g, 1886, 130, 76, 84, '#566064'); R(g, 1886, 130, 76, 1, '#7a868a'); R(g, 1886, 130, 2, 84, '#6c787c');
@@ -710,10 +854,40 @@ function drawEnds(g) {
   L(g, 1915, 168, 1933, 168, '#6a767a'); L(g, 1924, 159, 1924, 177, '#6a767a');
   R(g, 1962, 130, 6, 84, '#0c0e10');                                   // щель приоткрытой створки
   paintRegion(g, 1970, 122, 30, 92, (x, y, o) => setC(o, 40, 42, 44, (hash(x, y) - 0.5) * 12));
-  plate(g, 1924, 140, 'ГЕРМОЗАТВОР 2', '#22282a', '#d8c08a', '#4a5254');
+  plate(g, 1924, 140, 'К МОСКОВСКОЙ', '#2f5660', '#dfe6d6', '#6f9a98');                       // пост 2: будущий тоннельный КПП
+  drawText(g, 'ПОСТ 2', 1908, 180, '#c8b88a', 'rgba(0,0,0,.5)');
+  R(g, 1874, 146, 2, 8, '#2a2c2e'); R(g, 1868, 153, 9, 3, '#545a5c'); R(g, 1868, 153, 9, 1, '#70767a');
+  const el = addLight(1872, 158, 74, [210, 226, 236], 'steady', 0.9, 'main', 'technical');       // служебная лампа поста
+  addEmissive(1870, 156, 5, 1, [230, 246, 255], el);
+  for (let row = 0; row < 2; row++) for (let k = 0; k < 3; k++) {                                  // низкие мешки у затвора
+    const bx = 1852 + k * 11 + (row % 2) * 5, by = 208 - row * 6;
+    R(g, bx, by, 11, 6, '#776c52'); R(g, bx + 1, by, 9, 1, '#9a8e6c'); R(g, bx, by + 5, 11, 1, '#4a4232');
+  }
+  tunnelGrille(g, 1966, 2000);
   R(g, 1920, 124, 9, 4, '#2a1a18');
   const red = addLight(1924, 128, 70, [255, 60, 40], 'pulse', 0.9, 'main', 'emergency');
   addEmissive(1921, 125, 7, 2, [255, 70, 50], red);
+}
+
+/** Закрытый тоннель над путями у торца: тёмный портал с решёткой и предупреждающей полосой. */
+function tunnelGrille(g, x0, x1) {
+  R(g, x0, 228, x1 - x0, 42, '#07090b');
+  for (let x = x0; x < x1; x++) R(g, x, 228, 1, 3, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
+  for (let x = x0 + 2; x < x1; x += 5) R(g, x, 231, 1, 36, '#3a3e40');
+  R(g, x0, 242, x1 - x0, 1, '#3a3e40'); R(g, x0, 256, x1 - x0, 1, '#3a3e40');
+}
+/** Место собраний: помост, трибуна, громкоговоритель, доска объявлений. Ниже роста героя — не загораживает путь. */
+function drawAssembly(g) {
+  R(g, 844, 206, 46, 8, '#5e4630'); R(g, 844, 206, 46, 1, '#8a6a48'); R(g, 844, 213, 46, 1, '#2a1e14');
+  for (let x = 853; x < 890; x += 9) R(g, x, 207, 1, 6, '#3e2e20');
+  R(g, 858, 188, 16, 18, '#6a4e34'); R(g, 858, 188, 16, 2, '#8c6c4c'); R(g, 860, 192, 12, 11, '#7a2e28');
+  R(g, 865, 194, 2, 6, '#c8a050'); R(g, 863, 196, 6, 2, '#c8a050');
+  R(g, 884, 176, 2, 30, '#3a3c3c'); R(g, 877, 172, 10, 6, '#6a6e70'); R(g, 875, 171, 3, 8, '#8a8e90');   // громкоговоритель
+  R(g, 893, 170, 32, 8, '#2f3c3e'); R(g, 893, 170, 32, 1, '#4a5254'); drawText(g, 'СБОР', 899, 171, '#e0c48c', 'rgba(0,0,0,.5)');
+  R(g, 894, 178, 30, 22, '#3e2e20'); R(g, 896, 180, 26, 18, '#8a7452');
+  R(g, 897, 200, 2, 14, '#3e2e20'); R(g, 919, 200, 2, 14, '#3e2e20');
+  [[898, 182, 7, 6, '#d8d0b8'], [907, 181, 6, 8, '#c8c0a8'], [915, 183, 6, 5, '#e0d8c0'], [899, 191, 9, 5, '#c8b898'], [911, 191, 9, 6, '#d8d0b8']]
+    .forEach(([x, y, w, h, c]) => { R(g, x, y, w, h, c); R(g, x + 1, y + 2, w - 2, 1, '#6a6458'); });
 }
 
 /* ---------- MAIN: обстановка на платформе по зонам ---------- */
@@ -758,8 +932,9 @@ function drawProps(g) {
   barrel(g, 598, 198, [54, 80, 104]); barrel(g, 612, 200, [54, 80, 104]);
   // --- Центральная платформа ---
   bench(g, 790); bench(g, 1170);
-  R(g, 930, 204, 18, 10, '#5a4a3a'); R(g, 930, 204, 18, 1, '#7a6a52'); R(g, 934, 196, 14, 8, '#4a5a6a'); R(g, 937, 194, 6, 2, '#2a2a2a');
-  R(g, 960, 206, 10, 8, '#22262a'); R(g, 962, 204, 8, 4, '#2e3236');                                       // мешки с мусором
+  drawAssembly(g);
+  R(g, 1108, 204, 18, 10, '#5a4a3a'); R(g, 1108, 204, 18, 1, '#7a6a52'); R(g, 1112, 196, 14, 8, '#4a5a6a'); R(g, 1115, 194, 6, 2, '#2a2a2a');   // чемоданы
+  R(g, 1244, 206, 10, 8, '#22262a'); R(g, 1246, 204, 8, 4, '#2e3236');                                     // мешки с мусором
   barrel(g, 1034, 198, [70, 58, 50]);
   WORLD.fire = { x: 1040, y: 198, light: addLight(1040, 190, 84, [255, 140, 60], 'fire', 1.15) };
   crate(g, 1086, 200, 16, 14);
@@ -1216,7 +1391,7 @@ function buildSprites() {
 
 /* ================================ ACTORS ==================================
    Жители, охрана и мутанты — только анимация и блуждание в своих границах.
-   kind: guard (стоит, оглядывается) · idle (стоит) · walker (ходит от точки к точке) ·
+   kind: guard (стоит, оглядывается) · idle (стоит, изредка поворачивается) · stand (стоит лицом в одну сторону) · walker (ходит) ·
          sitter / sitguard (сидит) · sleeper (лежит) · mutant (бродит по улице). */
 const ACTORS = [];
 function actor(kind, set, x, y, o = {}) {
@@ -1242,6 +1417,8 @@ function placeActors() {
   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+  actor('sitter', 'resC', 940, P, { facing: -1 }); actor('sitter', 'resB', 962, P, { facing: -1 });         // слушатели у трибуны
+  actor('stand', 'resA', 832, P, { facing: 1 });
 }
 /** Лёгкая реакция на свет: житель останавливается, оглядывается и говорит короткую фразу. */
 function actorsReact(blackout) {
@@ -1349,6 +1526,8 @@ const Player = {
         if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
     const G = CONFIG.GENERATOR;
     if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
+    for (const item of CONFIG.INSPECTS)
+      if (this.floor === item.floor && inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' };
     return null;
   },
   update(dt, dir, action) {
@@ -1793,6 +1972,21 @@ const Debug = {
   },
 };
 
+/* =============================== INFO CARD ================================
+   Карточка осмотра поста или доски: заголовок, текст, ✕. Свой слой ввода, ничего не меняет в игре. */
+const InfoCard = {
+  open: false, item: null, els: {},
+  init() {
+    const $ = id => document.getElementById(id);
+    this.els = { root: $('card'), title: $('cardTitle'), text: $('cardText') };
+    this.els.root.addEventListener('pointerdown', e => e.stopPropagation());
+    $('cardClose').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); this.hide(); });
+  },
+  toggle(item) { if (this.open && this.item === item) this.hide(); else this.show(item); },
+  show(item) { this.open = true; this.item = item; this.els.title.textContent = item.title; this.els.text.textContent = item.text; this.els.root.classList.add('show'); },
+  hide() { this.open = false; this.item = null; this.els.root.classList.remove('show'); },
+};
+
 /* ============================== GEN PANEL =================================
    Панель у пульта генератора: состояние, топливо, аккумулятор, канистры, кнопки. Свой слой ввода. */
 const GenPanel = {
@@ -1839,21 +2033,27 @@ const Game = {
       padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act'),
       power: document.getElementById('power') };
     const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
-    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — генератор · R — в центр';
+    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — действие · R — в центр';
       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
     this.loadPower(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
-    GenPanel.init();
+    GenPanel.init(); InfoCard.init();
+    this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
+    if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
     addEventListener('pagehide', () => this.savePower());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.savePower(); });
-    Input.onEscape = () => GenPanel.hide();
+    Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); };
     Render.init(document.getElementById('screen'));
     Debug.init();
     if (Debug.on) window.pvDebug = Object.freeze({                      // только с ?debug: снимок модели и ускорение для тестов
       snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
       advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
+      station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
+      player: () => ({ x: Player.x, y: Player.y, floor: Player.floor, state: Player.state }),
+      card: () => (InfoCard.open ? InfoCard.item.id : null),
+      actors: () => ACTORS.map(a => ({ kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing })),
     });
     Player.onStep = (x, f, y) => FX.step(x, f, y);
     const act = this.els.act;
@@ -1892,9 +2092,13 @@ const Game = {
   update(dt) {
     this.t += dt;
     const dir = Input.dir(), action = Input.takeAction(), it = Player.interaction();
-    if (action && it && it.kind === 'generator') { if (action === 'use') GenPanel.toggle(); Player.update(dt, dir, null); }
-    else Player.update(dt, dir, action);
-    if (GenPanel.open && Player.interaction()?.kind !== 'generator') GenPanel.hide();   // отошёл от пульта — панель закрылась
+    if (action && it && (it.kind === 'generator' || it.kind === 'inspect')) {      // окна у пульта и постов, без хода
+      if (action === 'use') { if (it.kind === 'generator') GenPanel.toggle(); else InfoCard.toggle(it.item); }
+      Player.update(dt, dir, null);
+    } else Player.update(dt, dir, action);
+    const near = Player.interaction();                                   // отошёл — окно закрылось
+    if (GenPanel.open && near?.kind !== 'generator') GenPanel.hide();
+    if (InfoCard.open && (near?.kind !== 'inspect' || near.item !== InfoCard.item)) InfoCard.hide();
     this.updatePower(dt);
     Camera.update(dt, Player);
     FX.update(dt, this.t, Camera.x, Render.viewW);
@@ -1927,9 +2131,9 @@ const Game = {
   },
   /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
   updateAction() {
-    const it = GenPanel.open ? null : Player.interaction();
+    const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
     let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
-      : it.kind === 'gate' ? it.from.label : '⚙ Генератор';
+      : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? '⚙ Генератор' : it.item.label;
     if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
     if (label === this.actLabel) return;
     this.actLabel = label;
