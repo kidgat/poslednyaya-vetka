@@ -1,0 +1,631 @@
+--- archive/v0.5.2.html	2026-10-27 05:13:06.440639993 +0400
++++ index.html	2026-10-27 05:06:56.593202286 +0400
+@@ -10,7 +10,7 @@
+ <meta name="theme-color" content="#06080a">
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" href="icon-180.png">
+-<title>Последняя ветка 0.5.2</title>
++<title>Последняя ветка 0.6</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -45,6 +45,30 @@
+   letter-spacing:.06em;text-align:center;display:none;touch-action:none;cursor:pointer}
+ #act.show{display:block}
+ #act.press{background:rgba(232,184,106,.38)}
++/* Строка состояния сети в HUD — видна только при отключении питания. */
++.station .pw{display:block;margin-top:2px;font-size:11px;color:#ec8f6c}
++/* Панель генератора: свой слой ввода поверх сенсорных половин экрана. */
++#gen{position:fixed;z-index:5;left:50%;bottom:calc(env(safe-area-inset-bottom) + 10px);transform:translateX(-50%);
++  width:min(310px,calc(100vw - 230px));min-width:240px;padding:7px 10px 8px;background:rgba(7,9,11,.9);border:1px solid var(--line);
++  font-size:11px;color:var(--ink);display:none;touch-action:none}
++#gen.show{display:block}
++.gen-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
++.gen-head b{color:var(--gold);letter-spacing:.14em;font-size:12px}
++#genState{flex:1;color:var(--muted)}
++.gen-row{display:grid;grid-template-columns:78px 1fr 76px;align-items:center;gap:6px;margin:3px 0}
++.gen-row span:last-child{white-space:nowrap}
++.gen-note{margin:0 0 2px 84px;font-size:10px;color:var(--muted)}
++.gen-row span:last-child{text-align:right;font-variant-numeric:tabular-nums}
++.gen-bar{height:6px;background:rgba(255,255,255,.07);border:1px solid rgba(232,184,106,.25)}
++.gen-bar i{display:block;height:100%;width:0;background:var(--gold)}
++.gen-bar.batt i{background:#7fc0a0}
++.gen-btns{display:flex;gap:6px;margin-top:6px}
++#gen button{font:inherit;color:var(--ink);background:rgba(232,184,106,.14);border:1px solid rgba(232,184,106,.55);min-height:36px;padding:0 8px;cursor:pointer}
++#gen button:active{background:rgba(232,184,106,.34)}
++.gen-btns button{flex:1}
++#genClose{width:34px;min-height:30px!important;padding:0!important}
++#genReset{background:rgba(236,143,108,.16)!important;border-color:rgba(236,143,108,.6)!important}
++.gen-msg{min-height:13px;margin-top:4px;font-size:10.5px;color:#e6b483}
+ #debug{position:fixed;z-index:4;top:calc(env(safe-area-inset-top) + 54px);right:calc(env(safe-area-inset-right) + 12px);
+   font-size:10px;line-height:1.45;white-space:pre;background:rgba(0,0,0,.65);padding:6px 8px;color:#9fe0b0;display:none;pointer-events:none}
+ #title{position:fixed;inset:0;z-index:5;display:grid;place-items:center;text-align:center;padding:24px;
+@@ -66,19 +90,28 @@
+ <canvas id="screen"></canvas>
+ <div id="touch"></div>
+ <div id="hud">
+-  <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span></div>
+-  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.5.2</button>
++  <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span></div>
++  <button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v0.6</button>
+ </div>
+ <div id="hint">◀ ▶ — удерживайте, чтобы идти</div>
+ <div class="pad" id="padL"><svg viewBox="0 0 24 24"><path d="M15.5 4 7 12l8.5 8z"/></svg></div>
+ <div class="pad" id="padR"><svg viewBox="0 0 24 24"><path d="M8.5 4 17 12l-8.5 8z"/></svg></div>
+-<div id="act" role="button" aria-label="Лестница"></div>
++<div id="act" role="button" aria-label="Действие"></div>
++<div id="gen" role="dialog" aria-label="Генератор">
++  <div class="gen-head"><b>ГЕНЕРАТОР</b><span id="genState"></span><button id="genClose" type="button" aria-label="Закрыть">✕</button></div>
++  <div class="gen-row"><span>Топливо</span><div class="gen-bar"><i id="genFuelBar"></i></div><span id="genFuel"></span></div>
++  <div class="gen-row"><span>Аккумулятор</span><div class="gen-bar batt"><i id="genBattBar"></i></div><span id="genBatt"></span></div>
++  <div class="gen-note" id="genBattNote"></div>
++  <div class="gen-row"><span>Канистры</span><span></span><span id="genCans"></span></div>
++  <div class="gen-btns"><button id="genToggle" type="button"></button><button id="genRefuel" type="button">Заправить</button><button id="genReset" type="button" hidden>Новая демонстрация</button></div>
++  <div id="genMsg" class="gen-msg"></div>
++</div>
+ <div id="debug"></div>
+ <div id="title">
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 0.5.2<br>
++    <p>Станция «Гагаринская» · прототип 0.6 «Энергия станции»<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -87,7 +120,7 @@
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.5.2
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 0.6 «Энергия станции»
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -98,7 +131,7 @@
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '0.5.2',
++  VERSION: '0.6',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+@@ -129,8 +162,27 @@
+     SMOOTH_Y: 0.45,         // плавность вертикальной камеры
+     SURFACE_FEET: 0.72 },   // на поверхности ступни героя — на 72% высоты кадра
+   PARALLAX: { BACK: 0.9, FORE: 1.22, SKY: 0.15, RUINS: 0.5 },
+-  AMBIENT: [74, 80, 100],
+-  AMBIENT_SURFACE: [168, 150, 124],   // пыльные сумерки снаружи    // цвет «темноты» в карте освещения
++  AMBIENT: [74, 80, 100],             // цвет «темноты» в карте освещения при работающей сети
++  AMBIENT_BLACKOUT: [38, 42, 56],     // то же при блэкауте: темно, но пути различимы
++  AMBIENT_SURFACE: [168, 150, 124],   // пыльные сумерки снаружи — от сети не зависят
++  /* Энергосистема 0.6. Единицы условные (не кВт и не литры), время — секунды активной симуляции.
++     Нормальный спрос 1.4 + 1.2 + 0.8 + 0.8 = 4.2 при выработке 5.0: хватает на сеть и зарядку 0.4/с. */
++  POWER: {
++    GEN_OUTPUT: 5.0,                  // выработка генератора, ед/с
++    FUEL_RATE: 0.05,                  // расход топлива при работе, ед/с (15 ед — 5 минут работы)
++    FUEL_START: 15, FUEL_MAX: 100,
++    CANISTER: 10, CANISTERS: 2,       // запас в канистре и их число; заправка — только если в баке свободно ≥ 10
++    BATT_CAP: 40, BATT_START: 30, CHARGE_MAX: 0.4,
++    DEMAND: { critical: 0.8, technical: 1.2, platform: 1.4, living: 0.8 },   // порядок = приоритет при нехватке
++    EMERGENCY: 0.35,                  // аварийный контур от аккумулятора, ед/с (30 ед — ~86 с)
++    SAVE_KEY: 'pv.power.v1',
++  },
++  // Какая цепь питает электрические приборы, если она не задана при создании: данные, а не условия в рендере.
++  CIRCUIT_ZONES: {
++    surface: 'technical',             // лампа у дверей вестибюля
++    hall: [[740, 'living'], [1300, 'platform'], [Infinity, 'technical']],   // зал платформы по x
++  },
++  GENERATOR: { floor: 'upper', x: 1508, trigger: [1482, 1532] },          // пульт генератора в энергоблоке
+   ZONES: [
+     { name: 'Жилой сектор',          to: 740 },
+     { name: 'Центральная платформа', to: 1300 },
+@@ -238,6 +290,110 @@
+   drawText(g, str, x + 5, y + 2, fg, 'rgba(0,0,0,.55)');
+ }
+ 
++/* ================================ POWER ===================================
++   Чистая модель электросети: без DOM и Canvas, время идёт только через step(dt).
++   Отрисовка лишь читает level(circuit). Блок между маркерами можно вынуть и проверять отдельно. */
++/* POWER:BEGIN */
++function createPower(cfg) {
++  const NORMAL = Object.keys(cfg.DEMAND);                       // обычные цепи в порядке приоритета
++  const num = (v, lo, hi) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi);
++  const P = {
++    generator: { on: true, fuel: cfg.FUEL_START },
++    battery: { charge: cfg.BATT_START },
++    canisters: cfg.CANISTERS,
++    circuits: { emergency: 0 },
++    tick: { produced: 0, demand: 0, charge: 0, burn: 0, emergency: 0 },   // ед/с за последний шаг
++    message: '',
++    /** Уровень цепи 0..1; null — неэлектрический источник (огонь, свеча), всегда 1. */
++    level(id) { return id == null ? 1 : (this.circuits[id] ?? 0); },
++    running() { return this.generator.on && this.generator.fuel > 0; },
++    stuck() { return this.generator.fuel <= 0 && this.canisters <= 0; },
++    /** Обычные цепи получают питание строго по приоритету: если цепи не хватило, все менее важные тоже без питания.
++        Остаток выработки — в аккумулятор. */
++    distribute(avail) {
++      let demand = 0, short = false;
++      for (const id of NORMAL) {
++        const d = cfg.DEMAND[id];
++        if (!short && avail >= d - 1e-9) { this.circuits[id] = 1; avail -= d; demand += d; } else { this.circuits[id] = 0; short = true; }
++      }
++      return { left: Math.max(0, avail), demand };
++    },
++    step(dt) {
++      if (!(dt > 0) || !Number.isFinite(dt)) return;
++      const g = this.generator, b = this.battery, t = this.tick;
++      t.produced = t.demand = t.charge = t.burn = t.emergency = 0;
++      if (g.on && g.fuel <= 0) { g.on = false; g.fuel = 0; this.message = 'Генератор заглох: кончилось топливо'; }
++      if (g.on) {
++        const want = cfg.FUEL_RATE * dt, burn = Math.min(g.fuel, want), share = burn / want;
++        g.fuel = Math.max(0, g.fuel - burn);
++        const produced = cfg.GEN_OUTPUT * share, { left, demand } = this.distribute(produced);
++        const ch = Math.max(0, Math.min(left, cfg.CHARGE_MAX, (cfg.BATT_CAP - b.charge) / dt));
++        b.charge = Math.min(cfg.BATT_CAP, b.charge + ch * dt);
++        this.circuits.emergency = 0;
++        t.produced = produced; t.demand = demand; t.charge = ch; t.burn = burn / dt;
++      } else {
++        for (const id of NORMAL) this.circuits[id] = 0;
++        if (b.charge > 0) {
++          const use = Math.min(b.charge, cfg.EMERGENCY * dt);
++          b.charge = Math.max(0, b.charge - use); this.circuits.emergency = 1; t.emergency = use / dt;
++        } else this.circuits.emergency = 0;
++      }
++    },
++    /** Пересчитать цепи без хода времени (после загрузки, переключения, сброса). */
++    refresh() {
++      if (this.running()) { this.distribute(cfg.GEN_OUTPUT); this.circuits.emergency = 0; }
++      else { for (const id of NORMAL) this.circuits[id] = 0; this.circuits.emergency = this.battery.charge > 0 ? 1 : 0; }
++    },
++    toggle() {
++      const g = this.generator;
++      if (g.on) { g.on = false; this.message = 'Генератор остановлен'; }
++      else if (g.fuel <= 0) {
++        this.message = this.canisters > 0 ? 'Бак пуст — сначала заправьте из канистры'
++          : 'Топлива нет и канистры кончились — нажмите «Новая демонстрация»';
++        return false;
++      } else { g.on = true; this.message = 'Генератор запущен'; }
++      this.refresh(); return true;
++    },
++    refuel() {
++      const g = this.generator;
++      if (this.canisters <= 0) { this.message = 'Канистр не осталось'; return false; }
++      if (cfg.FUEL_MAX - g.fuel < cfg.CANISTER) { this.message = `В баке нет места для канистры: нужно свободно ${cfg.CANISTER}`; return false; }
++      g.fuel += cfg.CANISTER; this.canisters -= 1; this.message = `Залито ${cfg.CANISTER} ед. топлива`;
++      return true;
++    },
++    reset() {
++      this.generator.on = true; this.generator.fuel = cfg.FUEL_START; this.battery.charge = cfg.BATT_START;
++      this.canisters = cfg.CANISTERS; this.message = 'Запасы восстановлены для новой демонстрации'; this.refresh();
++    },
++    snapshot() { return { v: 1, on: this.generator.on, fuel: this.generator.fuel, charge: this.battery.charge, canisters: this.canisters }; },
++    /** Загрузка сохранения с проверкой типов и границ; при ошибке состояние не меняется. */
++    restore(s) {
++      if (!s || s.v !== 1 || typeof s.on !== 'boolean' || !num(s.fuel, 0, cfg.FUEL_MAX) || !num(s.charge, 0, cfg.BATT_CAP)
++        || !Number.isInteger(s.canisters) || s.canisters < 0 || s.canisters > cfg.CANISTERS) return false;
++      this.generator.on = s.on && s.fuel > 0; this.generator.fuel = s.fuel; this.battery.charge = s.charge; this.canisters = s.canisters;
++      this.refresh(); return true;
++    },
++  };
++  P.refresh();
++  return P;
++}
++/* POWER:END */
++const Power = createPower(CONFIG.POWER);
++/** Видимый уровень цепей: плавно догоняет модель (доли секунды), один и тот же для света, свечения и ореолов. */
++const PowerView = {
++  levels: {}, main: 1,
++  sync(now) {
++    const ids = [...Object.keys(CONFIG.POWER.DEMAND), 'emergency'];
++    for (const id of ids) {
++      const target = Power.level(id), v = this.levels[id] ?? target;
++      this.levels[id] = now ? target : v + (target - v) * Math.min(1, CONFIG.STEP * 12);
++    }
++    const L = this.levels;
++    this.main = (L.platform + L.technical + L.living) / 3;
++  },
++};
++const powerLevel = circuit => (circuit == null ? 1 : PowerView.levels[circuit] ?? 0);
++
+ /* ================================ WORLD ==================================
+    Мир собирается один раз при загрузке в три канваса-слоя:
+    back  (параллакс 0.9) — дальняя стена зала;
+@@ -253,14 +409,35 @@
+ const SURF_CLIP = { x0: -Infinity, x1: Infinity, y0: -SURF_H, y1: -50 };
+ const WORLD = { sky: null, ruins: null, surface: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
+ 
+-/** Регистрирует источник света. layer: 'main' | 'back'. */
+-function addLight(x, y, r, color, mode = 'steady', power = 1, layer = 'main') {
+-  const l = { x, y, r, c: color, mode, power, layer, seed: (rand() * 1000) | 0, i: 1, pool: false };
++/** Регистрирует источник света. layer: 'main' | 'back'. circuit — цепь питания; не задана — определится по зоне
++    (assignCircuits), null — неэлектрический источник. */
++function addLight(x, y, r, color, mode = 'steady', power = 1, layer = 'main', circuit) {
++  const l = { x, y, r, c: color, mode, power, layer, circuit, seed: (rand() * 1000) | 0, i: 1, pool: false };
+   WORLD.lights.push(l); return l;
+ }
+ /** Регистрирует светящийся элемент (лампочка, экран, индикатор), рисуемый поверх освещения. */
+-function addEmissive(x, y, w, h, color, light = null, layer = 'main', mode = null) {
+-  WORLD.emissive.push({ x, y, w, h, c: color, light, layer, mode, seed: (rand() * 1000) | 0 });
++function addEmissive(x, y, w, h, color, light = null, layer = 'main', mode = null, circuit) {
++  WORLD.emissive.push({ x, y, w, h, c: color, light, layer, mode, circuit, seed: (rand() * 1000) | 0 });
++}
++/** Красный аварийный маяк: корпус на слое, свечение и свет — в цепи emergency (горит только от аккумулятора). */
++function addBeacon(g, x, y) {
++  R(g, x - 3, y - 1, 7, 5, '#2a1a18'); R(g, x - 2, y, 5, 3, '#4a2420');
++  const room = y < 108 ? ROOMS.find(r => x >= r.x && x < r.x + r.w) : null;
++  const l = addLight(x, y + 1, room ? 52 : 78, [255, 48, 36], 'pulse', 1.3, 'main', 'emergency');
++  l.clip = room ? { x0: room.x + 4, x1: room.x + room.w - 4, y0: 19, y1: 100 } : HALL_CLIP;
++  addEmissive(x - 2, y, 5, 3, [255, 66, 48], l, 'main', null, 'emergency');
++}
++const BEACONS = [[500, 142], [980, 142], [1460, 142], [800, 30], [1010, 30], [1430, 30]];   // [x, y] на колоннах и в комнатах
++/** Цепи для приборов, у которых она не задана: огонь — null, свечение с источником — как у источника, остальное — по зоне. */
++function assignCircuits() {
++  const zone = (x, y, layer) => {
++    const mx = layer === 'back' ? (x - 25) / CONFIG.PARALLAX.BACK : x;
++    if (y < 0) return CONFIG.CIRCUIT_ZONES.surface;
++    if (y < 108) { const r = ROOMS.find(r => mx >= r.x && mx < r.x + r.w); return r ? r.circuit : 'technical'; }
++    return CONFIG.CIRCUIT_ZONES.hall.find(([to]) => mx < to)[1];
++  };
++  for (const l of WORLD.lights) if (l.circuit === undefined) l.circuit = l.mode === 'fire' ? null : zone(l.x, l.y, l.layer);
++  for (const e of WORLD.emissive) if (e.circuit === undefined) e.circuit = e.light ? e.light.circuit : zone(e.x, e.y, e.layer);
+ }
+ 
+ /* ---------- MAIN: базовые текстуры (камень, перекрытие, платформа, пути) ---------- */
+@@ -326,14 +503,14 @@
+ 
+ /* ---------- MAIN: верхний ярус (декоративные помещения в разрезе) ---------- */
+ const ROOMS = [
+-  { x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130] },
+-  { x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120] },
+-  { x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150] },
+-  { x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150] },
+-  { x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236] },
+-  { x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240] },
+-  { x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236] },
+-  { x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228] },
++  { x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
++  { x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
++  { x: 740,  w: 120, label: 'ЛЕСТНИЦА',   type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },
++  { x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
++  { x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
++  { x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
++  { x: 1550, w: 170, label: 'ШЛЮЗ',       type: 'gate',     tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },
++  { x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
+ ];
+ function drawRoom(g, r) {
+   const { x, w } = r, cx = x + w / 2;
+@@ -425,6 +602,7 @@
+     for (let k = 0; k < 5; k++) { R(g, gx + 8 + k * 17, 55, 11, 8, '#5c686a'); R(g, gx + 8 + k * 17, 55, 11, 1, '#7e8a8c'); }
+     disc(g, gx + 112, 78, 15, '#3a4244'); disc(g, gx + 112, 78, 11, '#576064'); disc(g, gx + 112, 78, 3, '#2a3032');
+     R(g, gx + 20, 19, 6, 36, '#3a4244'); R(g, gx + 20, 19, 1, 36, '#5a6264');
++    R(g, gx + 3, 65, 5, 4, '#1e2426'); addEmissive(gx + 4, 66, 3, 2, [110, 230, 120], null, 'main', 'gen', null);   // лампа «работает»
+     const px = r.x + r.w - 54;
+     R(g, px, 50, 44, 46, '#3e4a50'); R(g, px, 50, 44, 1, '#5e6a70');
+     for (let k = 0; k < 3; k++) { disc(g, px + 9 + k * 13, 62, 4, '#c8c4b0'); R(g, px + 9 + k * 13, 59, 1, 3, '#2a2a2a'); }
+@@ -441,7 +619,7 @@
+     R(g, r.x + 10, 52, 22, 32, '#3a3430'); R(g, r.x + 10, 52, 22, 1, '#5a5048');            // оружейная стойка
+     for (let k = 0; k < 4; k++) { L(g, r.x + 14 + k * 5, 55, r.x + 14 + k * 5, 80, '#1c1e20'); R(g, r.x + 13 + k * 5, 76, 3, 5, '#4a3a2a'); }
+     crate(g, r.x + r.w - 36, 80, 26, 16); crate(g, r.x + r.w - 30, 68, 18, 12);
+-    addEmissive(gx - 1, 36, 3, 2, [255, 70, 50], null, 'main', 'blink');
++    addBeacon(g, gx, 36);                                                     // аварийный маяк над воротами
+     WORLD.gate = { x: gx, open: 0 };
+   },
+   pumps(g, r) {
+@@ -534,7 +712,7 @@
+   paintRegion(g, 1970, 122, 30, 92, (x, y, o) => setC(o, 40, 42, 44, (hash(x, y) - 0.5) * 12));
+   plate(g, 1924, 140, 'ГЕРМОЗАТВОР 2', '#22282a', '#d8c08a', '#4a5254');
+   R(g, 1920, 124, 9, 4, '#2a1a18');
+-  const red = addLight(1924, 128, 70, [255, 60, 40], 'pulse', 0.9);
++  const red = addLight(1924, 128, 70, [255, 60, 40], 'pulse', 0.9, 'main', 'emergency');
+   addEmissive(1921, 125, 7, 2, [255, 70, 50], red);
+ }
+ 
+@@ -597,7 +775,7 @@
+   barrel(g, 1690, 198, [90, 62, 44]); barrel(g, 1704, 199, [80, 70, 54]);
+   R(g, 1730, 206, 16, 8, '#6a2a24'); R(g, 1730, 206, 16, 1, '#8a3a30');                                     // ящик с инструментом
+   L(g, 1772, 122, 1776, 150, '#1a1a1a', 2);                                                                 // оборванный кабель
+-  WORLD.spark = { x: 1776, y: 151, timer: 2, flash: addLight(1776, 152, 60, [170, 210, 255], 'spark', 1) };
++  WORLD.spark = { x: 1776, y: 151, timer: 2, flash: addLight(1776, 152, 60, [170, 210, 255], 'spark', 1, 'main', 'technical') };
+ }
+ 
+ /* ---------- BACK: дальняя стена зала ---------- */
+@@ -845,6 +1023,7 @@
+   drawArcade(gm);
+   COLUMNS.forEach((cx, i) => drawColumn(gm, cx, i));
+   drawHallLamps(gm);
++  BEACONS.forEach(([x, y]) => addBeacon(gm, x, y));
+   drawEnds(gm);
+   drawProps(gm);
+   drawStairs(gm);
+@@ -856,6 +1035,7 @@
+   buildSurface(); drawEscalator(gm, 0);
+   WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
+   WORLD.lights.forEach(l => { if (!l.clip) l.clip = HALL_CLIP; });
++  assignCircuits();
+   WORLD.drips = [470, 1238, 1560].map((x, i) => ({ x, y: 0, v: 0, wait: 0.5 + i * 0.9, active: false }));
+ }
+ 
+@@ -1041,30 +1221,41 @@
+ const ACTORS = [];
+ function actor(kind, set, x, y, o = {}) {
+   ACTORS.push({ kind, set, x, y, facing: o.facing || 1, minX: o.minX ?? x, maxX: o.maxX ?? x, speed: o.speed || 24, tx: x,
+-    wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed });
++    wait: rand() * 3, t: rand() * 5, turnT: 2 + rand() * 4, walkDist: 0, blinkT: rand() * 4, moving: false, bed: o.bed,
++    react: o.react || null, bubble: null });
+ }
+ function placeActors() {
+   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
+-  actor('guard', 'guard', 158, P, { facing: -1 }); actor('guard', 'guard', 118, P, { facing: 1 });          // западная баррикада
++  actor('guard', 'guard', 158, P, { facing: -1, react: ['ТИХО...', 'НОРМ'] }); actor('guard', 'guard', 118, P, { facing: 1 });   // западная баррикада
+   actor('guard', 'guard', 1864, P, { facing: 1 }); actor('sitguard', 'guard', 1884, P, { facing: -1 });     // гермозатвор
+   actor('guard', 'guard', 1600, U, { facing: 1 }); actor('guard', 'guard', 1670, U, { facing: -1 });       // шлюз на поверхность
+   actor('walker', 'worker', 1000, U, { minX: 900, maxX: 1100, speed: 22 });                                // мастерская
+   actor('walker', 'medic', 1200, U, { minX: 1172, maxX: 1232, speed: 16 });                                // медпункт
+-  actor('walker', 'worker2', 1430, U, { minX: 1340, maxX: 1520, speed: 24 });                              // энергоблок
++  actor('walker', 'worker2', 1430, U, { minX: 1340, maxX: 1520, speed: 24, react: ['ГЕНЕРАТОР!', 'РАБОТАЕТ'] });   // энергоблок
+   actor('walker', 'worker', 1800, U, { minX: 1748, maxX: 1852, speed: 18 });                               // насосная
+   actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+   actor('sitter', 'resC', 382, U, { facing: -1 });                                                          // жилой блок
+   actor('sitter', 'resA', 492, U, { facing: 1 }); actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
+   actor('idle', 'resA', 648, U, { facing: 1 });                                                             // повар у буржуйки
+   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
+-  actor('walker', 'resC', 400, P, { minX: 240, maxX: 630, speed: 20 });   // не заходит на марш                                    // жилой сектор
++  actor('walker', 'resC', 400, P, { minX: 240, maxX: 630, speed: 20, react: ['ТЕМНО!', 'О СВЕТ!'] });   // жилой сектор, не заходит на марш
+   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
+   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
+   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+ }
++/** Лёгкая реакция на свет: житель останавливается, оглядывается и говорит короткую фразу. */
++function actorsReact(blackout) {
++  for (const a of ACTORS) {
++    if (!a.react) continue;
++    a.bubble = { text: a.react[blackout ? 0 : 1], t: 2.8 };
++    if (a.kind === 'walker') { a.wait = Math.max(a.wait, blackout ? 3 : 1.2); a.moving = false; }
++    if (blackout) a.facing *= -1;
++  }
++}
+ function updateActors(dt) {
+   for (const a of ACTORS) {
+     a.t += dt; a.blinkT -= dt; if (a.blinkT < -0.12) a.blinkT = 2 + rand() * 4;
++    if (a.bubble && (a.bubble.t -= dt) <= 0) a.bubble = null;
+     if (a.kind === 'guard' || a.kind === 'idle') { a.turnT -= dt; if (a.turnT <= 0) { a.facing *= -1; a.turnT = (a.kind === 'guard' ? 3 : 6) + rand() * 5; } }
+     if (a.kind !== 'walker' && a.kind !== 'mutant') continue;
+     if (a.wait > 0) { a.wait -= dt; a.moving = false; continue; }
+@@ -1096,7 +1287,7 @@
+ const Input = {
+   held: [],                                // стек источников: {id, dir}
+   action: null,                            // одноразовое действие: 'up' | 'down' | 'use'
+-  onFirstInput: null,
++  onFirstInput: null, onEscape: null,
+   dir() { return this.held.length ? this.held[this.held.length - 1].dir : 0; },
+   press(id, dir) { this.release(id); this.held.push({ id, dir }); if (this.onFirstInput) { this.onFirstInput(); this.onFirstInput = null; } },
+   release(id) { this.held = this.held.filter(h => h.id !== id); },
+@@ -1105,10 +1296,11 @@
+   clear() { this.held.length = 0; this.action = null; },
+   init(touchEl, onReset) {
+     const KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 };
+-    const ACTIONS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down' };
++    const ACTIONS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', KeyE: 'use' };
+     addEventListener('keydown', e => {
+       if (e.code in KEYS) { e.preventDefault(); if (!e.repeat) this.press('k' + e.code, KEYS[e.code]); }
+       else if (e.code in ACTIONS) { e.preventDefault(); if (!e.repeat) this.queue(ACTIONS[e.code]); }
++      else if (e.code === 'Escape' && this.onEscape) this.onEscape();
+       else if (e.code === 'KeyR') onReset();
+       else if (e.code === 'Backquote' || e.code === 'F3') { e.preventDefault(); Debug.toggle(); }
+     });
+@@ -1155,6 +1347,8 @@
+     for (const gt of CONFIG.GATES)
+       for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
+         if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
++    const G = CONFIG.GENERATOR;
++    if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
+     return null;
+   },
+   update(dt, dir, action) {
+@@ -1163,7 +1357,10 @@
+     if (this.state === 'gate') { this.updateGate(dt); return; }
+     if (action) {
+       const it = this.interaction();
+-      if (it && (action === 'use' || action === it.dir)) { if (it.kind === 'stair') this.startStairs(it); else this.startGate(it); return; }
++      if (it && (action === 'use' || action === it.dir)) {
++        if (it.kind === 'stair') { this.startStairs(it); return; }
++        if (it.kind === 'gate') { this.startGate(it); return; }
++      }
+     }
+     this.updateWalk(dt, dir);
+   },
+@@ -1321,7 +1518,7 @@
+     this.splashes = this.splashes.filter(s => (s.life -= dt) > 0 && ((s.vy += 200 * dt), (s.x += s.vx * dt), (s.y += s.vy * dt), true));
+     // Оборванный кабель искрит.
+     const sp = WORLD.spark; sp.timer -= dt;
+-    if (sp.timer <= 0) {
++    if (sp.timer <= 0 && Power.level('technical') > 0) {
+       sp.timer = 2 + rand() * 4; sp.flash.i = 1;
+       for (let k = 0; k < 14; k++) this.sparks.push({ x: sp.x, y: sp.y, vx: (rand() - 0.5) * 70, vy: -10 - rand() * 40, life: 0.3 + rand() * 0.5 });
+     }
+@@ -1467,7 +1664,8 @@
+     }
+   },
+   drawLightmap(camX, frac, t, playerSX, playerFY) {
+-    const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, A = CONFIG.AMBIENT;
++    const gl = this.gl, yo = this.yoff, vw = this.viewW + 1, m = PowerView.main, D = CONFIG.AMBIENT_BLACKOUT;
++    const A = CONFIG.AMBIENT.map((v, k) => Math.round(D[k] + (v - D[k]) * m));   // без сети внизу темнее
+     gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
+     gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
+     const gy = Math.min(this.viewH, yo - 50);                           // снаружи — светлее: пыльные сумерки
+@@ -1492,12 +1690,12 @@
+     for (const l of WORLD.lights) {
+       const p = l.layer === 'back' ? CONFIG.PARALLAX.BACK : 1;
+       const x = this.sx(l.x, p, camX, frac), y = l.y + yo;
+-      l.i = lightIntensity(l, t);
++      l.i = lightIntensity(l, t) * powerLevel(l.circuit);            // общий уровень цепи для света, свечения и ореола
+       blob(x, y, l.r, l.c, l.i * l.power * 0.85, 1, l.clip, p);
+       if (l.pool) blob(x, 215 + yo, l.r * 0.75, l.c, l.i * 0.55, 0.22, l.clip, p);  // пятно света на полу
+     }
+     const pClip = Player.state !== 'walk' ? null : Player.floor === 'surface' ? SURF_CLIP : Player.floor === 'upper' ? UPPER_CLIP : HALL_CLIP;
+-    blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5, 1, pClip);                 // мягкая подсветка героя для читаемости
++    blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
+     this.drawnLights = n;
+   },
+   drawEmissive(camX, frac, t) {
+@@ -1509,8 +1707,10 @@
+       if (e.mode === 'blink') k = noise1(t * 1.5, e.seed) > 0.35 ? 1 : 0.25;
+       if (e.mode === 'garland') k = 0.55 + 0.45 * Math.sin(t * 2 + e.seed);
+       if (e.mode === 'water') k = 0.7;
++      if (!e.light) k *= powerLevel(e.circuit);                       // у свечения с источником уровень уже в e.light.i
++      const c = e.mode === 'gen' ? (Power.running() ? [110, 230, 120] : [230, 80, 60]) : e.c;
+       if (k < 0.12) continue;
+-      g.fillStyle = rgb(e.c, 0.35 + 0.65 * k);
++      g.fillStyle = rgb(c, 0.35 + 0.65 * k);
+       g.fillRect(x, e.y + yo, e.w, e.h);
+       if (e.mode === 'screen') { g.fillStyle = 'rgba(10,30,26,.5)'; for (let y = e.y + yo + 1; y < e.y + yo + e.h; y += 2) g.fillRect(x, y, e.w, 1); }
+     }
+@@ -1531,6 +1731,18 @@
+       g.fillStyle = grd; g.fillRect(x - r, y - r, r * 2, r * 2);
+     }
+     g.globalCompositeOperation = 'source-over';
++    this.drawBubbles(camI, yo);
++  },
++  /** Короткие реплики жителей над головой (поверх темноты, чтобы читались и в блэкаут). */
++  drawBubbles(camI, yo) {
++    const g = this.g;
++    for (const a of ACTORS) {
++      if (!a.bubble) continue;
++      const w = textWidth(a.bubble.text) + 4, x = Math.round(a.x) - camI - (w >> 1), y = a.y + yo - 52;
++      if (x + w < 0 || x > this.viewW + 1 || y < 0 || y > this.viewH) continue;
++      g.fillStyle = 'rgba(8,10,12,.82)'; g.fillRect(x, y, w, 11);
++      drawText(g, a.bubble.text, x + 2, y + 2, '#f0e4c4');
++    }
+   },
+   /** Пламя и искры бочки — в отдельном маленьком слое, из которого вырезаются силуэты героя и жителей:
+       бочка стоит позади персонажей, поэтому огонь никогда не оказывается поверх тела. Свет огня — в карте освещения. */
+@@ -1573,7 +1785,48 @@
+       `FPS   ${this.fps.toFixed(0)}\nX     ${Player.x.toFixed(1)}  v ${Player.vx.toFixed(1)}\nCAM   ${Camera.x.toFixed(2)} / ${Camera.y.toFixed(1)}\n` +
+       `FLOOR ${Player.floor} · ${Player.state}  Y ${Player.y.toFixed(1)}\n` +
+       `VIEW  ${Render.viewW}×${Render.viewH} ×${Render.scale}\nDPR   ${Render.dpr}  LIGHTS ${Render.drawnLights}\n` +
+-      `INPUT ${Input.dir()}  BUILD ${Game.buildMs} мс`;
++      `INPUT ${Input.dir()}  BUILD ${Game.buildMs} мс\n` +
++      `GEN   ${Power.generator.on ? 'ON ' : 'off'} fuel ${Power.generator.fuel.toFixed(2)}  cans ${Power.canisters}\n` +
++      `BATT  ${Power.battery.charge.toFixed(2)} / ${CONFIG.POWER.BATT_CAP}\n` +
++      `CIRC  P${Power.level('platform')} T${Power.level('technical')} L${Power.level('living')} C${Power.level('critical')} E${Power.level('emergency')}\n` +
++      `TICK  +${Power.tick.produced.toFixed(2)} −${Power.tick.demand.toFixed(2)} chg ${Power.tick.charge.toFixed(2)} fuel/s ${Power.tick.burn.toFixed(3)} em ${Power.tick.emergency.toFixed(2)}`;
++  },
++};
++
++/* ============================== GEN PANEL =================================
++   Панель у пульта генератора: состояние, топливо, аккумулятор, канистры, кнопки. Свой слой ввода. */
++const GenPanel = {
++  open: false, armed: false, els: {},
++  init() {
++    const $ = id => document.getElementById(id);
++    this.els = { root: $('gen'), state: $('genState'), fuel: $('genFuel'), fuelBar: $('genFuelBar'), batt: $('genBatt'), battBar: $('genBattBar'),
++      battNote: $('genBattNote'), cans: $('genCans'), toggle: $('genToggle'), refuel: $('genRefuel'), reset: $('genReset'), msg: $('genMsg') };
++    this.els.root.addEventListener('pointerdown', e => e.stopPropagation());
++    const on = (el, fn) => el.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); this.render(); });
++    on($('genClose'), () => this.hide());
++    on(this.els.toggle, () => { Power.toggle(); Game.savePower(); });
++    on(this.els.refuel, () => { Power.refuel(); Game.savePower(); });
++    on(this.els.reset, () => {                                          // двойное подтверждение: случайно не сбросить
++      if (!this.armed) { this.armed = true; Power.message = 'Нажмите ещё раз, чтобы восстановить запасы'; return; }
++      this.armed = false; Power.reset(); Game.savePower();
++    });
++  },
++  toggle() { if (this.open) this.hide(); else this.show(); },
++  show() { this.open = true; this.armed = false; Power.message = ''; this.els.root.classList.add('show'); this.render(); },
++  hide() { this.open = false; this.armed = false; this.els.root.classList.remove('show'); },
++  render() {
++    const E = this.els, C = CONFIG.POWER, g = Power.generator, b = Power.battery;
++    const set = (el, v) => { if (el.textContent !== v) el.textContent = v; };
++    set(E.state, Power.running() ? 'работает' : g.fuel > 0 ? 'остановлен' : 'нет топлива');
++    set(E.fuel, `${g.fuel.toFixed(1)} / ${C.FUEL_MAX}`); E.fuelBar.style.width = (100 * g.fuel / C.FUEL_MAX) + '%';
++    set(E.batt, `${b.charge.toFixed(1)} / ${C.BATT_CAP}`); E.battBar.style.width = (100 * b.charge / C.BATT_CAP) + '%';
++    set(E.battNote, Power.running() ? (b.charge >= C.BATT_CAP ? 'аккумулятор полон' : 'аккумулятор заряжается')
++      : b.charge > 0 ? 'питает аварийный свет' : 'аккумулятор разряжен');
++    set(E.cans, `${Power.canisters} × ${C.CANISTER}`);
++    set(E.toggle, g.on ? 'Остановить' : 'Запустить');
++    E.reset.hidden = !(Power.stuck() || Debug.on);
++    set(E.reset, this.armed ? 'Точно сбросить?' : 'Новая демонстрация');
++    set(E.msg, Power.message);
+   },
+ };
+ 
+@@ -1583,15 +1836,25 @@
+   els: {},
+   start() {
+     this.els = { zone: document.getElementById('zone'), hint: document.getElementById('hint'), title: document.getElementById('title'),
+-      padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act') };
++      padL: document.getElementById('padL'), padR: document.getElementById('padR'), act: document.getElementById('act'),
++      power: document.getElementById('power') };
+     const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
+-    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · R — в центр';
++    if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — генератор · R — в центр';
+       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
+     const t0 = performance.now();
+     buildWorld(); buildSprites(); placeActors(); FX.init();
+     this.buildMs = Math.round(performance.now() - t0);
++    this.loadPower(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
++    GenPanel.init();
++    addEventListener('pagehide', () => this.savePower());
++    document.addEventListener('visibilitychange', () => { if (document.hidden) this.savePower(); });
++    Input.onEscape = () => GenPanel.hide();
+     Render.init(document.getElementById('screen'));
+     Debug.init();
++    if (Debug.on) window.pvDebug = Object.freeze({                      // только с ?debug: снимок модели и ускорение для тестов
++      snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
++      advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
++    });
+     Player.onStep = (x, f, y) => FX.step(x, f, y);
+     const act = this.els.act;
+     act.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); act.classList.add('press'); Input.queue('use'); });
+@@ -1628,8 +1891,11 @@
+   },
+   update(dt) {
+     this.t += dt;
+-    const dir = Input.dir();
+-    Player.update(dt, dir, Input.takeAction());
++    const dir = Input.dir(), action = Input.takeAction(), it = Player.interaction();
++    if (action && it && it.kind === 'generator') { if (action === 'use') GenPanel.toggle(); Player.update(dt, dir, null); }
++    else Player.update(dt, dir, action);
++    if (GenPanel.open && Player.interaction()?.kind !== 'generator') GenPanel.hide();   // отошёл от пульта — панель закрылась
++    this.updatePower(dt);
+     Camera.update(dt, Player);
+     FX.update(dt, this.t, Camera.x, Render.viewW);
+     updateActors(dt);
+@@ -1640,11 +1906,31 @@
+     this.updateZone();
+     this.updateAction();
+   },
+-  /** Кнопка действия видна только у лестницы или гермоворот и только когда персонаж стоит на полу. */
++  /** Энергосистема: шаг модели, плавный видимый уровень, реакции жителей, строка в HUD, периодическое сохранение. */
++  updatePower(dt) {
++    Power.step(dt); PowerView.sync(false);
++    const on = Power.level('platform') > 0;
++    if (on !== this.mainOn) { this.mainOn = on; actorsReact(!on); this.savePower(); }
++    this.saveT = (this.saveT || 0) + dt;
++    if (this.saveT >= 2) { this.saveT = 0; this.savePower(); }
++    const pw = this.els.power, txt = on ? '' : Power.battery.charge > 0
++      ? `⚡ Нет питания · резерв ${Math.round(100 * Power.battery.charge / CONFIG.POWER.BATT_CAP)}%` : '⚡ Нет питания · резерв пуст';
++    if (pw.textContent !== txt) { pw.textContent = txt; pw.hidden = !txt; }
++    if (GenPanel.open) GenPanel.render();
++  },
++  savePower() { try { localStorage.setItem(CONFIG.POWER.SAVE_KEY, JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
++  loadPower() {
++    try {
++      const raw = localStorage.getItem(CONFIG.POWER.SAVE_KEY);
++      if (raw && !Power.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.POWER.SAVE_KEY);   // испорченная запись
++    } catch (_) { /* битый JSON или нет доступа — стартуем с начальных запасов */ }
++  },
++  /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
+   updateAction() {
+-    const it = Player.interaction();
+-    let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься') : it.from.label;
+-    if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : '  ·  S';
++    const it = GenPanel.open ? null : Player.interaction();
++    let label = !it ? '' : it.kind === 'stair' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
++      : it.kind === 'gate' ? it.from.label : '⚙ Генератор';
++    if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
+     if (label === this.actLabel) return;
+     this.actLabel = label;
+     this.els.act.textContent = label;
