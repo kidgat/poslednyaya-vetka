@@ -43,18 +43,19 @@ ok('R10 без кандидатов — пустая очередь, без ош
 
 // NPC и свет
 const N = CONFIG.NPCS;
-ok('N01 охрана шлюза: 2 NPC с id, фонари, x 1600/1670, ярус', ['guard-airlock-west', 'guard-airlock-east'].every(id => N[id] && N[id].floor === 'upper' && N[id].lamp === 'beam')
-  && N['guard-airlock-west'].x === 1600 && N['guard-airlock-east'].x === 1670);
+// 0.9: правый охранник шлюза (x 1670) перенесён на КПП вестибюля вместе с репликами — копии на ярусе 0 нет
+ok('N01 охрана: нижний пост upper x1600 и КПП vestibule x1480, у обоих луч; guard-airlock-east больше нет', N['guard-airlock-west'].floor === 'upper' && N['guard-airlock-west'].x === 1600 && N['guard-airlock-west'].lamp === 'beam'
+  && N['guard-kpp'] && N['guard-kpp'].floor === 'vestibule' && N['guard-kpp'].x === 1480 && N['guard-kpp'].lamp === 'beam' && !N['guard-airlock-east']);
 ok('N02 рабочие мастерской и насосной: прежние участки ходьбы, фонари', N['worker-workshop'].walk.join() === '900,1100' && N['worker-pumps'].walk.join() === '1748,1852' && N['worker-workshop'].lamp && N['worker-pumps'].lamp);
 ok('N03 механик: налобный фонарь, участок 1340–1460 прежний', N.mechanic.lamp === 'headlamp' && N.mechanic.walk.join() === '1340,1460');
 const place = cut('function placeActors() {', '\n}');
 ok('N04 в placeActors не осталось копий охраны шлюза, рабочих и жителя столовой', !/actor\('guard', 'guard', 16[07]0/.test(place) && !/actor\('walker', 'worker'/.test(place) && !/actor\('sitter', 'resA', 492/.test(place));
-ok('N05 разговоры охраны шлюза: по 7 разных реплик, радиус ≤ 14', ['talk-airlock-west', 'talk-airlock-east'].every(id => { const i = CONFIG.INSPECTS.find(x => x.id === id); return i && i.lines.length === 7 && new Set(i.lines).size === 7 && i.radius <= 14; }));
+ok('N05 разговоры охраны (нижний пост и КПП): по 7 разных реплик, радиус ≤ 14', ['talk-airlock-west', 'talk-kpp'].every(id => { const i = CONFIG.INSPECTS.find(x => x.id === id); return i && i.lines.length === 7 && new Set(i.lines).size === 7 && i.radius <= 14; }));
 const G = CONFIG.GATES[0], zone = id => { const i = CONFIG.INSPECTS.find(x => x.id === id), n = N[i.npc]; return [n.x - i.radius, n.x + i.radius]; };
-ok('N06 зоны разговора не задевают ворота шлюза (1623–1647)', ['talk-airlock-west', 'talk-airlock-east'].every(id => { const z = zone(id); return z[1] < G.a.x - G.radius || z[0] > G.a.x + G.radius; }), ['talk-airlock-west', 'talk-airlock-east'].map(zone).join(' '));
+ok('N06 зоны разговора вестибюля не задевают гермоворота (1638–1662)', ['talk-kpp', 'talk-quarantine', 'talk-guardroom'].every(id => { const z = zone(id); return z[1] < G.a.x - G.radius || z[0] > G.a.x + G.radius; }), ['talk-kpp', 'talk-quarantine', 'talk-guardroom'].map(zone).join(' '));
 const reacting = Object.keys(N).filter(id => N[id].onBlackout);
 ok('N07 реакции на блэкаут у охраны, рабочих, медика, повара, жителей', ['guard-west', 'guard-airlock-west', 'mechanic', 'worker-pumps', 'worker-workshop', 'medic', 'cook', 'diner', 'resident-platform'].every(id => reacting.includes(id)), reacting.length);
-const allEm = [...BEACONS, [1635, 36], [32, 158], [1924, 128], ...CONFIG.EMERGENCY_LAMPS.map(e => [e.x, e.y])];
+const allEm = [...BEACONS, [1650, -76], [32, 158], [1924, 128], ...CONFIG.EMERGENCY_LAMPS.map(e => [e.x, e.y])];
 let close = [];
 for (let i = 0; i < allEm.length; i++) for (let j = i + 1; j < allEm.length; j++) if (Math.hypot(allEm[i][0] - allEm[j][0], allEm[i][1] - allEm[j][1]) < 30) close.push(allEm[i] + '~' + allEm[j]);
 ok('N08 новые аварийные светильники не дублируют маяки (≥30 px от любого)', close.length === 0, close.join(' '));
@@ -68,7 +69,12 @@ ok('P01 Пост 2: первая реплика «Станция Московс�
 const allLines = CONFIG.INSPECTS.flatMap(i => i.lines);
 ok('P02 в репликах нет вложенных кавычек „…“ внутри «…»', allLines.every(l => !/[„“]/.test(l)), allLines.filter(l => /[„“]/.test(l)).join(' | '));
 ok('P03 реплики — по-прежнему по 5–10 у каждого места, смысл постов сохранён', CONFIG.INSPECTS.find(i => i.id === 'inspect-west-post').lines[0].includes('Спортивн') && post2.lines.length === 5);
-ok('P04 левый охранник шлюза светит на гермоворота (вправо), правый — тоже на ворота (влево)', N['guard-airlock-west'].aim === 1 && N['guard-airlock-east'].aim === -1);
-const G2 = CONFIG.GATES[0].a.x;
-ok('P05 ворота шлюза между охранниками — оба луча направлены на них', N['guard-airlock-west'].x < G2 && N['guard-airlock-east'].x > G2);
+ok('P04 нижний пост шлюза светит вправо — на подножие марша в вестибюль', N['guard-airlock-west'].aim === 1 && CONFIG.STAIRS.find(s => s.id === 'vestibule').bottom.x > N['guard-airlock-west'].x);
+// 0.9 «Вестибюль +1»
+const NEW = { 'quarantine-medic': 'talk-quarantine', 'guard-rest': 'talk-guardroom' };
+ok('W01 санитар карантина и караульный — в вестибюле, по 5 разных реплик', Object.entries(NEW).every(([n, t]) => { const i = CONFIG.INSPECTS.find(x => x.id === t); return N[n].floor === 'vestibule' && i && i.npc === n && i.lines.length === 5 && new Set(i.lines).size === 5; }));
+ok('W02 у новых NPC — короткие реакции и автономный фонарь', Object.keys(NEW).every(n => N[n].lamp === 'lantern' && N[n].onBlackout.length === 3 && N[n].onRestore.length === 2 && [...N[n].onBlackout, ...N[n].onRestore].every(t => t.length <= 22 && !/Ъ/.test(t))));
+ok('W03 ворота наверх — только из вестибюля (обхода нет)', CONFIG.GATES.length === 1 && G.a.floor === 'vestibule' && G.b.floor === 'surface');
+ok('W04 реплики КПП — прежние 7 реплик охранника внешних ворот', CONFIG.INSPECTS.find(i => i.id === 'talk-kpp').lines[0] === '«На улице спокойно только издалека. Не верь тишине».');
+ok('W05 аварийный свет в карантине и на КПП', ['quarantine', 'checkpoint'].every(r => CONFIG.EMERGENCY_LAMPS.some(e => e.room === r)));
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

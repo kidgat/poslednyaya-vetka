@@ -79,9 +79,9 @@ c = clone(CONFIG); c.SCAVENGE.SPOTS[2].trigger = [1640, 1660];
 ok('N17 находка на воротах шлюза — пересечение поймано', hit(errsOf(c), /пересекаются/));
 
 // 0.8.1: охрана шлюза, техперсонал, аварийный свет
-ok('S19 разговоры охраны шлюза в реестре, зоны не задевают ворота', ['talk-airlock-west', 'talk-airlock-east'].every(id => plan.interactions.some(i => i.id === id)));
-c = clone(CONFIG); c.NPCS['guard-airlock-west'].x = 1630;
-ok('N18 охранник шлюза встал на ворота — пересечение поймано', hit(errsOf(c), /пересекаются/));
+ok('S19 разговоры охраны в реестре (нижний пост и КПП), зоны не задевают ворота и марши', ['talk-airlock-west', 'talk-kpp'].every(id => plan.interactions.some(i => i.id === id)));
+c = clone(CONFIG); c.NPCS['guard-airlock-west'].x = 1700;
+ok('N18 охранник шлюза встал у подножия марша в вестибюль — пересечение поймано', hit(errsOf(c), /пересекаются/));
 c = clone(CONFIG); c.NPCS.mechanic.onBlackout = ['ОЧЕНЬ ДЛИННАЯ ФРАЗА ДЛЯ ПУЗЫРЯ НАД ГОЛОВОЙ'];
 ok('N19 длинная реакция поймана', hit(errsOf(c), /плохие onBlackout/));
 c = clone(CONFIG); c.EMERGENCY_LAMPS[0].x = 1300;
@@ -90,5 +90,38 @@ c = clone(CONFIG); c.NPCS['worker-pumps'].lamp = 'laser';
 ok('N21 неизвестный тип света пойман', hit(errsOf(c), /неизвестный свет/));
 c = clone(CONFIG); c.NPCS['worker-pumps'].x = 1700;
 ok('N22 старт NPC вне участка ходьбы пойман', hit(errsOf(c), /вне участка/));
+
+// 0.9 «Вестибюль +1»: вестибюль действующий, связи через него, геометрия маршей в обе стороны
+const stairTopY = Function('CONFIG', `${cut('function stairTopY(s, x) {', '\n}')} return stairTopY;`)(CONFIG);
+const VD = Function(`${cut('const VEST_DOORWAYS = ', ';')} return VEST_DOORWAYS;`)();
+const GAL = Function(`${cut('const GALLERIES = [', '\n];')} return GALLERIES;`)();
+const DW = Function(`${cut('const DOORWAYS = ', ';')} return DOORWAYS;`)();
+const S = id => CONFIG.STAIRS.find(s => s.id === id), V = S('vestibule'), M = S('main');
+const vf = plan.floors.find(f => f.id === 'vestibule');
+ok('W01 вестибюль — active, этаж vestibule', vf.status === 'active' && vf.legacyFloor === 'vestibule' && CONFIG.FLOORS.vestibule);
+const want = { quarantine: 'critical', equipment: 'technical', checkpoint: 'technical', 'vestibule-hall': 'technical', guardroom: 'living' };
+ok('W02 пять помещений вестибюля, цепи: карантин critical, склад/КПП/зал technical, караульная living', Object.entries(want).every(([id, c]) => plan.rooms.filter(r => r.id === id).length === 1 && plan.rooms.find(r => r.id === id).floor === 'vestibule' && plan.rooms.find(r => r.id === id).circuit === c && plan.rooms.find(r => r.id === id).status === 'active'));
+const ids = plan.rooms.map(r => r.id);
+ok('W03 дублей помещений нет (карантин и караульная ушли из planned)', ids.length === new Set(ids).size && !CONFIG.STATION.plannedRooms.some(r => r.id in want));
+const act = plan.connectors.filter(c => c.status === 'active').map(c => c.from + '>' + c.to).sort().join();
+ok('W04 действующие связи: platform→upper, upper→vestibule, vestibule→surface; прямой upper→surface нет', act === 'platform>upper,upper>vestibule,vestibule>surface', act);
+ok('W05 нет плановой связи vestibule-gates (стала действующей)', !CONFIG.STATION.plannedConnectors.some(c => c.id === 'vestibule-gates'));
+c = clone(CONFIG); c.GATES[0].a.floor = 'upper'; c.GATES[0].a.x = 1635;
+ok('W06 ворота прямо с яруса 0 на улицу пойманы (перескок уровня)', hit(errsOf(c), /перескакивает/));
+c = clone(CONFIG); c.EMERGENCY_LAMPS.find(e => e.id === 'em-kpp').y = 30;
+ok('W07 аварийный светильник КПП на высоте яруса 0 — вне комнаты', hit(errsOf(c), /вне комнаты/));
+// Марши: главный — без изменений, новый поднимается влево
+const yb = CONFIG.FLOORS.upper.y, yt = CONFIG.FLOORS.vestibule.y;
+ok('W08 главный марш: прежние точки (652,219) ↔ (862,98), 20 ступеней вправо', M.bottom.x === 652 && M.top.x === 862 && M.run.x0 === 666 && M.run.x1 === 846 && M.run.steps === 20 && stairTopY(M, 665) === 219 && stairTopY(M, 846) === 98);
+const prof = []; for (let x = V.run.x0; x >= V.run.x1; x--) prof.push(stairTopY(V, x));
+ok('W09 марш в вестибюль: от (1696,98) влево к (1540,−14), монотонно вверх', stairTopY(V, V.run.x0 + 1) === yb && stairTopY(V, V.run.x1) === yt && prof.every((y, i) => !i || y <= prof[i - 1]), prof[0] + '…' + prof[prof.length - 1]);
+ok('W10 18 ступеней', new Set(prof).size === V.run.steps, new Set(prof).size);
+ok('W11 нижняя площадка не перекрывает проход в насосную (1716–1734)', V.bottom.trigger[1] <= 1716 && Math.max(V.run.x0, V.bottom.x) < 1716);
+const g2 = GAL.find(g => g.stair === 'vestibule'), dKpp = VD.find(d => d[0] < g2.x1 + 4 && d[1] > g2.x1 - 4);
+ok('W12 галерея 1536–1592 кончается у проёма 1592–1610 в зал: проход свободен', g2.x0 === 1536 && g2.x1 === 1592 && dKpp && dKpp[0] === g2.x1 && V.hole[1] <= dKpp[0], dKpp);
+ok('W13 проём марша не задевает проёмы вестибюля', VD.every(([a, b]) => b <= V.hole[0] || a >= V.hole[1]));
+ok('W14 верх марша (1530) и низ (1704) в пределах ходьбы своих этажей', V.top.x >= CONFIG.FLOORS.vestibule.minX && V.top.x <= CONFIG.FLOORS.vestibule.maxX && V.bottom.x <= CONFIG.FLOORS.upper.maxX);
+ok('W15 проём в плите пересекает y = 0 (марш непрерывен между слоями)', V.holeY[0] < 0 && V.holeY[1] > 0);
+ok('W16 главный марш не задет: проёмы яруса 0 прежние', DW.length === 7 && GAL[0].x0 === 744 && GAL[0].x1 === 856);
 
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
