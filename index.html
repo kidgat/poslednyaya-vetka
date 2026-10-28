@@ -890,7 +890,7 @@ const WORLD_BOTTOM = UTIL.y1;
 const UTIL_CLIP = { x0: -Infinity, x1: Infinity, y0: 19 + CONFIG.FLOORS.utility.y - CONFIG.FLOORS.upper.y, y1: 100 + CONFIG.FLOORS.utility.y - CONFIG.FLOORS.upper.y };
 /** 0.9: слой вестибюля — отдельный заранее нарисованный канвас в мировых координатах [VX0, VX1) × [VY0, 0). */
 const VEST = { x0: 1160, x1: 1880, y0: CONFIG.FLOORS.surface.y - 4, shell: [1170, 1870, -106] };
-const WORLD = { sky: null, ruins: null, surface: null, vest: null, util: null, rubble: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
+const WORLD = { sky: null, ruins: null, surface: null, vest: null, util: null, rubble: null, foreBare: null, gate: null, back: null, main: null, fore: null, lights: [], emissive: [], drips: [], fire: null, spark: null };
 
 /** Регистрирует источник света. layer: 'main' | 'back'. circuit — цепь питания; не задана — определится по зоне
     (assignCircuits), null — неэлектрический источник. */
@@ -1863,7 +1863,11 @@ function buildWorld() {
   drawFore(gf, fw);
   buildSurface(); buildVestibule(); buildUtility();
   WORLD.main = main; WORLD.back = back; WORLD.fore = fore;
-  WORLD.rubble = makeCanvas(fw, H); drawRubble(WORLD.rubble.getContext('2d'), fw);   // 1.0: щебень низа кадра — отдельно, гаснет при взгляде на ярус −2
+  // 1.0: щебень низа кадра. Обычно — в том же слое, что и раньше (один drawImage, как в 0.9);
+  //      когда камера смотрит ниже путей — слой без щебня + щебень с прозрачностью.
+  WORLD.foreBare = makeCanvas(fw, H); drawFore(WORLD.foreBare.getContext('2d'), fw);
+  WORLD.rubble = makeCanvas(fw, H); drawRubble(WORLD.rubble.getContext('2d'), fw);
+  drawRubble(gf, fw);
   WORLD.lights.forEach(l => { if (!l.clip) l.clip = HALL_CLIP; });
   assignCircuits();
   WORLD.drips = [470, 1238, 1560].map((x, i) => ({ x, y: 0, v: 0, wait: 0.5 + i * 0.9, active: false }));
@@ -2547,7 +2551,7 @@ const Render = {
     // 2. Станция и створки гермоворот.
     g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
     g.drawImage(WORLD.main, -camI, yo);
-    if (WORLD.util && yo + H < this.viewH) g.drawImage(WORLD.util, -camI, yo + H);   // 1.0: ярус −2 — только когда виден
+    if (WORLD.util && yo + H < vh - 1) g.drawImage(WORLD.util, -camI, yo + H);   // 1.0: ярус −2 — только когда виден (последняя строка буфера — запас под дробный сдвиг)
     this.drawGate(g, camI, yo);
     if (yo > 0) this.drawScavenge(g, camI, yo);
     // 3. Динамика под освещением (освещается картой света).
@@ -2589,9 +2593,12 @@ const Render = {
     // 6. Светящиеся элементы поверх темноты.
     this.drawEmissive(camX, frac, t);
     // 7. Передний план и виньетка.
-    const below = this.viewH - yo - H;                                  // 1.0: сколько кадра ниже путей (ярус −2)
-    if (below < 30) { g.globalAlpha = clamp(1 - below / 30, 0, 1); g.drawImage(WORLD.rubble, this.sx(0, PF, camX, frac), yo); g.globalAlpha = 1; }
-    g.drawImage(WORLD.fore, this.sx(0, PF, camX, frac), yo);
+    const below = vh - 1 - yo - H;                                      // 1.0: сколько кадра ниже путей (ярус −2); запасную строку буфера не считаем
+    if (below <= 0) g.drawImage(WORLD.fore, this.sx(0, PF, camX, frac), yo);   // как в 0.9
+    else {
+      if (below < 30) { g.globalAlpha = 1 - below / 30; g.drawImage(WORLD.rubble, this.sx(0, PF, camX, frac), yo); g.globalAlpha = 1; }
+      g.drawImage(WORLD.foreBare, this.sx(0, PF, camX, frac), yo);
+    }
     g.drawImage(this.vignette, 0, 0);
     // 8. На экран: целый масштаб, сдвиг на дробные части камеры по X и Y.
     const s = this.scale;
@@ -2640,12 +2647,14 @@ const Render = {
     /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
     const blob = (x, y, r, c, a, sy = 1, clip = null, p = 1) => {
       if (a <= 0.01 || x + r < 0 || x - r > vw || y + r < 0 || y - r > this.viewH) return;
-      gl.save();
+      let cx0 = 0, cx1 = vw, cy0 = 0, cy1 = this.viewH;
       if (clip) {
-        const cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, p, camX, frac) : 0, cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, p, camX, frac) : vw;
-        const cy0 = clip.y0 + yo, cy1 = clip.y1 < 1e9 ? clip.y1 + yo : this.viewH;
-        gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip();
+        cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, p, camX, frac) : 0; cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, p, camX, frac) : vw;
+        cy0 = clip.y0 + yo; cy1 = clip.y1 < 1e9 ? clip.y1 + yo : this.viewH;
+        if (cy0 >= this.viewH || cy1 <= 0 || cx0 >= vw || cx1 <= 0) return;   // 1.0: свет за краем кадра (комнаты −2 под платформой) не рисуем
       }
+      gl.save();
+      if (clip) { gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip(); }
       gl.translate(x, y); if (sy !== 1) gl.scale(1, sy);
       const rr = Math.round(r);                                          // 0.8.1: готовое пятно того же профиля вместо градиента в каждом кадре
       gl.globalAlpha = Math.min(1, a); gl.drawImage(this.lampDisc(rr, c), -rr, -rr); gl.restore(); n++;
