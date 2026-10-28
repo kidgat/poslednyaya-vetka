@@ -182,7 +182,7 @@ const CONFIG = {
       a: { floor: 'platform', x: 1540, dir: 'down', sign: 'ХОЗЯЙСТВО' },       // задняя стена техзоны между колоннами 1460 и 1620
       b: { floor: 'utility',  x: 1500, dir: 'up',   sign: 'ПЕРРОН' } },        // лестничный холл яруса −2
   ],
-  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 4, DARK: 0.85 },
+  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 10, DARK: 0.8 },   // DEPTH — на сколько px герой поднимается по ступеням внутри арки
   // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
   // 0.9: гермоворота в центральном зале вестибюля (раньше — прямо из шлюза яруса 0). Обхода вестибюля нет.
   GATES: [{ id: 'surface', radius: 12,
@@ -742,7 +742,7 @@ function createReactions(cfg) {
    Блок между маркерами проверяется отдельно: node tests/station.test.js */
 /* STATION:BEGIN */
 /** Участок действия: неподвижный trigger или зона разговора — весь путь NPC плюс радиус. */
-const ARCH_HALF = 16;                       // 1.0.1: половина ширины служебной арки с косяками
+const ARCH_HALF = 21;                       // 1.0.1: половина ширины служебной арки вместе с бетонным пилоном
 function inspectZone(cfg, i) {
   if (i.trigger) return i.trigger;
   const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
@@ -1121,7 +1121,7 @@ const ROOM_DRAW = {
   /** 1.0.1: бывшая лестничная клетка — холл с аркой служебной лестницы на перрон (арка — drawArches). */
   stairwell(g, r) {
     drawText(g, '◀ ЖИЛЬЕ', r.x + 5, 52, '#c8b88a', 'rgba(0,0,0,.45)');
-    drawText(g, 'ТЕХ ▶', r.x + r.w - 33, 48, '#c8b88a', 'rgba(0,0,0,.45)');
+    drawText(g, 'ТЕХ▶', r.x + r.w - 27, 48, '#c8b88a', 'rgba(0,0,0,.45)');
     R(g, r.x + 8, 80, 18, 16, '#4a4e50'); R(g, r.x + 8, 80, 18, 1, '#6a6e70'); R(g, r.x + 10, 84, 14, 1, '#2e3234');   // ящик с песком
     R(g, r.x + r.w - 22, 64, 10, 32, '#5a2e28'); R(g, r.x + r.w - 20, 60, 6, 4, '#3a2a24'); R(g, r.x + r.w - 21, 70, 8, 6, '#c8b88a');   // огнетушитель
   },
@@ -1449,57 +1449,57 @@ function drawBlastGate(g, x0, mirror = false) {
 const ARCH_BASE = { vestibule: 96 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y, upper: 96, platform: 214, utility: 366 };
 const ARCH_H = 46;
 /** Прямоугольник проёма служебной арки (мировые координаты, без косяков). */
-function archRect(e) { const base = ARCH_BASE[e.floor]; return { x0: e.x - 12, x1: e.x + 12, top: base - ARCH_H, base }; }
-/** Служебная арка в задней стене: косяки, свод, тёмная глубина, первые ступени, потёки, табличка с направлением, лампа. */
+function archRect(e) { const base = ARCH_BASE[e.floor]; return { x0: e.x - 11, x1: e.x + 11, top: base - ARCH_H, base }; }
+/** Служебная арка: бетонный пилон с табличкой, полукруглый проём, внутри — лестничный марш сбоку (ступени уходят вверх
+    вглубь, поручень, тёплая лампа на стене шахты). Дверей и створок нет. Одинаковая для всех проходов. */
 function drawServiceArch(g, e) {
-  const { x0, x1, top, base } = archRect(e), cx = e.x, up = e.dir === 'up';
-  const conc = (x, y, v) => R(g, x, y, 1, 1, rgb([v + (hash(x, y + 77) - 0.5) * 10, v - 3, v - 6]));
-  for (let y = top - 6; y < base; y++) for (let x = x0 - 4; x < x1 + 4; x++) {        // рама: косяки 4 px и свод
-    const inJamb = x < x0 || x >= x1, inVault = y < top;
-    if (!inJamb && !inVault) continue;
-    conc(x, y, x === x0 - 4 || y === top - 6 ? 132 : x === x1 + 3 ? 70 : (x === x0 - 1 || x === x1) ? 84 : 104);
+  const { x0, x1, top, base } = archRect(e), cx = e.x, R0 = (x1 - x0) / 2;
+  const conc = (x, y, v) => R(g, x, y, 1, 1, rgb([v + (hash(x, y + 77) - 0.5) * 9, v - 2, v - 5]));
+  // пилон: выступающий бетонный блок от пола до таблички
+  const px0 = cx - ARCH_HALF, px1 = cx + ARCH_HALF, ptop = top - 22;
+  for (let y = ptop; y < base; y++) for (let x = px0; x < px1; x++) {
+    let v = 92;
+    if (x === px0) v = 118; else if (x === px1 - 1) v = 58; else if (x === px1 - 2) v = 70;
+    if (y === ptop) v = 124; if (y === ptop + 1) v = 104;
+    if ((y - ptop) % 16 === 15) v -= 10;                                         // швы опалубки
+    if (y > base - 6) v -= 12;                                                   // грязь у пола
+    conc(x, y, v);
   }
-  for (let x = x0 - 2; x < x1 + 2; x++) R(g, x, top - 3, 1, 1, rgb([150, 146, 136], 0.9));   // перемычка
-  R(g, cx - 2, top - 6, 5, 4, '#8c8a80'); R(g, cx - 2, top - 6, 5, 1, '#aaa89c');            // замковый камень
-  // Глубина проёма: тёмный ход, боковые откосы сходятся к дальней стене шахты, свод скругляет верхние строки.
-  const ins = r => (r < 4 ? [5, 3, 2, 1][r] : 0);
-  for (let y = top; y < base; y++) {
-    const r = y - top, i = ins(r);
-    R(g, x0, y, x1 - x0, 1, rgb([60, 62, 64], 0.9)); R(g, x0 + i, y, x1 - x0 - 2 * i, 1, '#0b0d0f');
-    for (let k = 0; k < 4; k++) {                                                           // откосы: светлее у края, темнее вглубь
-      const v = 46 - k * 9;
-      if (x0 + i + k < cx - 6) R(g, x0 + i + k, y, 1, 1, `rgb(${v},${v + 2},${v + 3})`);
-      if (x1 - 1 - i - k > cx + 6) R(g, x1 - 1 - i - k, y, 1, 1, `rgb(${v - 10},${v - 8},${v - 6})`);
-    }
+  // проём: полукруглый свод, глубина шахты
+  const inside = (x, y) => { if (y >= top + R0) return x >= x0 && x < x1; const dy = top + R0 - y, dx = x + 0.5 - cx; return dx * dx + dy * dy <= R0 * R0; };
+  for (let y = top - 3; y < base; y++) for (let x = x0 - 3; x < x1 + 3; x++) {
+    if (inside(x, y)) {
+      const depth = (y - top) / ARCH_H, v = Math.round(8 + 12 * depth + (x - x0) * 0.25);
+      R(g, x, y, 1, 1, `rgb(${v},${v + 2},${v + 4})`);
+    } else if (inside(x - 3, y) || inside(x + 3, y) || inside(x, y + 3)) conc(x, y, x > cx ? 76 : 132);   // обрамление: свет слева, тень справа
   }
-  R(g, cx - 7, top + 8, 14, base - top - 8, '#07080a');                                      // дальняя стена шахты
-  if (up) {                                                                                 // ступени вверх: проступи и подступенки уходят к площадке
-    for (let k = 0; k < 7; k++) {
-      const w = 22 - 2 * k, y = base - 2 - k * 5, c = 92 - k * 11;
-      if (y - 4 < top + 6) break;
-      R(g, cx - w / 2, y - 4, w, 4, rgb([c - 26, c - 28, c - 30])); R(g, cx - w / 2, y - 5, w, 1, rgb([c + 14, c + 12, c + 8]));
-    }
-    R(g, cx - 4, top + 6, 8, 3, 'rgba(120,110,90,.22)');                                      // отсвет с верхней площадки
-  } else {                                                                                  // ступени вниз: кромки сходятся и темнеют, перила уходят вниз
-    for (let k = 0; k < 6; k++) {
-      const w = 22 - 2 * k, y = base - 2 - k * 2, c = 84 - k * 12;
-      R(g, cx - w / 2, y, w, 1, rgb([c + 10, c + 8, c + 4])); R(g, cx - w / 2, y + 1, w, 1, rgb([c - 34, c - 36, c - 38]));
-    }
-    L(g, x0 + 3, base - 19, x0 + 6, base - 11, '#4a4844'); L(g, x1 - 4, base - 19, x1 - 7, base - 11, '#34322e');   // поручни уходят вниз по откосам
-    R(g, cx - 4, base - 15, 8, 2, 'rgba(120,100,70,.18)');                                     // отсвет снизу, из шахты
+  // лестничный марш сбоку: ступени поднимаются слева направо вглубь, поручень параллельно
+  const st = 3, n = 9;
+  for (let k = 0; k < n; k++) {
+    const sx = x0 + 1 + k * 2, sy = base - 1 - k * st;
+    if (sy < top + R0) break;
+    const c = 78 - k * 6;
+    R(g, sx, sy - 1, x1 - sx - 1, 1, rgb([c + 18, c + 16, c + 12]));            // проступь
+    R(g, sx, sy, x1 - sx - 1, st - 1, rgb([c - 20, c - 22, c - 24]));            // подступенок
   }
-  for (let k = 0; k < 3; k++) {                                                             // потёки под сводом и стёртая отделка
-    const x = x0 - 3 + ((hash(e.x, k) * 30) | 0), len = 4 + ((hash(k, e.x) * 10) | 0);
-    for (let y = top - 2; y < top - 2 + len; y++) if (x < x0 || x >= x1) R(g, x, y, 1, 1, 'rgba(40,34,26,.35)');
+  L(g, x0 + 1, base - 14, x1 - 2, base - 14 - Math.round((x1 - x0 - 3) * 1.5), '#5a564e');   // поручень
+  for (let k = 0; k < 3; k++) { const hx = x0 + 3 + k * 7; R(g, hx, base - 13 - k * 10, 1, 9, '#3a3834'); }      // стойки поручня
+  // тёплая лампа на стене шахты
+  const lx = x1 - 3, ly = top + R0 + 4;
+  R(g, lx - 1, ly - 1, 3, 4, '#2a2622'); R(g, lx, ly, 1, 2, '#ffd890');
+  const il = addLight(lx, ly + 1, 18, [255, 196, 120], 'steady', 0.5);
+  il.clip = { x0, x1, y0: top, y1: base }; addEmissive(lx, ly, 1, 2, [255, 222, 160], il);
+  // порог и потёки
+  R(g, x0 - 3, base - 1, x1 - x0 + 6, 1, '#3a3632');
+  for (let k = 0; k < 3; k++) {
+    const x = px0 + 2 + ((hash(e.x, k) * (px1 - px0 - 4)) | 0), len = 5 + ((hash(k, e.x) * 12) | 0);
+    for (let y = ptop + 14; y < ptop + 14 + len; y++) if (!inside(x, y)) R(g, x, y, 1, 1, 'rgba(40,34,26,.3)');
   }
-  R(g, x0 - 4, base - 1, x1 - x0 + 8, 1, '#3a3632');                                       // порог
-  // табличка направления над аркой: стрелка пикселями (▲/▼ нет в шрифте) + текст
-  const tw = textWidth(e.sign) + 14, sx = Math.round(cx - tw / 2), sy = top - 19;
-  R(g, sx, sy, tw, 11, '#2f3c3e'); R(g, sx, sy, tw, 1, '#4a5254');
+  // табличка направления на пилоне: стрелка пикселями (▲/▼ нет в шрифте) + текст
+  const tw = textWidth(e.sign) + 14, sx = Math.round(cx - tw / 2), sy = ptop + 4, up = e.dir === 'up';
+  R(g, sx, sy, tw, 11, '#2f3c3e'); R(g, sx, sy, tw, 1, '#4a5254'); R(g, sx, sy + 10, tw, 1, '#1a2224');
   for (let k = 0; k < 4; k++) R(g, sx + 6 - k, up ? sy + 3 + k : sy + 6 - k, 1 + 2 * k, 1, '#e0c48c');
   drawText(g, e.sign, sx + 11, sy + 2, '#e0c48c', 'rgba(0,0,0,.5)');
-  const l = addLight(cx, top - 1, 22, [255, 210, 160], 'steady', 0.45);   // скромная лампа над проёмом — цепь своего места
-  l.clip = { x0: x0 - 8, x1: x1 + 8, y0: sy, y1: base + 4 }; addEmissive(cx - 1, top - 1, 3, 1, [255, 226, 180], l);
 }
 function drawArches(g, floors) {
   for (const q of CONFIG.PASSAGES) for (const e of [q.a, q.b]) if (floors.includes(e.floor)) drawServiceArch(g, e);
@@ -2627,7 +2627,7 @@ const Render = {
     const t = this.archTmp, tg = t.getContext('2d');
     tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, SPRITE_W, SPRITE_H); tg.drawImage(spr, 0, 0);
     if (k > 0.01) { tg.globalCompositeOperation = 'source-atop'; tg.fillStyle = `rgba(9,11,13,${(C.DARK * k).toFixed(3)})`; tg.fillRect(0, 0, SPRITE_W, SPRITE_H); }
-    const lift = Math.round(C.DEPTH * k), bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * k);
+    const lift = Math.round(C.DEPTH * k), bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * Math.min(1, k * 3));   // по ступеням вверх, вглубь
     g.save(); g.beginPath(); g.rect(a.x0 - camI, a.top + yo, a.x1 - a.x0, bottom - (a.top + yo)); g.clip();
     g.drawImage(t, px - 13, fy - 40 - lift);
     g.restore();
