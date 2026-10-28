@@ -1,5 +1,5 @@
 --- archive/v1.0.html	2026-10-28 13:14:57.398246496 +0400
-+++ index.html	2026-10-28 12:34:07.089658683 +0400
++++ index.html	2026-10-28 14:18:47.123598838 +0400
 @@ -10,7 +10,7 @@
  <meta name="theme-color" content="#06080a">
  <link rel="manifest" href="manifest.webmanifest">
@@ -75,15 +75,15 @@
 +  PASSAGES: [
 +    { id: 'service-vestibule', name: 'Служебная лестница: ярус 0 ↔ вестибюль', radius: 10,
 +      a: { floor: 'upper',     x: 1680, dir: 'up',   sign: 'КПП' },            // шлюз яруса 0, у прежнего подножия марша
-+      b: { floor: 'vestibule', x: 1570, dir: 'down', sign: 'ЯРУС 0' } },       // КПП вестибюля, у прежнего верха марша
++      b: { floor: 'vestibule', x: 1570, dir: 'down', sign: 'СЛУЖБЫ' } },       // КПП вестибюля, у прежнего верха марша
 +    { id: 'service-upper', name: 'Служебная лестница: ярус 0 ↔ платформа', radius: 10,
 +      a: { floor: 'upper',    x: 806,  dir: 'down', sign: 'ПЕРРОН' },          // бывшая лестничная клетка яруса 0 (правее центра — место указателям)
-+      b: { floor: 'platform', x: 740,  dir: 'up',   sign: 'ЯРУС 0' } },        // задняя стена платформы между колоннами 660 и 820
++      b: { floor: 'platform', x: 740,  dir: 'up',   sign: 'СЛУЖБЫ' } },        // задняя стена платформы между колоннами 660 и 820
 +    { id: 'service-utility', name: 'Служебная лестница: платформа ↔ ярус −2', radius: 10,
-+      a: { floor: 'platform', x: 1540, dir: 'down', sign: 'ХОЗЯЙСТВО' },       // задняя стена техзоны между колоннами 1460 и 1620
++      a: { floor: 'platform', x: 1540, dir: 'down', sign: 'ХОЗБЛОК' },       // задняя стена техзоны между колоннами 1460 и 1620
 +      b: { floor: 'utility',  x: 1500, dir: 'up',   sign: 'ПЕРРОН' } },        // лестничный холл яруса −2
 +  ],
-+  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 10, DARK: 0.8 },   // DEPTH — на сколько px герой поднимается по ступеням внутри арки
++  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 10, SINK: 30, LANDING_K: 0.3, DARK: 0.8 },   // DEPTH — подъём по ступеням арки «вверх», px; SINK — спуск ниже кромки площадки арки «вниз», px; LANDING_K — доля пути по площадке
    // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
    // 0.9: гермоворота в центральном зале вестибюля (раньше — прямо из шлюза яруса 0). Обхода вестибюля нет.
    GATES: [{ id: 'surface', radius: 12,
@@ -96,7 +96,7 @@
        onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
      'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
        onBlackout: ['ГРИБАМ ВСЁ РАВНО', 'ГДЕ ФОНАРЬ?', 'НЕ ТОПЧИТЕ ГРЯДКИ!'], onRestore: ['ВОТ, ДРУГОЕ ДЕЛО', 'СВЕТ ЕСТЬ'] },
-@@ -736,11 +737,12 @@
+@@ -736,11 +737,13 @@
  /* SCAVENGE:END */
  
  /* =============================== STATION ==================================
@@ -106,11 +106,12 @@
     Блок между маркерами проверяется отдельно: node tests/station.test.js */
  /* STATION:BEGIN */
  /** Участок действия: неподвижный trigger или зона разговора — весь путь NPC плюс радиус. */
-+const ARCH_HALF = 21;                       // 1.0.1: половина ширины служебной арки вместе с бетонным пилоном
++const ARCH_HALF = 21, ARCH_LANDING = 4;   // ARCH_LANDING — глубина площадки у порога арки «вниз», px
++const _AH_ = 0;                       // 1.0.1: половина ширины служебной арки вместе с бетонным пилоном
  function inspectZone(cfg, i) {
    if (i.trigger) return i.trigger;
    const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
-@@ -758,15 +760,14 @@
+@@ -758,15 +761,14 @@
        ...st.plannedRooms.map(r => ({ ...r, status: 'planned' })),
      ],
      connectors: [
@@ -128,7 +129,7 @@
        { id: 'generator', kind: 'generator', floor: cfg.GENERATOR.floor, trigger: cfg.GENERATOR.trigger },
        ...cfg.INSPECTS.map(i => ({ id: i.id, kind: 'inspect', floor: i.floor, trigger: inspectZone(cfg, i), space: i.space, type: i.type,
          npc: i.npc, lines: i.lines })),
-@@ -839,6 +840,16 @@
+@@ -839,6 +841,16 @@
      const r = plan.rooms.find(x => x.id === e.room && x.status === 'active');
      if (!r || !r.x || !r.y || e.x < r.x[0] + 4 || e.x > r.x[1] - 4 || e.y < r.y[0] + 4 || e.y > r.y[1] - 11) err.push(`аварийный светильник ${e.id} вне комнаты ${e.room}`);
    }
@@ -145,7 +146,7 @@
    for (const ft of cfg.STATION.plannedFeatures || [])                        // 1.0: будущие механики привязаны к существующим комнатам
      if (ft.room !== null && !plan.rooms.some(r => r.id === ft.room && r.status === 'active')) err.push(`будущая функция ${ft.id}: нет действующей комнаты ${ft.room}`);
    for (const r of plan.rooms) {                                              // действующие комнаты яруса — достижимы
-@@ -1025,7 +1036,8 @@
+@@ -1025,7 +1037,8 @@
    { id: 'quarantine',     floor: 'vestibule', x: 1180, w: 150, label: 'КАРАНТИН',    type: 'quarantine', tint: [80, 94, 92],  light: [214, 234, 230], circuit: 'critical' },
    { id: 'equipment',      floor: 'vestibule', x: 1340, w: 110, label: 'ЭКИПИРОВКА',  type: 'equipment',  tint: [70, 76, 70],  light: [226, 222, 200], circuit: 'technical' },
    { id: 'checkpoint',     floor: 'vestibule', x: 1460, w: 136, label: 'КПП',         type: 'checkpoint', tint: [66, 72, 78],  light: [214, 226, 236], circuit: 'technical' },
@@ -155,7 +156,7 @@
    { id: 'guardroom',      floor: 'vestibule', x: 1760, w: 100, label: 'КАРАУЛЬНАЯ',  type: 'guardroom',  tint: [88, 76, 62],  light: [255, 200, 140], circuit: 'living' },
    // 1.0: ярус −2 — тот же код комнат со сдвигом на +270 по y (под путями). id совпадают с прежними planned-записями генплана.
    { id: 'living-pods',  floor: 'utility', x: 300,  w: 220, label: 'ЖИЛЫЕ ЯЧЕЙКИ', type: 'cells',     tint: [86, 72, 58],  light: [255, 190, 120], circuit: 'living',    future: [] },
-@@ -1106,14 +1118,12 @@
+@@ -1106,14 +1119,12 @@
      for (let k = 0; k < 3; k++) { R(g, r.x + 40 + k * 14, 34, 1, 6, '#2a2a2a'); R(g, r.x + 37 + k * 14, 40, 8, 5, '#5c6266'); }
    },
    /** Лестничная клетка: завал разобран (проход на запад открыт), обломки сложены на стене-полке; таблички направлений. */
@@ -175,7 +176,7 @@
    },
    workshop(g, r) {
      R(g, r.x + 20, 78, 136, 5, '#76553e'); R(g, r.x + 20, 78, 136, 1, '#9a7656');
-@@ -1239,14 +1249,14 @@
+@@ -1239,14 +1250,14 @@
      drawText(g, 'НЕ КУРИТЬ', r.x + 150, 40, '#c84a3a', 'rgba(0,0,0,.5)');
    },
    /** Лестничный холл яруса −2: низ лестницы на платформу, указатели, трубы. */
@@ -193,7 +194,7 @@
    },
    /** Дренажная: насосы, большие трубы, шкафы, задвижки, решётка, лужи, тревожная лампа. */
    drainage(g, r) {
-@@ -1265,13 +1275,11 @@
+@@ -1265,13 +1276,11 @@
      // тревожная лампа уровня воды: мигает, цепь technical
      R(g, r.x + 150, 40, 8, 6, '#3a3e40'); const l = addLight(r.x + 154, 46, 40, [255, 120, 50], 'pulse', 0.5); addEmissive(r.x + 151, 41, 6, 4, [255, 150, 70], l);
    },
@@ -209,7 +210,7 @@
    },
    /** Карантин: две койки за занавесками, стойка санконтроля, бак для фильтров. */
    quarantine(g, r) {
-@@ -1298,7 +1306,7 @@
+@@ -1298,7 +1307,7 @@
        R(g, sx + 1, 66, 4, 26, k ? '#6a5a32' : '#5a6a42'); R(g, sx + 7, 66, 4, 26, k ? '#6a5a32' : '#5a6a42');
      }
    },
@@ -218,7 +219,7 @@
    checkpoint(g, r) {
      R(g, r.x + 8, 52, 34, 44, '#4a5458'); R(g, r.x + 8, 52, 34, 1, '#6a7478'); R(g, r.x + 12, 58, 26, 14, '#1e2a2e'); R(g, r.x + 12, 58, 26, 1, '#3a4a4e');
      const l = addLight(r.x + 25, 66, 26, [140, 190, 200], 'screen', 0.4); addEmissive(r.x + 14, 60, 22, 10, [120, 170, 180], l, 'main', 'screen');
-@@ -1312,7 +1320,6 @@
+@@ -1312,7 +1321,6 @@
      for (let y = 44; y < 60; y++) R(g, gx - 23, y, 46, 1, rgb([60, 66, 70], 0.5 - (y - 44) / 40));   // ступени наверх, в павильон
      for (let x = gx - 28; x < gx + 28; x++) R(g, x, 92, 1, 4, ((x >> 2) % 2) ? '#b8922e' : '#1e1e1e');
      for (let k = 0; k < 3; k++) { const tx = r.x + r.w - 52 + k * 14; R(g, tx, 76, 2, 20, '#7a7e7a'); R(g, tx - 4, 80, 10, 2, '#9a9e96'); R(g, tx - 4, 86, 10, 1, '#6a6e6a'); }   // турникеты
@@ -226,7 +227,7 @@
      const wx = r.x + r.w - 52; R(g, wx, 61, textWidth('ВЫХОД') + 6, 11, '#2f5660'); R(g, wx, 61, textWidth('ВЫХОД') + 6, 1, '#6f9a98'); drawText(g, 'ВЫХОД', wx + 3, 63, '#dfe6d6', null);
      addBeacon(g, gx, 36);                                                     // аварийный маяк над воротами (переехал из шлюза яруса 0)
      WORLD.gate = { x: gx, top: 44 + ROOM_DY, open: 0 };
-@@ -1392,15 +1399,12 @@
+@@ -1392,15 +1400,12 @@
  function drawEnds(g) {
    // Запад: пост 1 «К Спортивной» — бетонный торец с гермодверью, щит с бойницами, мешки, закрытый тоннель над путями.
    paintRegion(g, 0, 122, 62, 92, (x, y, o) => setC(o, 52, 54, 56, (hash(x, y) - 0.5) * 12 + ((y - 122) % 18 === 0 ? -10 : 0) + (x === 61 ? 18 : 0)));
@@ -248,7 +249,7 @@
    R(g, 68, 174, 66, 22, '#4c5254'); R(g, 68, 174, 66, 1, '#6c7274');                                  // бронещит с бойницами
    for (let y = 177; y < 196; y += 3) R(g, 68, y, 66, 1, 'rgba(0,0,0,.16)');
    R(g, 82, 181, 12, 3, '#0c0e10'); R(g, 108, 181, 12, 3, '#0c0e10'); R(g, 96, 178, 6, 12, 'rgba(122,70,40,.5)');
-@@ -1411,14 +1415,8 @@
+@@ -1411,14 +1416,8 @@
    }
    plate(g, 82, 128, 'К СПОРТИВНОЙ', '#2f5660', '#dfe6d6', '#6f9a98');
    tunnelGrille(g, 0, 34);
@@ -265,7 +266,7 @@
    paintRegion(g, 1970, 122, 30, 92, (x, y, o) => setC(o, 40, 42, 44, (hash(x, y) - 0.5) * 12));
    plate(g, 1924, 140, 'К МОСКОВСКОЙ', '#2f5660', '#dfe6d6', '#6f9a98');                       // пост 2: будущий тоннельный КПП
    drawText(g, 'ПОСТ 2', 1908, 180, '#c8b88a', 'rgba(0,0,0,.5)');
-@@ -1435,6 +1433,77 @@
+@@ -1435,6 +1434,108 @@
    addEmissive(1921, 125, 7, 2, [255, 70, 50], red);
  }
  
@@ -309,17 +310,20 @@
 +      R(g, x, y, 1, 1, `rgb(${v},${v + 2},${v + 4})`);
 +    } else if (inside(x - 3, y) || inside(x + 3, y) || inside(x, y + 3)) conc(x, y, x > cx ? 76 : 132);   // обрамление: свет слева, тень справа
 +  }
-+  // лестничный марш сбоку: ступени поднимаются слева направо вглубь, поручень параллельно
-+  const st = 3, n = 9;
-+  for (let k = 0; k < n; k++) {
-+    const sx = x0 + 1 + k * 2, sy = base - 1 - k * st;
-+    if (sy < top + R0) break;
-+    const c = 78 - k * 6;
-+    R(g, sx, sy - 1, x1 - sx - 1, 1, rgb([c + 18, c + 16, c + 12]));            // проступь
-+    R(g, sx, sy, x1 - sx - 1, st - 1, rgb([c - 20, c - 22, c - 24]));            // подступенок
++  if (e.dir === 'down') drawArchDown(g, x0, x1, top, base, cx, R0, inside);
++  else {
++    // ПОДЪЁМ — марш сбоку: ступени от порога поднимаются слева направо вглубь, поручень параллельно
++    const st = 3, n = 9;
++    for (let k = 0; k < n; k++) {
++      const sx = x0 + 1 + k * 2, sy = base - 1 - k * st;
++      if (sy < top + R0) break;
++      const c = 78 - k * 6;
++      R(g, sx, sy - 1, x1 - sx - 1, 1, rgb([c + 18, c + 16, c + 12]));          // проступь
++      R(g, sx, sy, x1 - sx - 1, st - 1, rgb([c - 20, c - 22, c - 24]));          // подступенок
++    }
++    L(g, x0 + 1, base - 14, x1 - 2, base - 14 - Math.round((x1 - x0 - 3) * 1.5), '#5a564e');   // поручень
++    for (let k = 0; k < 3; k++) { const hx = x0 + 3 + k * 7; R(g, hx, base - 13 - k * 10, 1, 9, '#3a3834'); }    // стойки поручня
 +  }
-+  L(g, x0 + 1, base - 14, x1 - 2, base - 14 - Math.round((x1 - x0 - 3) * 1.5), '#5a564e');   // поручень
-+  for (let k = 0; k < 3; k++) { const hx = x0 + 3 + k * 7; R(g, hx, base - 13 - k * 10, 1, 9, '#3a3834'); }      // стойки поручня
 +  // тёплая лампа на стене шахты
 +  const lx = x1 - 3, ly = top + R0 + 4;
 +  R(g, lx - 1, ly - 1, 3, 4, '#2a2622'); R(g, lx, ly, 1, 2, '#ffd890');
@@ -337,13 +341,41 @@
 +  for (let k = 0; k < 4; k++) R(g, sx + 6 - k, up ? sy + 3 + k : sy + 6 - k, 1 + 2 * k, 1, '#e0c48c');
 +  drawText(g, e.sign, sx + 11, sy + 2, '#e0c48c', 'rgba(0,0,0,.5)');
 +}
++/** СПУСК — взгляд с верхней площадки вниз, в шахту (перспектива, не отражение марша «вверх»):
++    у порога горизонтальная площадка (ARCH_LANDING px вглубь), за её кромкой — провал; стены, потолок и марш сходятся
++    к точке схода ниже уровня глаз. Ступени видны только проступями (подступенки смотрят от зрителя), вглубь они уже и темнее;
++    поручни идут вдоль площадки и у начала марша ломаются вниз, в глубину. Отверстий в полу нет — всё внутри проёма. */
++function drawArchDown(g, x0, x1, top, base, cx, R0, inside) {
++  const edge = base - ARCH_LANDING, vy = base - 14, ix0 = cx - 4, ix1 = cx + 4, iy0 = top + 12;   // дальний конец шахты — малый прямоугольник
++  for (let y = top; y < edge; y++) for (let x = x0; x < x1; x++) {
++    if (!inside(x, y)) continue;
++    const X = x + 0.5, Y = y + 0.5;
++    const sL = (X - x0) / (ix0 - x0), sR = (x1 - X) / (x1 - ix1), sT = (Y - top) / (iy0 - top), sB = (edge - Y) / (edge - vy);
++    const sm = Math.min(sL, sR, sT, sB), d = 1 - Math.min(1, sm);             // d: 1 — у проёма, 0 — дальний конец
++    let v;
++    if (sm >= 1) v = y < vy - 6 ? 12 : 3;                                       // дальняя стена; ниже — провал, марш идёт дальше вниз
++    else if (sm === sB) { const r = edge - 1 - y; v = r === 0 ? 2 : ([2, 4, 6, 7, 8].includes(r) ? 16 + 54 * d : 4 + 5 * d); }   // проступи и щели
++    else if (sm === sT) v = 7 + 10 * d;                                         // потолок марша
++    else { v = 15 + 36 * d + (sm === sR ? 7 * d : 0); if (Math.abs(Y - (base - 22) - (vy + 1 - (base - 22)) * (1 - d)) < 0.6) v -= 8; }   // стены, шов на высоте поручня
++    v = Math.round(v); R(g, x, y, 1, 1, `rgb(${v},${v + 1},${v + 3})`);
++  }
++  for (let r = 0; r < ARCH_LANDING; r++) {                                      // площадка: светлая у порога, кромка над провалом
++    const y = base - 1 - r, ins = r, v = r === ARCH_LANDING - 1 ? 92 : 70 - r * 7;
++    R(g, x0 + Math.floor(ins / 2), y, x1 - x0 - 2 * Math.floor(ins / 2), 1, rgb([v + 4, v + 2, v - 2]));
++  }
++  for (const sgn of [-1, 1]) {                                                  // поручни: вдоль площадки, затем вниз, в глубину
++    const nx = sgn < 0 ? x0 + 1 : x1 - 2, kx = sgn < 0 ? x0 + 4 : x1 - 5, fx2 = sgn < 0 ? cx - 4 : cx + 3;
++    L(g, nx, base - 14, kx, base - 16, '#5e5a52'); L(g, kx, base - 16, fx2, base - 12, '#4a4740');
++    R(g, nx + (sgn < 0 ? 1 : -1), base - 14, 1, 10, '#3a3834');                // стойка на площадке
++  }
++}
 +function drawArches(g, floors) {
 +  for (const q of CONFIG.PASSAGES) for (const e of [q.a, q.b]) if (floors.includes(e.floor)) drawServiceArch(g, e);
 +}
  /** Закрытый тоннель над путями у торца: тёмный портал с решёткой и предупреждающей полосой. */
  function tunnelGrille(g, x0, x1) {
    R(g, x0, 228, x1 - x0, 42, '#07090b');
-@@ -1511,7 +1580,8 @@
+@@ -1511,7 +1612,8 @@
    [1648, 1662].forEach(px => { R(g, px, 122, 6, 92, '#4e5a5e'); R(g, px, 122, 2, 92, '#6e7a7e');
      R(g, px - 2, 150, 10, 3, '#3a4448'); R(g, px - 2, 190, 10, 3, '#3a4448'); });
    disc(g, 1651, 172, 5, '#8a3a30'); disc(g, 1651, 172, 3, '#4e5a5e');
@@ -353,7 +385,16 @@
    barrel(g, 1690, 198, [90, 62, 44]); barrel(g, 1704, 199, [80, 70, 54]);
    R(g, 1730, 206, 16, 8, '#6a2a24'); R(g, 1730, 206, 16, 1, '#8a3a30');                                     // ящик с инструментом
    L(g, 1772, 122, 1776, 150, '#1a1a1a', 2);                                                                 // оборванный кабель
-@@ -1613,12 +1683,6 @@
+@@ -1592,7 +1694,7 @@
+   });
+   [1400, 1620].forEach(mx => { const x = toBack(mx); R(g, x, 160, 26, 34, '#4a545a'); R(g, x, 160, 26, 1, '#6a747a');
+     R(g, x + 3, 164, 20, 4, '#b8922e'); R(g, x + 12, 170, 2, 20, '#2e363a'); });
+-  plate(g, toBack(1500), 170, 'ОПАСНО', '#6a2a22', '#f0d0a8', '#9a4a3a');
++  plate(g, toBack(1690), 170, 'ОПАСНО', '#6a2a22', '#f0d0a8', '#9a4a3a');   // 1.0.1: правее арки «▼ ХОЗБЛОК», чтобы при параллаксе не заходить за пилон
+   cable(g, t0, t1, 152, 10, '#151617'); cable(g, t0 + 30, t1, 156, 14, '#1d1e20');
+ }
+ 
+@@ -1613,12 +1715,6 @@
  const DOORWAYS = [[426, 444], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
  /** Проёмы между комнатами вестибюля (0.9), в координатах шаблона комнаты. */
  const VEST_DOORWAYS = [[1326, 1344], [1446, 1464], [1592, 1610], [1746, 1764]];
@@ -366,7 +407,7 @@
  function drawDoorways(g, list = DOORWAYS) {
    list.forEach(([a, b]) => {
      R(g, a, 50, b - a, 46, '#14171a');                                  // тёмный проём
-@@ -1627,79 +1691,6 @@
+@@ -1627,79 +1723,6 @@
      R(g, a, 96, b - a, 4, '#4e463c'); R(g, a, 96, b - a, 1, '#8a8478'); R(g, a, 100, b - a, 1, '#24221f'); // порог
    });
  }
@@ -446,7 +487,7 @@
  
  /* ---------- VESTIBULE (0.9): этаж +1 в грунте под павильоном ---------- */
  /** Корпус вестибюля: бетонная коробка в грунте (потолочная плита, тёмный бетон между комнатами, плита пола).
-@@ -1719,7 +1710,7 @@
+@@ -1719,7 +1742,7 @@
    ROOMS.filter(r => roomFloor(r) === 'vestibule').forEach(r => drawRoom(g, r));
    g.save(); g.translate(0, dy); drawDoorways(g, VEST_DOORWAYS); g.restore();
    CONFIG.EMERGENCY_LAMPS.filter(e => ROOMS.find(r => r.id === e.room && roomFloor(r) === 'vestibule')).forEach(e => addEmergencyLamp(g, e));
@@ -455,7 +496,7 @@
    WORLD.vest = c;
  }
  
-@@ -1748,7 +1739,7 @@
+@@ -1748,7 +1771,7 @@
    ROOMS.filter(r => roomFloor(r) === 'utility').forEach(r => drawRoom(g, r));
    g.save(); g.translate(0, dy); drawDoorways(g, UTIL_DOORWAYS); g.restore();
    CONFIG.EMERGENCY_LAMPS.filter(e => ROOMS.find(r => r.id === e.room && roomFloor(r) === 'utility')).forEach(e => addEmergencyLamp(g, e));
@@ -464,7 +505,7 @@
    WORLD.util = c;
  }
  
-@@ -1855,7 +1846,7 @@
+@@ -1855,7 +1878,7 @@
    CONFIG.EMERGENCY_GLOW.forEach(e => { const l = addLight(e.x, e.y, e.r, [255, 52, 40], 'pulse', 0.75, 'main', 'emergency'); l.clip = HALL_CLIP; l.pool = true; });
    drawEnds(gm);
    drawProps(gm);
@@ -473,7 +514,7 @@
    const back = makeCanvas(W, H), gb = back.getContext('2d', { willReadFrequently: true });
    paintRegion(gb, 0, 122, W, 92, backTexel);
    drawBackDecor(gb);
-@@ -1930,14 +1921,14 @@
+@@ -1930,14 +1953,14 @@
    g.putImageData(img, 0, 0);
  }
  /** Герой со спины (уходит в гермоворота). */
@@ -491,7 +532,7 @@
    R(g, 9, 14, 9, 14, PAL.jacket); R(g, 9, 14, 9, 2, PAL.jacketHi); R(g, 9, 25, 9, 2, PAL.belt); R(g, 9, 27, 9, 1, PAL.jacketSh);
    const arm = (sx, hx, up) => { const hy = up ? 2 : 13; L(g, sx, 15, hx, hy, PAL.jacket, 3); R(g, hx - 1, hy - 1, 3, 2, PAL.glove); };
    arm(9, upL ? 8 : 6, upL); arm(17, upR ? 18 : 20, upR);
-@@ -1949,7 +1940,28 @@
+@@ -1949,7 +1972,28 @@
    outline(g);
    return c;
  }
@@ -521,7 +562,7 @@
  /* Палитры жителей: та же фигура, другая одежда. */
  const GUARD_PAL  = { ...HERO_PAL, jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d',
    pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' };
-@@ -2053,6 +2065,8 @@
+@@ -2053,6 +2097,8 @@
  function buildSprites() {
    Object.assign(SPRITES, personSet(HERO_PAL));
    SPRITES.back = drawBackFrame();
@@ -530,7 +571,7 @@
    SETS.guard   = personSet(GUARD_PAL,   { hat: '#3e4636', gun: true, noPack: true, sit: true });
    SETS.worker  = personSet(WORKER_PAL,  { hat: '#c8a03c', noPack: true });
    SETS.worker2 = personSet(WORKER2_PAL, { hat: '#b8b8b0', noPack: true });
-@@ -2241,13 +2255,13 @@
+@@ -2241,13 +2287,13 @@
  
  /* ================================ PLAYER ================================== */
  const Player = {
@@ -546,7 +587,7 @@
      this.x = this.prevX = CONFIG.PLAYER.START_X; this.y = this.prevY = CONFIG.FLOORS.platform.y;
      this.vx = 0; this.walkDist = 0;
    },
-@@ -2255,10 +2269,9 @@
+@@ -2255,10 +2301,9 @@
    interaction() {
      if (this.state !== 'walk') return null;
      const inside = (x, [a, b]) => x >= a && x <= b;
@@ -560,7 +601,7 @@
      for (const gt of CONFIG.GATES)
        for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
          if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
-@@ -2276,13 +2289,13 @@
+@@ -2276,13 +2321,13 @@
    },
    update(dt, dir, action) {
      this.prevX = this.x; this.prevY = this.y;
@@ -576,7 +617,7 @@
        }
      }
      this.updateWalk(dt, dir);
-@@ -2311,31 +2324,30 @@
+@@ -2311,31 +2356,30 @@
      }
      this.blinkT -= dt; if (this.blinkT < -0.12) this.blinkT = 2.5 + Math.random() * 3;
    },
@@ -632,7 +673,7 @@
      }
    },
    startGate({ from, to }) { this.state = 'gate'; this.vx = 0; this.gate = { from, to, phase: 'open', t: 0 }; },
-@@ -2363,8 +2375,16 @@
+@@ -2363,8 +2407,16 @@
      return side === 'vestibule' ? 1 : 0;                                // 0.9: створки — в зале вестибюля
    },
    sprite() {
@@ -650,7 +691,7 @@
      if (Math.abs(this.vx) > 4) return SPRITES.walk[this.frame];
      if (this.blinkT < 0) return SPRITES.blink;
      return SPRITES.idle[Math.floor(this.idleT / 0.7) % 2];
-@@ -2393,19 +2413,13 @@
+@@ -2393,19 +2445,13 @@
    },
    clampX(x) { return clamp(x, 0, Math.max(0, W - this.viewW)); },
    /** 0.9: цель по y — у каждого этажа своя (FLOORS[f].cam — доля высоты кадра для ступней; нет — низ станции).
@@ -672,7 +713,7 @@
    snap(player) {
      this.look = player.facing * CONFIG.CAMERA.LOOK_AHEAD * 0.4;
      this.x = this.prevX = this.clampX(player.x + this.look - this.viewW / 2); this.vel.v = 0;
-@@ -2565,11 +2579,7 @@
+@@ -2565,11 +2611,7 @@
      for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
      g.globalAlpha = 1;
      if (yo > 0) { g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1); }
@@ -685,7 +726,7 @@
      this.occ.length = 0;
      this.drawActors(g, camI, yo);
      const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
-@@ -2578,14 +2588,15 @@
+@@ -2578,14 +2620,16 @@
        g.fillStyle = 'rgba(0,0,0,.42)'; g.fillRect(px - 8, fy, 17, 1); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(px - 6, fy + 1, 13, 1);
      }
      const spr = Player.sprite();
@@ -694,6 +735,7 @@
 +    const pFacing = Player.state === 'gate' || inArch ? 1 : Player.facing;
      this.playerOcc = null;
 -    if (spr) {
++    this.archDY = 0;
 +    if (spr && inArch) this.drawInArch(g, spr, px, fy, Player.pass, camI, yo);          // 1.0.1: глубина арки — затемнение, подъём, обрезка косяками
 +    else if (spr) {
        g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
@@ -704,7 +746,7 @@
      // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
      this.drawLightmap(camX, frac, t, px, fy);
      g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
-@@ -2599,12 +2610,28 @@
+@@ -2599,12 +2643,37 @@
        if (below < 30) { g.globalAlpha = 1 - below / 30; g.drawImage(WORLD.rubble, this.sx(0, PF, camX, frac), yo); g.globalAlpha = 1; }
        g.drawImage(WORLD.foreBare, this.sx(0, PF, camX, frac), yo);
      }
@@ -717,15 +759,24 @@
      this.ctx.imageSmoothingEnabled = false;
      this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
    },
-+  /** 1.0.1: герой в служебной арке. k — глубина (0 — у порога, 1 — скрылся): спрайт темнеет под цвет глубины арки,
-+      уходит на DEPTH px вверх (дальше от зрителя) и обрезается внутренним краем проёма — косяки и порог оказываются перед ним. */
++  /** 1.0.1: герой в служебной арке. k — глубина (0 — у порога, 1 — скрылся), при входе растёт, при выходе убывает; движение
++      задаёт направление арки, у которой стоит герой: «вверх» — поднимается по ступеням на DEPTH px; «вниз» — проходит площадку
++      и опускается на SINK px за её кромку (кромка закрывает ноги). Спрайт темнеет и обрезается проёмом, размер не меняется. */
 +  drawInArch(g, spr, px, fy, s, camI, yo) {
 +    const C = CONFIG.PASSAGE, k = s.k, e = s.at, a = archRect(e);
 +    if (!this.archTmp) this.archTmp = makeCanvas(SPRITE_W, SPRITE_H);
 +    const t = this.archTmp, tg = t.getContext('2d');
 +    tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, SPRITE_W, SPRITE_H); tg.drawImage(spr, 0, 0);
 +    if (k > 0.01) { tg.globalCompositeOperation = 'source-atop'; tg.fillStyle = `rgba(9,11,13,${(C.DARK * k).toFixed(3)})`; tg.fillRect(0, 0, SPRITE_W, SPRITE_H); }
-+    const lift = Math.round(C.DEPTH * k), bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * Math.min(1, k * 3));   // по ступеням вверх, вглубь
++    let lift, bottom;
++    if (e.dir === 'down') {                                                     // спуск: по площадке к кромке, затем вниз за кромку
++      const L0 = C.LANDING_K, on = Math.min(1, k / L0), dn = Math.max(0, (k - L0) / (1 - L0));
++      lift = Math.round(ARCH_LANDING * on - C.SINK * dn);
++      bottom = dn > 0 ? a.base - ARCH_LANDING + yo : Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * on);
++    } else {                                                                    // подъём: по ступеням вверх, вглубь
++      lift = Math.round(C.DEPTH * k); bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * Math.min(1, k * 3));
++    }
++    this.archDY = lift;                                                        // для pvDebug.player(): смещение героя в арке (+ вверх, − вниз)
 +    g.save(); g.beginPath(); g.rect(a.x0 - camI, a.top + yo, a.x1 - a.x0, bottom - (a.top + yo)); g.clip();
 +    g.drawImage(t, px - 13, fy - 40 - lift);
 +    g.restore();
@@ -733,18 +784,18 @@
    /** Створки гермоворот шлюза: уезжают в стены по мере открытия. */
    drawGate(g, camI, yo) {
      const G = WORLD.gate, x = G.x - camI;
-@@ -3035,7 +3062,9 @@
+@@ -3035,7 +3104,9 @@
        snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
        advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
        station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
 -      player: () => ({ x: Player.x, y: Player.y, floor: Player.floor, state: Player.state }),
 +      player: () => { const sp = Player.sprite();                    // 1.0.1: фаза прохода и поза героя (спиной / лицом / боком)
-+        return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0,
++        return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0, dy: Render.archDY || 0,
 +          pose: !sp ? null : SPRITES.backWalk.includes(sp) || sp === SPRITES.back ? 'back' : SPRITES.frontWalk.includes(sp) ? 'front' : 'side' }; },
        card: () => (InfoCard.open ? InfoCard.item.id : null),
        actors: () => ACTORS.map(a => ({ id: a.id, kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing, lamp: a.lamp })),
        scavenge: () => ({ ...Scavenge.snapshot(), message: Scavenge.message }),
-@@ -3153,7 +3182,7 @@
+@@ -3153,7 +3224,7 @@
    /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
    updateAction() {
      const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
@@ -753,7 +804,7 @@
        : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
      if (it && it.kind === 'scavenge' && !Scavenge.available(it.item.id)) label = it.item.id === 'cache' ? '◎ Тайник пуст' : '◎ Пусто';
      if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
-@@ -3166,8 +3195,8 @@
+@@ -3166,8 +3237,8 @@
    /** Подпись HUD: на платформе — зона, наверху — комната, в пути — «Лестница». */
    updateZone() {
      let z;
