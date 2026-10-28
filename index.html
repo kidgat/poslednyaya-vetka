@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 1.0.1</title>
+<title>Последняя ветка 1.1А-UX1</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -39,6 +39,23 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   min-height:36px;min-width:140px;margin-top:5px;cursor:pointer;text-align:left;padding:0 10px}
 #opts button[aria-pressed="true"]{background:rgba(232,184,106,.32);border-color:rgba(232,184,106,.9)}
 .hud-r{display:flex;align-items:flex-start}
+/* 1.1А-UX1: кнопки масштаба — как ⚙: прозрачная область 44×44, видимая плашка внутри; на краю шкалы — неактивна */
+.hb{pointer-events:auto;position:relative;width:44px;height:44px;margin:-8px 0 0 0;padding:0;background:transparent;border:0;
+  cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;font:inherit}
+.hb i{display:flex;align-items:center;justify-content:center;width:30px;height:28px;box-sizing:border-box;background:var(--panel);
+  border:1px solid var(--line);color:var(--ink);font-style:normal;font-size:16px;pointer-events:none}
+.hb.press i{border-color:rgba(232,184,106,.75);color:var(--gold);background:rgba(232,184,106,.22)}
+.hb:disabled{cursor:default}.hb:disabled i{opacity:.32}
+/* 1.1А-UX1: кнопка фонаря — внизу справа, вне центральной кнопки действия; включён — золотая рамка и свечение */
+#lamp{position:fixed;z-index:4;right:calc(env(safe-area-inset-right) + 14px);bottom:calc(env(safe-area-inset-bottom) + 16px);
+  width:56px;height:56px;padding:0;background:transparent;border:0;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center}
+#lamp i{display:flex;align-items:center;justify-content:center;width:46px;height:46px;box-sizing:border-box;border-radius:50%;
+  background:rgba(14,12,8,.72);border:2px solid rgba(232,184,106,.45);color:var(--muted);pointer-events:none}
+#lamp .ray{opacity:0}
+#lamp.on i{border-color:#cfe2ff;color:#eef4ff;background:rgba(150,180,230,.30);box-shadow:0 0 12px rgba(190,215,255,.55)}
+#lamp.on .ray{opacity:1}
+#lamp.press i{background:rgba(232,184,106,.38)}
 #ver{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:11px;
   padding:6px 9px;letter-spacing:.08em;cursor:pointer}
 #ver.dev{color:#ffb35a;border-color:#a8652a}   /* DEV-метка: «v… DEV» оранжевым, на месте номера версии */
@@ -111,10 +128,11 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0.1</button></div>
+  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.1А-UX1</button></div>
 </div>
 <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
+<button id="lamp" type="button" aria-label="Фонарь" aria-pressed="false"><i><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 9h9l4-3v12l-4-3H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path class="ray" d="M18.5 8.5l3-2M19 12h3M18.5 15.5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></i></button>
 <div id="opts" role="dialog" aria-label="Яркость сцены"><b>ЯРКОСТЬ СЦЕНЫ</b>
   <button type="button" data-b="dark">Атмосферно</button><button type="button" data-b="normal">Нормально</button><button type="button" data-b="bright">Светлее</button>
 </div>
@@ -137,7 +155,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 1.0.1 «Служебные переходы»<br>
+    <p>Станция «Гагаринская» · прототип 1.1А-UX1 «Сердце станции»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -146,7 +164,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0.1 «Служебные переходы»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.1А-UX1 «Сердце станции»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -172,7 +190,7 @@ const saveKey = key => envSaveKey(ENV, key);
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '1.0.1',
+  VERSION: '1.1А-UX1',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -206,6 +224,10 @@ const CONFIG = {
     b: { floor: 'surface', x: 1650, dir: 'down', label: '▼ В вестибюль' } }],
   SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
   STEP: 1 / 60,             // фиксированный шаг логики
+  /* 1.1А-UX1: масштаб игрового изображения — множитель к целочисленному масштабу экрана; HUD не масштабируется. */
+  ZOOM: { LEVELS: [1, 1.25, 1.5, 1.75], SAVE_KEY: 'pv.zoom.v1', FEET: 0.74 },   // FEET — доля высоты кадра для ступней при увеличении
+  /* 1.1А-UX1: личный фонарь героя — свой свет, не зависит от цепей станции; батарейки пока не расходуются. */
+  FLASHLIGHT: { RANGE: 110, HAND: [7, 25], SPOT: 20, SPOT_ALPHA: 0.3, ALPHA: 0.95 },
   PLAYER: {
     START_X: 1000,          // центр платформы — клавиша R (как раньше)
     HOME: { floor: 'upper', x: 100 },   // 1.1А: старт новой игры и безопасная точка — комната героя, между гитарой и столом
@@ -773,6 +795,15 @@ function parsePlayerSave(cfg, raw) {
   if (typeof x !== 'number' || !Number.isFinite(x) || x < F.minX || x > F.maxX) return null;
   return { floor: d.floor, x: Math.round(x * 10) / 10, facing: d.facing === -1 ? -1 : 1 };
 }
+/** 1.1А-UX1: разбор сохранения масштаба: { v:1, level } → индекс в LEVELS; нет записи / испорчена / чужое значение → 0 (100%). */
+function parseZoom(cfg, raw) {
+  let d; try { d = typeof raw === 'string' ? JSON.parse(raw) : null; } catch (_) { return 0; }
+  if (!d || typeof d !== 'object' || d.v !== 1 || typeof d.level !== 'number') return 0;
+  const i = cfg.ZOOM.LEVELS.indexOf(d.level);
+  return i < 0 ? 0 : i;
+}
+/** Следующий индекс масштаба: ступень ±1, не выходит за пределы LEVELS. */
+function zoomStep(cfg, idx, d) { return Math.max(0, Math.min(cfg.ZOOM.LEVELS.length - 1, idx + d)); }
 /* SCAVENGE:END */
 
 /* =============================== STATION ==================================
@@ -2358,6 +2389,9 @@ const Input = {
       else if (e.code in ACTIONS) { e.preventDefault(); if (!e.repeat) this.queue(ACTIONS[e.code]); }
       else if (e.code === 'Escape' && this.onEscape) this.onEscape();
       else if (e.code === 'KeyR') onReset();
+      else if (e.code === 'KeyF') { e.preventDefault(); if (!e.repeat) Player.toggleFlashlight(); }          // 1.1А-UX1: фонарь
+      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') { if (!e.repeat) Zoom.step(-1); }       // масштаб
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') { if (!e.repeat) Zoom.step(1); }
       else if (e.code === 'Backquote' || e.code === 'F3') { e.preventDefault(); Debug.toggle(); }
     });
     addEventListener('keyup', e => { if (e.code in KEYS) { e.preventDefault(); this.release('k' + e.code); } });
@@ -2386,6 +2420,14 @@ const Player = {
   x: CONFIG.PLAYER.HOME.x, prevX: CONFIG.PLAYER.HOME.x,
   y: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y, prevY: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y,
   vx: 0, facing: 1, path: null, gate: null, alpha: 1,
+  flashlightOn: false,                   // 1.1А-UX1: личный фонарь (после перезагрузки — выключен)
+  /** Состояние фонаря для игровой логики (будущие скрытность, NPC): включён ли, откуда и куда светит, дальность в мировых px.
+      lit — виден ли свет сейчас (во время прохода и ворот луч скрыт). */
+  flashlight() {
+    const F = CONFIG.FLASHLIGHT, lit = this.flashlightOn && this.state === 'walk' && this.alpha > 0.5;
+    return { on: this.flashlightOn, lit, floor: this.floor, x: Math.round(this.x) + this.facing * F.HAND[0], y: this.y - F.HAND[1], facing: this.facing, range: F.RANGE };
+  },
+  toggleFlashlight() { this.flashlightOn = !this.flashlightOn; Flashlight.render(); return this.flashlightOn; },
   walkDist: 0, frame: 0, idleT: 0, blinkT: 3, onStep: null,
   reset() {
     this.floor = 'platform'; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
@@ -2548,6 +2590,7 @@ const Camera = {
       1.0.1: при служебном проходе этаж меняется, пока героя не видно, — камера плавно догоняет новую цель. */
   floorY(f) {
     const maxY = H - this.viewH, F = CONFIG.FLOORS[f];
+    if (Zoom.factor() > 1) return clamp(F.y - this.viewH * CONFIG.ZOOM.FEET, -SURF_H, WORLD_BOTTOM - this.viewH);   // 1.1А-UX1: кадр меньше — у каждого этажа ступни на FEET высоты
     if (F.bottom) return Math.max(-SURF_H, WORLD_BOTTOM - this.viewH);    // 1.0: ярус −2 — низ кадра = низ мира
     return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;   // старые этажи — как в 0.9
   },
@@ -2659,7 +2702,9 @@ const Render = {
     this.devW = Math.round(cssW * this.dpr); this.devH = Math.round(cssH * this.dpr);
     this.canvas.width = this.devW; this.canvas.height = this.devH;
     this.canvas.style.width = cssW + 'px'; this.canvas.style.height = cssH + 'px';
-    this.scale = Math.max(1, Math.floor(this.devH / H));
+    this.baseScale = Math.max(1, Math.floor(this.devH / H));
+    this.scale = this.baseScale * Zoom.factor();                         // 1.1А-UX1: увеличение — игровой рендер и камера, не CSS
+    // На iPhone (×4 по высоте) все уровни дают целый масштаб (4/5/6/7); на других экранах — кратный ступени, выборка nearest.
     this.viewH = Math.ceil(this.devH / this.scale) + 1;                 // +1 строка под дробный сдвиг камеры по Y
     this.viewW = Math.min(W, Math.ceil(this.devW / this.scale));
     this.buf = makeCanvas(this.viewW + 1, this.viewH); this.g = this.buf.getContext('2d');
@@ -2671,6 +2716,7 @@ const Render = {
     this.vignette = this.makeVignette();
     Camera.viewW = this.viewW; Camera.viewH = this.devH / this.scale;
     this.ctx.imageSmoothingEnabled = false;
+    this.zoomed = Zoom.factor() > 1;
   },
   makeVignette() {
     const c = makeCanvas(this.viewW + 1, this.viewH), g = c.getContext('2d'), w = c.width, h = c.height;
@@ -2877,6 +2923,18 @@ const Render = {
       gl.beginPath(); gl.rect(this.sx(c.x0, 1, camX, frac), c.y0 + yo, c.x1 - c.x0, c.y1 - c.y0); gl.clip();
       gl.globalAlpha = 0.8 * cd.lamp * (0.82 + 0.18 * noise1(t * 7, 33)); gl.drawImage(tex, x - 40, y - 40); gl.restore(); n++;
     }
+    const fl = Player.flashlight();                                      // 1.1А-UX1: личный фонарь — та же текстура луча, что у охраны
+    if (fl.lit) {
+      const F = CONFIG.FLASHLIGHT, P = { x: Player.x, y: Player.y, floor: Player.floor, facing: Player.facing, lampType: 'beam', kind: 'walker' };
+      const clip = actorClip(P), x = playerSX + Player.facing * F.HAND[0], y = playerFY - F.HAND[1];
+      const cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, 1, camX, frac) : 0, cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, 1, camX, frac) : vw;
+      const cy0 = clip.y0 > -1e9 ? clip.y0 + yo : 0, cy1 = clip.y1 < 1e9 ? clip.y1 + yo : this.viewH;
+      gl.save(); gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip();              // свет не выходит за стены и перекрытия
+      gl.globalAlpha = F.SPOT_ALPHA; gl.drawImage(this.lampDisc(F.SPOT, [205, 222, 255]), x - F.SPOT, y + 4 - F.SPOT);   // пятно у руки
+      const k = (F.RANGE / 120) * this.beamFit(P, clip, F.RANGE / 120);                       // у стены луч короче и гаснет
+      gl.globalAlpha = F.ALPHA; gl.translate(x, y); gl.scale(Player.facing * k, k); gl.drawImage(this.beamTex, -2, -18);
+      gl.restore(); n += 2;
+    }
     const pClip = Player.state !== 'walk' ? null : { surface: SURF_CLIP, vestibule: VEST_CLIP, upper: UPPER_CLIP, utility: UTIL_CLIP }[Player.floor] || HALL_CLIP;
     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
     this.drawnLights = n;
@@ -2982,6 +3040,12 @@ const Render = {
       tg.globalAlpha = 1;
     }
     if (d) this.flushGlow(d, [po]);                                       // герой стоит перед NPC — вырезается только он
+    const fl = Player.flashlight();                                      // 1.1А-UX1: фонарь в руке героя — корпус и линза поверх спрайта
+    if (fl.lit && po) {
+      const x = po.cx + Player.facing * CONFIG.FLASHLIGHT.HAND[0], y = po.top + 40 - CONFIG.FLASHLIGHT.HAND[1];
+      this.g.fillStyle = '#3a3e40'; this.g.fillRect(x - Player.facing * 3, y, 4, 2);
+      this.g.fillStyle = '#eef4ff'; this.g.fillRect(x + (Player.facing > 0 ? 1 : -1), y, 1, 2);
+    }
   },
   /** Канистры и состояние точек поиска на поверхности (меняются после сбора). */
   drawScavenge(g, camI, yo) {
@@ -3067,6 +3131,50 @@ const Debug = {
 /* ================================ VISUAL ==================================
    Режим яркости сцены: «Атмосферно» / «Нормально» (по умолчанию) / «Светлее». Меняет карту освещения и виньетку,
    HUD и карточки не трогает. Своё сохранение pv.visual.v1 — ресурсы (pv.power.v1, pv.scavenge.v1) не затрагиваются. */
+/** 1.1А-UX1: кнопка интерфейса по отпусканию пальца (как ⚙): касание не уходит в сенсорный слой ходьбы. */
+function tapButton(btn, fn) {
+  let down = null, skip = false;
+  btn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); down = e.pointerId; btn.classList.add('press'); try { btn.setPointerCapture(e.pointerId); } catch (_) { /* не обязателен */ } });
+  btn.addEventListener('pointerup', e => {
+    e.stopPropagation(); e.preventDefault(); btn.classList.remove('press');
+    if (down !== e.pointerId) return; down = null;
+    const r = btn.getBoundingClientRect(), m = 12;
+    if (e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m) { fn(); skip = true; }
+  });
+  btn.addEventListener('pointercancel', () => { down = null; btn.classList.remove('press'); });
+  btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (skip) { skip = false; return; } fn(); });   // клавиатура
+}
+/* ================================ ZOOM ===================================== */
+const Zoom = {
+  idx: 0,
+  factor() { return CONFIG.ZOOM.LEVELS[this.idx]; },
+  load() { try { this.idx = parseZoom(CONFIG, localStorage.getItem(saveKey(CONFIG.ZOOM.SAVE_KEY))); } catch (_) { this.idx = 0; } },
+  step(d) {
+    const i = zoomStep(CONFIG, this.idx, d);
+    if (i === this.idx) return;
+    this.idx = i;
+    try { localStorage.setItem(saveKey(CONFIG.ZOOM.SAVE_KEY), JSON.stringify({ v: 1, level: this.factor() })); } catch (_) { /* хранилище недоступно */ }
+    if (Render.canvas) { Render.resize(); Camera.snap(Player); }         // герой остаётся на месте, кадр центрируется на нём
+    this.render();
+  },
+  init() {
+    this.els = { out: document.getElementById('zoomOut'), in: document.getElementById('zoomIn') };
+    tapButton(this.els.out, () => this.step(-1)); tapButton(this.els.in, () => this.step(1));
+    this.render();
+  },
+  render() {
+    if (!this.els) return;
+    const last = CONFIG.ZOOM.LEVELS.length - 1;
+    this.els.out.disabled = this.idx === 0; this.els.in.disabled = this.idx === last;
+    const pct = Math.round(this.factor() * 100) + '%';
+    this.els.out.setAttribute('aria-label', 'Уменьшить изображение (сейчас ' + pct + ')'); this.els.in.setAttribute('aria-label', 'Увеличить изображение (сейчас ' + pct + ')');
+  },
+};
+/* ============================== FLASHLIGHT ================================ */
+const Flashlight = {
+  init() { this.el = document.getElementById('lamp'); tapButton(this.el, () => Player.toggleFlashlight()); this.render(); },
+  render() { if (!this.el) return; this.el.setAttribute('aria-pressed', String(Player.flashlightOn)); this.el.classList.toggle('on', Player.flashlightOn); },
+};
 const Visual = {
   id: CONFIG.VISUAL.DEFAULT, els: {},
   preset() { return CONFIG.VISUAL.PRESETS[this.id]; },
@@ -3191,8 +3299,8 @@ const Game = {
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
-    Visual.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
-    GenPanel.init(); InfoCard.init(); Visual.init();
+    Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+    GenPanel.init(); InfoCard.init(); Visual.init(); Zoom.init(); Flashlight.init();
     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
     addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); this.savePlayer(); });
@@ -3204,6 +3312,9 @@ const Game = {
       snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
       advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
       station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
+      place: (floor, x, facing = 1) => { Player.place(floor, x, facing); Camera.snap(Player); return true; },   // 1.1А-UX1: для проверок камеры на этажах
+      zoom: () => ({ idx: Zoom.idx, factor: Zoom.factor(), scale: Render.scale, base: Render.baseScale, viewW: Render.viewW, viewH: Render.viewH, camX: Camera.x, camY: Camera.y }),
+      flashlight: () => ({ ...Player.flashlight(), drawn: Render.drawnLights }),
       player: () => { const sp = Player.sprite();                    // 1.0.1: фаза прохода и поза героя (спиной / лицом / боком)
         return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0, dy: Render.archDY || 0,
           pose: !sp ? null : SPRITES.backWalk.includes(sp) || sp === SPRITES.back ? 'back' : SPRITES.frontWalk.includes(sp) ? 'front' : 'side' }; },
