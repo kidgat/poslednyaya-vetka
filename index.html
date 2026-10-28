@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 1.0</title>
+<title>Последняя ветка 1.0.1</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -110,7 +110,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0</button></div>
+  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0.1</button></div>
 </div>
 <div id="hint">Коснись и удерживай левую или правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -136,7 +136,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 1.0 «Подземное хозяйство»<br>
+    <p>Станция «Гагаринская» · прототип 1.0.1 «Служебные переходы»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -145,7 +145,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0 «Подземное хозяйство»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0.1 «Служебные переходы»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -156,29 +156,25 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '1.0',
+  VERSION: '1.0.1',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
   FLOORS: {
     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
     utility:  { y: 368, minX: 310, maxX: 1850, bottom: true },   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
-    upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → галерея над маршем → мастерская → … → насосная
+    upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
     vestibule: { y: -14, minX: 1188, maxX: 1852, cam: 0.40 },   // 0.9: вестибюль +1 — карантин, экипировка, КПП, зал, караульная
     surface:  { y: -122, minX: 1136, maxX: 1980, cam: 0.72 },   // улица (0.9: земля поднята с −61, под ней вестибюль)
   },
-  // Лестничные марши. from/to — этажи; bottom/top — площадки: x — где герой встаёт после перехода,
-  // trigger — участок, где доступна кнопка ▲/▼; run — сам марш: x0 → x1 и число ступеней; hole — проём в перекрытии.
-  // 1.0.1: открытые марши main (0 ↔ −1) и utility (−1 ↔ −2) заменены служебными проходами CONFIG.PASSAGES (1.0.1).
-  STAIRS: [
-    // 0.9: из шлюза яруса 0 в КПП вестибюля. run.x0 — первая ступень снизу, x1 — верх: марш поднимается влево (x1 < x0).
-    // Направление по x задаёт только геометрию; «подняться/спуститься» — как у любого марша (from → to).
-    { id: 'vestibule', from: 'upper', to: 'vestibule',
-    bottom: { x: 1704, trigger: [1692, 1716] }, top: { x: 1530, trigger: [1522, 1546] },
-    run: { x0: 1696, x1: 1540, steps: 18 }, hole: [1540, 1588], holeY: [-16, 19] }],
-  /** 1.0.1: служебные лестницы за стеной. Герой уходит в арку спиной к зрителю и выходит из арки на другом этаже лицом.
-      Один источник истины: точки входа, их этажи, таблички. Лестница за стеной не рисуется, поэтому x на этажах разные. */
+  /** 1.0.1: все внутренние вертикальные переходы — служебные лестницы за стеной (открытых маршей больше нет).
+      Герой уходит в арку спиной к зрителю и выходит из такой же арки на другом этаже лицом.
+      Один источник истины: точки входа, их этажи, таблички. Лестница за стеной не рисуется, поэтому x на этажах разные.
+      Поверхность — по-прежнему через гермоворота (GATES). */
   PASSAGES: [
+    { id: 'service-vestibule', name: 'Служебная лестница: ярус 0 ↔ вестибюль', radius: 10,
+      a: { floor: 'upper',     x: 1680, dir: 'up',   sign: 'КПП' },            // шлюз яруса 0, у прежнего подножия марша
+      b: { floor: 'vestibule', x: 1570, dir: 'down', sign: 'ЯРУС 0' } },       // КПП вестибюля, у прежнего верха марша
     { id: 'service-upper', name: 'Служебная лестница: ярус 0 ↔ платформа', radius: 10,
       a: { floor: 'upper',    x: 806,  dir: 'down', sign: 'ПЕРРОН' },          // бывшая лестничная клетка яруса 0 (правее центра — место указателям)
       b: { floor: 'platform', x: 740,  dir: 'up',   sign: 'ЯРУС 0' } },        // задняя стена платформы между колоннами 660 и 820
@@ -187,7 +183,6 @@ const CONFIG = {
       b: { floor: 'utility',  x: 1500, dir: 'up',   sign: 'ПЕРРОН' } },        // лестничный холл яруса −2
   ],
   PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 4, DARK: 0.85 },
-  STAIR_SPEED: 52,          // пикс/с по горизонтали при ходьбе по маршу
   // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
   // 0.9: гермоворота в центральном зале вестибюля (раньше — прямо из шлюза яруса 0). Обхода вестибюля нет.
   GATES: [{ id: 'surface', radius: 12,
@@ -275,7 +270,7 @@ const CONFIG = {
       onBlackout: ['НЕ ВИЖУ ИНСТРУМЕНТ!', 'ДАЙТЕ СВЕТ!', 'ОПЯТЬ ГЕНЕРАТОР?'], onRestore: ['РАБОТАЕМ ДАЛЬШЕ', 'ДРУГОЕ ДЕЛО!'] },
     'worker-pumps':    { floor: 'upper', kind: 'walker', set: 'worker', x: 1800, walk: [1748, 1852], speed: 18, lamp: 'beam',  // 0.8.1: из placeActors
       onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
-    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на марш в вестибюль
+    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на служебную арку в вестибюль
       onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
     'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
       onBlackout: ['ГРИБАМ ВСЁ РАВНО', 'ГДЕ ФОНАРЬ?', 'НЕ ТОПЧИТЕ ГРЯДКИ!'], onRestore: ['ВОТ, ДРУГОЕ ДЕЛО', 'СВЕТ ЕСТЬ'] },
@@ -742,7 +737,7 @@ function createReactions(cfg) {
 /* SCAVENGE:END */
 
 /* =============================== STATION ==================================
-   Реестр «Гагаринской 3.0»: проекция действующих данных (ROOMS, FLOORS, STAIRS, GATES, GENERATOR, SPACES, INSPECTS)
+   Реестр «Гагаринской 3.0»: проекция действующих данных (ROOMS, FLOORS, PASSAGES, GATES, GENERATOR, SPACES, INSPECTS)
    плюс замыслы из CONFIG.STATION. Второго источника истины нет — активное собирается из рабочих конфигов.
    Блок между маркерами проверяется отдельно: node tests/station.test.js */
 /* STATION:BEGIN */
@@ -765,15 +760,12 @@ function buildStationPlan(cfg, rooms) {
       ...st.plannedRooms.map(r => ({ ...r, status: 'planned' })),
     ],
     connectors: [
-      ...cfg.STAIRS.map(s => ({ id: 'stair-' + s.id, type: 'stair', from: s.from, to: s.to, status: act })),
       ...cfg.GATES.map(g => ({ id: 'gate-' + g.id, type: 'gate', from: g.a.floor, to: g.b.floor, status: act })),
       ...(cfg.PASSAGES || []).map(q => ({ id: 'passage-' + q.id, type: 'passage', from: q.a.floor, to: q.b.floor, status: act })),   // 1.0.1
       ...st.plannedConnectors.map(c => ({ ...c, status: 'planned' })),
     ],
     features: (st.plannedFeatures || []).map(f => ({ ...f, status: 'planned' })),
     interactions: [
-      ...cfg.STAIRS.flatMap(s => [{ id: `stair-${s.id}-bottom`, kind: 'stair', floor: s.from, trigger: s.bottom.trigger },
-                                  { id: `stair-${s.id}-top`, kind: 'stair', floor: s.to, trigger: s.top.trigger }]),
       ...cfg.GATES.flatMap(g => [g.a, g.b].map((e, k) => ({ id: `gate-${g.id}-${k ? 'b' : 'a'}`, kind: 'gate', floor: e.floor, trigger: [e.x - g.radius, e.x + g.radius] }))),
       ...(cfg.PASSAGES || []).flatMap(q => [q.a, q.b].map((e, k) => ({ id: `passage-${q.id}-${k ? 'b' : 'a'}`, kind: 'passage', floor: e.floor, trigger: [e.x - q.radius, e.x + q.radius] }))),
       { id: 'generator', kind: 'generator', floor: cfg.GENERATOR.floor, trigger: cfg.GENERATOR.trigger },
@@ -1283,13 +1275,11 @@ const ROOM_DRAW = {
     // тревожная лампа уровня воды: мигает, цепь technical
     R(g, r.x + 150, 40, 8, 6, '#3a3e40'); const l = addLight(r.x + 154, 46, 40, [255, 120, 50], 'pulse', 0.5); addEmissive(r.x + 151, 41, 6, 4, [255, 150, 70], l);
   },
-  /** 0.9: шлюз яруса 0 — нижний пост у марша в вестибюль. Гермоворота переехали наверх, в центральный зал. */
+  /** 0.9: шлюз яруса 0 — нижний пост у прохода в вестибюль (1.0.1: служебная арка). Гермоворота — наверху, в зале «ШЛЮЗ». */
   lock(g, r) {
     R(g, r.x + 10, 52, 22, 32, '#3a3430'); R(g, r.x + 10, 52, 22, 1, '#5a5048');            // оружейная стойка
     for (let k = 0; k < 4; k++) { L(g, r.x + 14 + k * 5, 55, r.x + 14 + k * 5, 80, '#1c1e20'); R(g, r.x + 13 + k * 5, 76, 3, 5, '#4a3a2a'); }
-    const sx = r.x + r.w - 40; R(g, sx, 46, 34, 11, '#2f3c3e'); R(g, sx, 46, 34, 1, '#4a5254');
-    for (let k = 0; k < 4; k++) R(g, sx + 6 - k, 49 + k, 1 + 2 * k, 1, '#e0c48c');   // стрелка вверх
-    drawText(g, 'КПП', sx + 13, 48, '#e0c48c', 'rgba(0,0,0,.5)');
+    // 1.0.1: указатель «▲ КПП» — над служебной аркой (drawArches)
   },
   /** Карантин: две койки за занавесками, стойка санконтроля, бак для фильтров. */
   quarantine(g, r) {
@@ -1316,7 +1306,7 @@ const ROOM_DRAW = {
       R(g, sx + 1, 66, 4, 26, k ? '#6a5a32' : '#5a6a42'); R(g, sx + 7, 66, 4, 26, k ? '#6a5a32' : '#5a6a42');
     }
   },
-  /** КПП: будка дежурного с окном, журнал, шлагбаум к залу. В восточной части — проём марша с галереей. */
+  /** КПП: будка дежурного с окном, журнал, шлагбаум к залу. В восточной части — служебная арка вниз, на ярус 0 (1.0.1). */
   checkpoint(g, r) {
     R(g, r.x + 8, 52, 34, 44, '#4a5458'); R(g, r.x + 8, 52, 34, 1, '#6a7478'); R(g, r.x + 12, 58, 26, 14, '#1e2a2e'); R(g, r.x + 12, 58, 26, 1, '#3a4a4e');
     const l = addLight(r.x + 25, 66, 26, [140, 190, 200], 'screen', 0.4); addEmissive(r.x + 14, 60, 22, 10, [120, 170, 180], l, 'main', 'screen');
@@ -1456,7 +1446,7 @@ function drawBlastGate(g, x0, mirror = false) {
   R(g, mirror ? x0 + 2 : lx + 76, 130, 6, 84, '#0c0e10');               // щель приоткрытой створки
 }
 /** 1.0.1: линия стыка задней стены с полом у этажа (низ проёма арки). */
-const ARCH_BASE = { upper: 96, platform: 214, utility: 366 };
+const ARCH_BASE = { vestibule: 96 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y, upper: 96, platform: 214, utility: 366 };
 const ARCH_H = 46;
 /** Прямоугольник проёма служебной арки (мировые координаты, без косяков). */
 function archRect(e) { const base = ARCH_BASE[e.floor]; return { x0: e.x - 12, x1: e.x + 12, top: base - ARCH_H, base }; }
@@ -1471,13 +1461,32 @@ function drawServiceArch(g, e) {
   }
   for (let x = x0 - 2; x < x1 + 2; x++) R(g, x, top - 3, 1, 1, rgb([150, 146, 136], 0.9));   // перемычка
   R(g, cx - 2, top - 6, 5, 4, '#8c8a80'); R(g, cx - 2, top - 6, 5, 1, '#aaa89c');            // замковый камень
-  for (let y = top; y < base; y++) {                                                        // глубина: свод скругляет верхние строки
-    const r = y - top, inset = r < 4 ? [5, 3, 2, 1][r] : 0, v = Math.round(10 + 10 * (y - top) / ARCH_H);
-    R(g, x0, y, x1 - x0, 1, rgb([60, 62, 64], 0.9)); R(g, x0 + inset, y, x1 - x0 - 2 * inset, 1, `rgb(${v},${v + 2},${v + 4})`);
+  // Глубина проёма: тёмный ход, боковые откосы сходятся к дальней стене шахты, свод скругляет верхние строки.
+  const ins = r => (r < 4 ? [5, 3, 2, 1][r] : 0);
+  for (let y = top; y < base; y++) {
+    const r = y - top, i = ins(r);
+    R(g, x0, y, x1 - x0, 1, rgb([60, 62, 64], 0.9)); R(g, x0 + i, y, x1 - x0 - 2 * i, 1, '#0b0d0f');
+    for (let k = 0; k < 4; k++) {                                                           // откосы: светлее у края, темнее вглубь
+      const v = 46 - k * 9;
+      if (x0 + i + k < cx - 6) R(g, x0 + i + k, y, 1, 1, `rgb(${v},${v + 2},${v + 3})`);
+      if (x1 - 1 - i - k > cx + 6) R(g, x1 - 1 - i - k, y, 1, 1, `rgb(${v - 10},${v - 8},${v - 6})`);
+    }
   }
-  for (let k = 0; k < 4; k++) {                                                             // первые ступени внутрь (сужаются вглубь)
-    const w = 22 - k * 4, y = up ? base - 3 - k * 5 : base - 2 - k * 3, c = 70 - k * 13;
-    R(g, cx - w / 2, y, w, 1, rgb([c + 22, c + 20, c + 16])); R(g, cx - w / 2, y + 1, w, up ? 4 : 2, rgb([c, c - 2, c - 6]));
+  R(g, cx - 7, top + 8, 14, base - top - 8, '#07080a');                                      // дальняя стена шахты
+  if (up) {                                                                                 // ступени вверх: проступи и подступенки уходят к площадке
+    for (let k = 0; k < 7; k++) {
+      const w = 22 - 2 * k, y = base - 2 - k * 5, c = 92 - k * 11;
+      if (y - 4 < top + 6) break;
+      R(g, cx - w / 2, y - 4, w, 4, rgb([c - 26, c - 28, c - 30])); R(g, cx - w / 2, y - 5, w, 1, rgb([c + 14, c + 12, c + 8]));
+    }
+    R(g, cx - 4, top + 6, 8, 3, 'rgba(120,110,90,.22)');                                      // отсвет с верхней площадки
+  } else {                                                                                  // ступени вниз: кромки сходятся и темнеют, перила уходят вниз
+    for (let k = 0; k < 6; k++) {
+      const w = 22 - 2 * k, y = base - 2 - k * 2, c = 84 - k * 12;
+      R(g, cx - w / 2, y, w, 1, rgb([c + 10, c + 8, c + 4])); R(g, cx - w / 2, y + 1, w, 1, rgb([c - 34, c - 36, c - 38]));
+    }
+    L(g, x0 + 3, base - 19, x0 + 6, base - 11, '#4a4844'); L(g, x1 - 4, base - 19, x1 - 7, base - 11, '#34322e');   // поручни уходят вниз по откосам
+    R(g, cx - 4, base - 15, 8, 2, 'rgba(120,100,70,.18)');                                     // отсвет снизу, из шахты
   }
   for (let k = 0; k < 3; k++) {                                                             // потёки под сводом и стёртая отделка
     const x = x0 - 3 + ((hash(e.x, k) * 30) | 0), len = 4 + ((hash(k, e.x) * 10) | 0);
@@ -1674,10 +1683,6 @@ function drawFore(g, w) {
 const DOORWAYS = [[426, 444], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
 /** Проёмы между комнатами вестибюля (0.9), в координатах шаблона комнаты. */
 const VEST_DOORWAYS = [[1326, 1344], [1446, 1464], [1592, 1610], [1746, 1764]];
-/** Задние галереи над проёмами маршей: по ним идут по этажу; пока герой на галерее, перила марша — перед ним. */
-const GALLERIES = [
-  { floor: 'vestibule', x0: 1536, x1: 1592, stair: 'vestibule' },        // 0.9: над проёмом марша в КПП; проём в зал — с 1592
-];   // 1.0.1: галереи открытых маршей 0 ↔ −1 и −1 ↔ −2 убраны вместе с маршами
 function drawDoorways(g, list = DOORWAYS) {
   list.forEach(([a, b]) => {
     R(g, a, 50, b - a, 46, '#14171a');                                  // тёмный проём
@@ -1685,72 +1690,6 @@ function drawDoorways(g, list = DOORWAYS) {
     R(g, a, 51, 1, 45, '#454b4d'); R(g, b - 1, 51, 1, 45, '#24282a');   // косяки
     R(g, a, 96, b - a, 4, '#4e463c'); R(g, a, 96, b - a, 1, '#8a8478'); R(g, a, 100, b - a, 1, '#24221f'); // порог
   });
-}
-/** Высота верха ступени под точкой x (ступни героя на марше). */
-function stairTopY(s, x) {
-  const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1, steps } = s.run;
-  // 0.9: марш может подниматься и вправо (x1 > x0), и влево (x1 < x0). Для главного марша — прежняя формула без изменений.
-  const u = x1 > x0 ? x - x0 : x0 - x, run = Math.abs(x1 - x0);
-  if (u < 0) return yb;
-  if (u >= run) return yt;
-  return Math.round(yb - (Math.floor(u / (run / steps)) + 1) * (yb - yt) / steps);
-}
-/** Бетонный марш (только изображение, маршрут задаёт stairTopY): ступени лежат на наклонной несущей плите
-    толщиной ~10 px; под плитой — просвет со стеной станции. Внизу — опорная тумба, посередине — одна стойка,
-    верхний конец заделан в перекрытие у площадки. */
-function drawStairs(g) {
-  CONFIG.STAIRS.forEach(s => {
-    const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y, { x0, x1 } = s.run, [h0, h1] = s.hole, [hy0, hy1] = s.holeY;
-    const d = x1 > x0 ? 1 : -1;                                          // 0.9: направление подъёма по x
-    const SLAB = 15;                                                    // от линии кромок ступеней до низа плиты
-    const nosing = x => yb - (x - x0) * (yb - yt) / (x1 - x0);
-    const underside = x => Math.min(yb, Math.round(nosing(x) + SLAB));
-    const conc = (x, y, v) => { const n = (hash(x, y + 404) - 0.5) * 10; R(g, x, y, 1, 1, rgb([v + n, v - 4 + n, v - 10 + n])); };
-    R(g, h0, hy0, h1 - h0, hy1 - hy0, '#121417');                       // проём сквозь пол и перекрытие
-    R(g, d > 0 ? h0 - 1 : h1, hy0, 1, hy1 - hy0, '#6e706c'); R(g, h0 - 1, hy1 - 1, h1 - h0 + 1, 1, '#3a3c3e');
-    drawGallery(g, h0, h1, yt - CONFIG.FLOORS.upper.y);
-    // Опорная тумба у подножия.
-    for (let k = -6; k < 26; k++) for (let y = yb - 14; y < yb; y++)
-      conc(x0 + d * k, y, y === yb - 14 ? 138 : k === -6 ? 116 : y >= yb - 2 ? 62 : 92);
-    // Стойка под серединой марша.
-    const px = Math.round(x0 + ((d > 0 ? h0 : h1) - x0) * 0.9);
-    for (let k = 0; k < 6; k++) for (let y = underside(px + d * 3); y < yb; y++) conc(px + d * k, y, k === 0 ? 120 : k === 5 ? 70 : 96);
-    R(g, d > 0 ? px - 2 : px - 7, yb - 2, 10, 2, '#4a4844');
-    // Ступени и несущая плита.
-    for (let k = 0; k < Math.abs(x1 - x0); k++) {
-      const x = x0 + d * k, top = stairTopY(s, x), riser = top !== stairTopY(s, x - d), bottom = underside(x);
-      for (let y = top; y < bottom; y++) {
-        const v = y === top ? 150 : y === top + 1 ? 124 : y === bottom - 1 ? 58 : y === bottom - 2 ? 74 : riser ? 112 : 98;
-        conc(x, y, v);
-      }
-    }
-    for (let y = stairTopY(s, x1 - d); y < underside(x1 - d); y++) R(g, x1, y, 1, 1, '#4a4844');   // торец у площадки
-  });
-}
-/** Задняя галерея над проёмом: решётчатый настил вровень с полом яруса, кронштейны в стену, перила со стойками.
-    Рисуется до ступеней — марш проходит перед ней; поднимающийся по маршу не задевает настил головой. */
-function drawGallery(g, h0, h1, dy = 0) {
-  g.save(); g.translate(0, dy);                                          // 0.9: шаблон галереи яруса со сдвигом этажа
-  for (let x = h0; x < h1; x++) {
-    R(g, x, 95, 1, 1, '#9a9e96'); R(g, x, 96, 1, 1, '#6e726c'); R(g, x, 97, 1, 2, (x % 3) ? '#4a4e50' : '#22262a'); R(g, x, 99, 1, 1, '#1c1e20');
-  }
-  R(g, h0, 100, h1 - h0, 2, '#2e3234');                                  // швеллер под настилом
-  for (let x = h0 + 6; x < h1 - 4; x += 22) { L(g, x, 102, x + 10, 114, '#4a4e50', 2); R(g, x - 1, 101, 3, 2, '#3a3e40'); }   // кронштейны
-  for (let x = h0 - 2; x <= h1 + 2; x++) { R(g, x, 79, 1, 1, '#8c8e86'); R(g, x, 80, 1, 1, '#45484a'); R(g, x, 88, 1, 1, '#5a5e5a'); }
-  for (let x = h0; x <= h1; x += 16) R(g, x, 81, 1, 15, '#55595a');
-  R(g, h1, 81, 1, 15, '#55595a');
-  g.restore();
-}
-/** Перила вдоль марша. Рисуются позади героя, а пока он идёт по маршу или по галерее за ним — перед ним. */
-function drawRail(g, s, camI, yo) {
-  const { x0, x1 } = s.run, yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y;
-  const railY = x => Math.round(yb - (x - x0) * (yb - yt) / (x1 - x0)) - 15;
-  if (Math.max(x0, x1) < camI - 2 || Math.min(x0, x1) > camI + Render.viewW + 2) return;   // 0.9: марш вне кадра
-  for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
-    const y = railY(x) + yo, sx = x - camI;
-    g.fillStyle = '#9a968c'; g.fillRect(sx, y, 1, 1); g.fillStyle = '#4a4844'; g.fillRect(sx, y + 1, 1, 1);
-    if (Math.abs(x - x0) % 27 === 0 || x === x1) { g.fillStyle = '#6a6862'; g.fillRect(sx, y + 2, 1, stairTopY(s, x) + yo - y - 2); }
-  }
 }
 
 /* ---------- VESTIBULE (0.9): этаж +1 в грунте под павильоном ---------- */
@@ -1771,7 +1710,7 @@ function buildVestibule() {
   ROOMS.filter(r => roomFloor(r) === 'vestibule').forEach(r => drawRoom(g, r));
   g.save(); g.translate(0, dy); drawDoorways(g, VEST_DOORWAYS); g.restore();
   CONFIG.EMERGENCY_LAMPS.filter(e => ROOMS.find(r => r.id === e.room && roomFloor(r) === 'vestibule')).forEach(e => addEmergencyLamp(g, e));
-  drawStairs(g);                                                         // марш и галерея — те же мировые координаты, что на основном слое
+  drawArches(g, ['vestibule']);                                          // 1.0.1: служебная арка КПП
   WORLD.vest = c;
 }
 
@@ -1907,7 +1846,6 @@ function buildWorld() {
   CONFIG.EMERGENCY_GLOW.forEach(e => { const l = addLight(e.x, e.y, e.r, [255, 52, 40], 'pulse', 0.75, 'main', 'emergency'); l.clip = HALL_CLIP; l.pool = true; });
   drawEnds(gm);
   drawProps(gm);
-  drawStairs(gm);
   drawArches(gm, ['upper', 'platform']);                                   // 1.0.1: служебные арки яруса 0 и платформы
   const back = makeCanvas(W, H), gb = back.getContext('2d', { willReadFrequently: true });
   paintRegion(gb, 0, 122, W, 92, backTexel);
@@ -2317,7 +2255,7 @@ const Input = {
 
 /* ================================ PLAYER ================================== */
 const Player = {
-  floor: 'platform', state: 'walk',      // state: 'walk' | 'stairs' | 'gate'
+  floor: 'platform', state: 'walk',      // state: 'walk' | 'passage' | 'gate' (1.0.1: открытых маршей нет)
   x: CONFIG.PLAYER.START_X, prevX: CONFIG.PLAYER.START_X,
   y: CONFIG.FLOORS.platform.y, prevY: CONFIG.FLOORS.platform.y,
   vx: 0, facing: 1, path: null, gate: null, alpha: 1,
@@ -2331,10 +2269,6 @@ const Player = {
   interaction() {
     if (this.state !== 'walk') return null;
     const inside = (x, [a, b]) => x >= a && x <= b;
-    for (const s of CONFIG.STAIRS) {
-      if (this.floor === s.from && inside(this.x, s.bottom.trigger)) return { kind: 'stair', stair: s, dir: 'up' };
-      if (this.floor === s.to && inside(this.x, s.top.trigger)) return { kind: 'stair', stair: s, dir: 'down' };
-    }
     for (const q of CONFIG.PASSAGES)                                      // 1.0.1: служебные проходы
       for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
         if (this.floor === from.floor && Math.abs(this.x - from.x) <= q.radius) return { kind: 'passage', passage: q, from, to, dir: from.dir };
@@ -2355,13 +2289,11 @@ const Player = {
   },
   update(dt, dir, action) {
     this.prevX = this.x; this.prevY = this.y;
-    if (this.state === 'stairs') { this.updateStairs(dt); return; }      // горизонтальный ввод во время перехода игнорируется
     if (this.state === 'gate') { this.updateGate(dt); return; }
     if (this.state === 'passage') { this.updatePassage(dt); return; }   // 1.0.1: ввод во время прохода игнорируется
     if (action) {
       const it = this.interaction();
       if (it && (action === 'use' || action === it.dir)) {
-        if (it.kind === 'stair') { this.startStairs(it); return; }
         if (it.kind === 'gate') { this.startGate(it); return; }
         if (it.kind === 'passage') { this.startPassage(it); return; }
       }
@@ -2391,33 +2323,6 @@ const Player = {
       this.walkDist = 0; this.frame = 0; this.idleT += dt;
     }
     this.blinkT -= dt; if (this.blinkT < -0.12) this.blinkT = 2.5 + Math.random() * 3;
-  },
-  /** Марш: путь из точек — до первой ступени, по диагонали, до площадки другого этажа. */
-  startStairs({ stair: s, dir }) {
-    const yb = CONFIG.FLOORS[s.from].y, yt = CONFIG.FLOORS[s.to].y;
-    const pts = dir === 'up'
-      ? [[this.x, yb], [s.run.x0, yb], [s.run.x1, yt], [s.top.x, yt]]
-      : [[this.x, yt], [s.run.x1, yt], [s.run.x0, yb], [s.bottom.x, yb]];
-    this.state = 'stairs'; this.vx = 0; this.path = { stair: s, pts, seg: 0, to: dir === 'up' ? s.to : s.from };
-  },
-  /** Идём по пути с постоянной горизонтальной скоростью; на марше ступни — на ступенях, анимация — обычная ходьба. */
-  updateStairs(dt) {
-    const P = this.path, last = P.pts.length - 1;
-    let left = CONFIG.STAIR_SPEED * dt;
-    while (left > 0 && P.seg < last) {
-      const [ax, ay] = P.pts[P.seg], [bx, by] = P.pts[P.seg + 1], remaining = Math.abs(bx - this.x);
-      if (remaining <= left) { this.x = bx; this.y = by; left -= remaining; P.seg++; continue; }
-      const dir = Math.sign(bx - ax);
-      this.x += dir * left; this.facing = dir; left = 0;
-      const r = P.stair.run, onRun = (ax === r.x0 && bx === r.x1) || (ax === r.x1 && bx === r.x0);   // 0.9: оба направления
-      this.y = onRun ? stairTopY(P.stair, this.x) : ay + (by - ay) * ((this.x - ax) / (bx - ax));
-    }
-    this.walkDist += CONFIG.STAIR_SPEED * dt * 1.2;                      // по диагонали шаг длиннее
-    this.frame = Math.floor(this.walkDist / CONFIG.PLAYER.STRIDE) % 8;
-    if (P.seg >= last) {
-      this.floor = P.to; this.y = CONFIG.FLOORS[P.to].y;
-      this.state = 'walk'; this.path = null; this.vx = 0; this.walkDist = 0; this.frame = 0; this.idleT = 0;
-    }
   },
   /** 1.0.1: служебный проход. align — подойти к центру арки; turn — спиной к зрителю; enter — шаги вглубь (темнеет, уходит выше);
       transit — лестница за стеной (героя не видно, камера едет); exit — из глубины арки лицом к зрителю; settle — снова боком. */
@@ -2470,7 +2375,6 @@ const Player = {
     return side === 'vestibule' ? 1 : 0;                                // 0.9: створки — в зале вестибюля
   },
   sprite() {
-    if (this.state === 'stairs') return SPRITES.walk[this.frame];
     if (this.state === 'gate') return this.gate.phase === 'travel' ? null : this.gate.phase === 'exit' ? SPRITES.idle[0] : SPRITES.back;
     if (this.state === 'passage') {                                        // 1.0.1: спиной — при входе, лицом — при выходе
       const s = this.pass;
@@ -2509,19 +2413,13 @@ const Camera = {
   },
   clampX(x) { return clamp(x, 0, Math.max(0, W - this.viewW)); },
   /** 0.9: цель по y — у каждого этажа своя (FLOORS[f].cam — доля высоты кадра для ступней; нет — низ станции).
-      На марше камера плавно переходит от цели одного этажа к другому по высоте героя. */
+      1.0.1: при служебном проходе этаж меняется, пока героя не видно, — камера плавно догоняет новую цель. */
   floorY(f) {
     const maxY = H - this.viewH, F = CONFIG.FLOORS[f];
     if (F.bottom) return Math.max(-SURF_H, WORLD_BOTTOM - this.viewH);    // 1.0: ярус −2 — низ кадра = низ мира
     return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;   // старые этажи — как в 0.9
   },
-  targetY(p) {
-    if (p.state === 'stairs' && p.path) {
-      const s = p.path.stair, ya = CONFIG.FLOORS[s.from].y, yb = CONFIG.FLOORS[s.to].y, k = clamp((ya - p.y) / (ya - yb), 0, 1);
-      return this.floorY(s.from) + (this.floorY(s.to) - this.floorY(s.from)) * k;
-    }
-    return this.floorY(p.floor);
-  },
+  targetY(p) { return this.floorY(p.floor); },                         // 1.0.1: при проходе этаж меняется, когда героя не видно — камера плавно догоняет
   snap(player) {
     this.look = player.facing * CONFIG.CAMERA.LOOK_AHEAD * 0.4;
     this.x = this.prevX = this.clampX(player.x + this.look - this.viewW / 2); this.vel.v = 0;
@@ -2681,11 +2579,7 @@ const Render = {
     for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
     g.globalAlpha = 1;
     if (yo > 0) { g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1); }
-    // 4. Перила (позади героя), жители, охрана, мутанты, затем герой.
-    const onStairs = Player.state === 'stairs';
-    const gal = Player.state === 'walk' ? GALLERIES.find(q => q.floor === Player.floor && Player.x >= q.x0 && Player.x <= q.x1) : null;
-    const front = onStairs ? Player.path.stair : gal ? CONFIG.STAIRS.find(st => st.id === gal.stair) : null;   // этот марш — перед героем
-    CONFIG.STAIRS.forEach(st => { if (st !== front) drawRail(g, st, camI, yo); });
+    // 4. Жители, охрана, мутанты, затем герой.
     this.occ.length = 0;
     this.drawActors(g, camI, yo);
     const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
@@ -2703,7 +2597,6 @@ const Render = {
       this.playerOcc = { spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha };
       this.occ.push(this.playerOcc);
     }
-    if (front) drawRail(g, front, camI, yo);                             // на марше или на галерее за ним — перила перед героем
     // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
     this.drawLightmap(camX, frac, t, px, fy);
     g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
@@ -3289,7 +3182,7 @@ const Game = {
   /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
   updateAction() {
     const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
-    let label = !it ? '' : it.kind === 'stair' || it.kind === 'passage' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
+    let label = !it ? '' : it.kind === 'passage' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
       : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
     if (it && it.kind === 'scavenge' && !Scavenge.available(it.item.id)) label = it.item.id === 'cache' ? '◎ Тайник пуст' : '◎ Пусто';
     if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
@@ -3302,8 +3195,7 @@ const Game = {
   /** Подпись HUD: на платформе — зона, наверху — комната, в пути — «Лестница». */
   updateZone() {
     let z;
-    if (Player.state === 'stairs') z = 'Лестница';
-    else if (Player.state === 'gate') z = 'Шлюз';
+    if (Player.state === 'gate') z = 'Шлюз';
     else if (Player.state === 'passage') z = 'Служебная лестница';
     else if (Player.floor === 'surface') z = 'Поверхность · павильон';
     else if (ROOM_FLOORS.includes(Player.floor)) {

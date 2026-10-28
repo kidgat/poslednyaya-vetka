@@ -69,7 +69,7 @@ ok('P01 Пост 2: первая реплика «Станция Московс�
 const allLines = CONFIG.INSPECTS.flatMap(i => i.lines);
 ok('P02 в репликах нет вложенных кавычек „…“ внутри «…»', allLines.every(l => !/[„“]/.test(l)), allLines.filter(l => /[„“]/.test(l)).join(' | '));
 ok('P03 реплики — по-прежнему по 5–10 у каждого места, смысл постов сохранён', CONFIG.INSPECTS.find(i => i.id === 'inspect-west-post').lines[0].includes('Спортивн') && post2.lines.length === 5);
-ok('P04 нижний пост шлюза светит вправо — на подножие марша в вестибюль', N['guard-airlock-west'].aim === 1 && CONFIG.STAIRS.find(s => s.id === 'vestibule').bottom.x > N['guard-airlock-west'].x);
+ok('P04 нижний пост шлюза светит вправо — на служебную арку в вестибюль', N['guard-airlock-west'].aim === 1 && CONFIG.PASSAGES.find(q => q.id === 'service-vestibule').a.x > N['guard-airlock-west'].x);
 // 0.9 «Вестибюль +1»
 const NEW = { 'quarantine-medic': 'talk-quarantine', 'guard-rest': 'talk-guardroom' };
 ok('W01 санитар карантина и караульный — в вестибюле, по 5 разных реплик', Object.entries(NEW).every(([n, t]) => { const i = CONFIG.INSPECTS.find(x => x.id === t); return N[n].floor === 'vestibule' && i && i.npc === n && i.lines.length === 5 && new Set(i.lines).size === 5; }));
