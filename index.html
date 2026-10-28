@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 1.1А-UX2</title>
+<title>Последняя ветка 1.1.0</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -128,7 +128,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.1А-UX2</button></div>
+  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.1.0</button></div>
 </div>
 <div id="hint">Коснись точки на полу или удерживай левую/правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -155,7 +155,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 1.1А-UX2 «Сердце станции»<br>
+    <p>Станция «Гагаринская» · прототип 1.1.0 «Сердце станции: дом героя»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -164,7 +164,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.1А-UX2 «Сердце станции»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.1.0 «Сердце станции: дом героя»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -190,7 +190,7 @@ const saveKey = key => envSaveKey(ENV, key);
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '1.1А-UX2',
+  VERSION: '1.1.0',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -1248,7 +1248,7 @@ const ROOM_DRAW = {
     // фотографии
     R(g, x + 86, 34, 9, 11, '#b8a98a'); R(g, x + 87, 35, 7, 7, '#6a7a6a');
     R(g, x + 86, 48, 9, 8, '#b8a98a'); R(g, x + 87, 49, 7, 5, '#7a6a5a');
-    // рисунок крыльев на листке (намёк на Орден, без знака)
+    // рисунок крыльев на листке
     R(g, x + 100, 40, 16, 12, '#d8d0bc'); R(g, x + 100, 40, 16, 1, '#ece4d2');
     for (let k = 0; k < 5; k++) { R(g, x + 107 - k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); R(g, x + 109 + k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); }
     R(g, x + 108, 44, 1, 5, '#4a4440');

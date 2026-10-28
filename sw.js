@@ -8,7 +8,7 @@
 // и чистит только его; PROD чистит только poslednyaya-vetka-*. Даже на общем origin кэши друг друга не удаляют.
 const DEV = /\.pages\.dev$/i.test(self.location.hostname) || /^\/poslednyaya-vetka-dev\//.test(self.location.pathname);
 const PREFIX = DEV ? 'pv-dev-' : 'poslednyaya-vetka-';
-const CACHE = PREFIX + '1.1А-UX2';
+const CACHE = PREFIX + '1.1.0';
 const FILES = ['./', './index.html', DEV ? './manifest-dev.webmanifest' : './manifest.webmanifest', './icon-180.png', './icon-512.png'];
 const SCOPE = new URL('./', self.location).pathname;             // папка игры на сервере
 const NET_TIMEOUT = 3000;
