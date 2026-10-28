@@ -41,6 +41,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 .hud-r{display:flex;align-items:flex-start}
 #ver{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:11px;
   padding:6px 9px;letter-spacing:.08em;cursor:pointer}
+#ver.dev{color:#ffb35a;border-color:#a8652a}   /* DEV-метка: «v… DEV» оранжевым, на месте номера версии */
 #hint{position:fixed;z-index:3;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
   font-size:11px;color:#d4ccb6;background:var(--panel);padding:6px 11px;border:1px solid var(--line);white-space:nowrap;
   pointer-events:none;transition:opacity 1s}
@@ -153,6 +154,21 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
    ========================================================================== */
 (() => {
 'use strict';
+
+/* ============================ ENV (PROD / DEV) =========================== */
+/* ENV:BEGIN — окружение по адресу. PROD — kidgat.github.io/poslednyaya-vetka/ (и всё, что не DEV: локальные файлы, тесты).
+   DEV — тестовая публикация: *.pages.dev (Cloudflare Pages, ветка dev) или папка /poslednyaya-vetka-dev/ (отдельный GitHub Pages-проект).
+   В DEV сохранения живут под pv.dev.* — ключи PROD (pv.power.v1, pv.scavenge.v1, pv.visual.v1) не читаются и не пишутся.
+   Код одинаковый для обеих публикаций: на адресе PROD он никогда не возьмёт тестовые сохранения. */
+function detectEnv(loc) {
+  if (!loc || !loc.hostname) return 'prod';
+  if (/\.pages\.dev$/i.test(loc.hostname) || /^\/poslednyaya-vetka-dev(\/|$)/.test(loc.pathname || '')) return 'dev';
+  return 'prod';
+}
+function envSaveKey(env, key) { return env === 'dev' ? key.replace(/^pv\./, 'pv.dev.') : key; }
+/* ENV:END */
+const ENV = detectEnv(typeof location === 'undefined' ? null : location);
+const saveKey = key => envSaveKey(ENV, key);
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
@@ -2970,11 +2986,11 @@ const Debug = {
 const Visual = {
   id: CONFIG.VISUAL.DEFAULT, els: {},
   preset() { return CONFIG.VISUAL.PRESETS[this.id]; },
-  load() { try { this.id = parseVisual(CONFIG.VISUAL, localStorage.getItem(CONFIG.VISUAL.SAVE_KEY)); } catch (_) { this.id = CONFIG.VISUAL.DEFAULT; } },
+  load() { try { this.id = parseVisual(CONFIG.VISUAL, localStorage.getItem(saveKey(CONFIG.VISUAL.SAVE_KEY))); } catch (_) { this.id = CONFIG.VISUAL.DEFAULT; } },
   set(id) {
     if (!CONFIG.VISUAL.PRESETS[id]) return;
     this.id = id;
-    try { localStorage.setItem(CONFIG.VISUAL.SAVE_KEY, JSON.stringify({ v: 1, brightness: id })); } catch (_) { /* хранилище недоступно */ }
+    try { localStorage.setItem(saveKey(CONFIG.VISUAL.SAVE_KEY), JSON.stringify({ v: 1, brightness: id })); } catch (_) { /* хранилище недоступно */ }
     if (Render.canvas) Render.vignette = Render.makeVignette();          // маска виньетки — только при смене режима
     this.render();
   },
@@ -3206,19 +3222,19 @@ const Game = {
     this.saveSt = (this.saveSt || 0) + dt;
     if (this.saveSt >= 5) { this.saveSt = 0; this.saveScavenge(); }      // таймер тайника — раз в 5 с
   },
-  saveScavenge() { try { localStorage.setItem(CONFIG.SCAVENGE.SAVE_KEY, JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
+  saveScavenge() { try { localStorage.setItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY), JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   /** Отдельный ключ: испорченная запись поиска сбрасывает только поиск, энергосистему не трогает. */
   loadScavenge() {
     try {
-      const raw = localStorage.getItem(CONFIG.SCAVENGE.SAVE_KEY);
-      if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY);
-    } catch (_) { try { localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY); } catch (__) { /* нет доступа */ } }
+      const raw = localStorage.getItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
+      if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
+    } catch (_) { try { localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY)); } catch (__) { /* нет доступа */ } }
   },
-  savePower() { try { localStorage.setItem(CONFIG.POWER.SAVE_KEY, JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
+  savePower() { try { localStorage.setItem(saveKey(CONFIG.POWER.SAVE_KEY), JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   loadPower() {
     try {
-      const raw = localStorage.getItem(CONFIG.POWER.SAVE_KEY);
-      if (raw && !Power.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.POWER.SAVE_KEY);   // испорченная запись
+      const raw = localStorage.getItem(saveKey(CONFIG.POWER.SAVE_KEY));
+      if (raw && !Power.restore(JSON.parse(raw))) localStorage.removeItem(saveKey(CONFIG.POWER.SAVE_KEY));   // испорченная запись
     } catch (_) { /* битый JSON или нет доступа — стартуем с начальных запасов */ }
   },
   /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
@@ -3252,6 +3268,12 @@ Game.start();
 
 /* Офлайн-режим: на обычном хостинге (https) игра кэшируется и потом открывается без интернета.
    С диска (file://) и во встроенных просмотрщиках регистрация не нужна и тихо пропускается. */
+if (ENV === 'dev') {                                                 // DEV: метка, своё имя на экране «Домой», свой манифест
+  const v = document.getElementById('ver'); v.textContent = 'v' + CONFIG.VERSION + ' DEV'; v.classList.add('dev');
+  document.title = 'Последняя ветка DEV ' + CONFIG.VERSION;
+  const t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = 'ПВ DEV';
+  const m = document.querySelector('link[rel="manifest"]'); if (m) m.href = 'manifest-dev.webmanifest';
+}
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => { /* офлайн-кэш недоступен — игра работает и так */ });
 }

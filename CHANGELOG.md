@@ -1,5 +1,14 @@
 # Журнал изменений
 
+## dev — этап 0 «PROD и DEV» (28.10.2026, только ветка dev; игра = 1.0.1)
+
+- Окружение по адресу (`ENV:BEGIN/END`). DEV — `*.pages.dev` или `/poslednyaya-vetka-dev/`, всё остальное — PROD.
+- DEV-сохранения под `pv.dev.*`; все обращения к localStorage идут через `saveKey`. Ключи PROD не менялись.
+- `sw.js`: в DEV кэш `pv-dev-*`, чистит только свой; в PROD прежний `poslednyaya-vetka-*`.
+- DEV-метка «v1.0.1 DEV», имя «ПВ DEV» на экране «Домой», `manifest-dev.webmanifest`.
+- `tests/env.test.js` (12 проверок); `.github/workflows/tests.yml` — юнит-тесты на push в `dev` и на PR в `main`.
+- `docs/PROD_DEV.md`: схема, ручные шаги автора (тег, защита `main`, публикация DEV), откат.
+
 ## 1.0.1 «Служебные переходы» — 28.10.2026 (Claude, по ТЗ ChatGPT с уточнениями автора; 1.0 проверена автором на iPhone)
 
 **Вестибюль**
