@@ -15,6 +15,6 @@ jobs:
         with:
           node-version: 22
       - run: |
-          for t in env station life power scavenge player ux; do
+          for t in env station life power scavenge player ux input; do
             echo "== $t"; node tests/$t.test.js | tail -1; node tests/$t.test.js > /dev/null || exit 1
           done
