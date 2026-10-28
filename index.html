@@ -174,15 +174,15 @@ const CONFIG = {
   PASSAGES: [
     { id: 'service-vestibule', name: 'Служебная лестница: ярус 0 ↔ вестибюль', radius: 10,
       a: { floor: 'upper',     x: 1680, dir: 'up',   sign: 'КПП' },            // шлюз яруса 0, у прежнего подножия марша
-      b: { floor: 'vestibule', x: 1570, dir: 'down', sign: 'ЯРУС 0' } },       // КПП вестибюля, у прежнего верха марша
+      b: { floor: 'vestibule', x: 1570, dir: 'down', sign: 'СЛУЖБЫ' } },       // КПП вестибюля, у прежнего верха марша
     { id: 'service-upper', name: 'Служебная лестница: ярус 0 ↔ платформа', radius: 10,
       a: { floor: 'upper',    x: 806,  dir: 'down', sign: 'ПЕРРОН' },          // бывшая лестничная клетка яруса 0 (правее центра — место указателям)
-      b: { floor: 'platform', x: 740,  dir: 'up',   sign: 'ЯРУС 0' } },        // задняя стена платформы между колоннами 660 и 820
+      b: { floor: 'platform', x: 740,  dir: 'up',   sign: 'СЛУЖБЫ' } },        // задняя стена платформы между колоннами 660 и 820
     { id: 'service-utility', name: 'Служебная лестница: платформа ↔ ярус −2', radius: 10,
-      a: { floor: 'platform', x: 1540, dir: 'down', sign: 'ХОЗЯЙСТВО' },       // задняя стена техзоны между колоннами 1460 и 1620
+      a: { floor: 'platform', x: 1540, dir: 'down', sign: 'ХОЗБЛОК' },       // задняя стена техзоны между колоннами 1460 и 1620
       b: { floor: 'utility',  x: 1500, dir: 'up',   sign: 'ПЕРРОН' } },        // лестничный холл яруса −2
   ],
-  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 10, DARK: 0.8 },   // DEPTH — на сколько px герой поднимается по ступеням внутри арки
+  PASSAGE: { ALIGN_SPEED: 46, TURN: 0.14, ENTER: 0.8, TRANSIT: 0.65, EXIT: 0.8, SETTLE: 0.16, DEPTH: 10, SINK: 30, LANDING_K: 0.3, DARK: 0.8 },   // DEPTH — подъём по ступеням арки «вверх», px; SINK — спуск ниже кромки площадки арки «вниз», px; LANDING_K — доля пути по площадке
   // Гермоворота: проход между точками a и b (переход с затемнением, камера едет следом).
   // 0.9: гермоворота в центральном зале вестибюля (раньше — прямо из шлюза яруса 0). Обхода вестибюля нет.
   GATES: [{ id: 'surface', radius: 12,
@@ -742,7 +742,8 @@ function createReactions(cfg) {
    Блок между маркерами проверяется отдельно: node tests/station.test.js */
 /* STATION:BEGIN */
 /** Участок действия: неподвижный trigger или зона разговора — весь путь NPC плюс радиус. */
-const ARCH_HALF = 21;                       // 1.0.1: половина ширины служебной арки вместе с бетонным пилоном
+const ARCH_HALF = 21, ARCH_LANDING = 4;   // ARCH_LANDING — глубина площадки у порога арки «вниз», px
+const _AH_ = 0;                       // 1.0.1: половина ширины служебной арки вместе с бетонным пилоном
 function inspectZone(cfg, i) {
   if (i.trigger) return i.trigger;
   const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
@@ -1473,17 +1474,20 @@ function drawServiceArch(g, e) {
       R(g, x, y, 1, 1, `rgb(${v},${v + 2},${v + 4})`);
     } else if (inside(x - 3, y) || inside(x + 3, y) || inside(x, y + 3)) conc(x, y, x > cx ? 76 : 132);   // обрамление: свет слева, тень справа
   }
-  // лестничный марш сбоку: ступени поднимаются слева направо вглубь, поручень параллельно
-  const st = 3, n = 9;
-  for (let k = 0; k < n; k++) {
-    const sx = x0 + 1 + k * 2, sy = base - 1 - k * st;
-    if (sy < top + R0) break;
-    const c = 78 - k * 6;
-    R(g, sx, sy - 1, x1 - sx - 1, 1, rgb([c + 18, c + 16, c + 12]));            // проступь
-    R(g, sx, sy, x1 - sx - 1, st - 1, rgb([c - 20, c - 22, c - 24]));            // подступенок
+  if (e.dir === 'down') drawArchDown(g, x0, x1, top, base, cx, R0, inside);
+  else {
+    // ПОДЪЁМ — марш сбоку: ступени от порога поднимаются слева направо вглубь, поручень параллельно
+    const st = 3, n = 9;
+    for (let k = 0; k < n; k++) {
+      const sx = x0 + 1 + k * 2, sy = base - 1 - k * st;
+      if (sy < top + R0) break;
+      const c = 78 - k * 6;
+      R(g, sx, sy - 1, x1 - sx - 1, 1, rgb([c + 18, c + 16, c + 12]));          // проступь
+      R(g, sx, sy, x1 - sx - 1, st - 1, rgb([c - 20, c - 22, c - 24]));          // подступенок
+    }
+    L(g, x0 + 1, base - 14, x1 - 2, base - 14 - Math.round((x1 - x0 - 3) * 1.5), '#5a564e');   // поручень
+    for (let k = 0; k < 3; k++) { const hx = x0 + 3 + k * 7; R(g, hx, base - 13 - k * 10, 1, 9, '#3a3834'); }    // стойки поручня
   }
-  L(g, x0 + 1, base - 14, x1 - 2, base - 14 - Math.round((x1 - x0 - 3) * 1.5), '#5a564e');   // поручень
-  for (let k = 0; k < 3; k++) { const hx = x0 + 3 + k * 7; R(g, hx, base - 13 - k * 10, 1, 9, '#3a3834'); }      // стойки поручня
   // тёплая лампа на стене шахты
   const lx = x1 - 3, ly = top + R0 + 4;
   R(g, lx - 1, ly - 1, 3, 4, '#2a2622'); R(g, lx, ly, 1, 2, '#ffd890');
@@ -1500,6 +1504,34 @@ function drawServiceArch(g, e) {
   R(g, sx, sy, tw, 11, '#2f3c3e'); R(g, sx, sy, tw, 1, '#4a5254'); R(g, sx, sy + 10, tw, 1, '#1a2224');
   for (let k = 0; k < 4; k++) R(g, sx + 6 - k, up ? sy + 3 + k : sy + 6 - k, 1 + 2 * k, 1, '#e0c48c');
   drawText(g, e.sign, sx + 11, sy + 2, '#e0c48c', 'rgba(0,0,0,.5)');
+}
+/** СПУСК — взгляд с верхней площадки вниз, в шахту (перспектива, не отражение марша «вверх»):
+    у порога горизонтальная площадка (ARCH_LANDING px вглубь), за её кромкой — провал; стены, потолок и марш сходятся
+    к точке схода ниже уровня глаз. Ступени видны только проступями (подступенки смотрят от зрителя), вглубь они уже и темнее;
+    поручни идут вдоль площадки и у начала марша ломаются вниз, в глубину. Отверстий в полу нет — всё внутри проёма. */
+function drawArchDown(g, x0, x1, top, base, cx, R0, inside) {
+  const edge = base - ARCH_LANDING, vy = base - 14, ix0 = cx - 4, ix1 = cx + 4, iy0 = top + 12;   // дальний конец шахты — малый прямоугольник
+  for (let y = top; y < edge; y++) for (let x = x0; x < x1; x++) {
+    if (!inside(x, y)) continue;
+    const X = x + 0.5, Y = y + 0.5;
+    const sL = (X - x0) / (ix0 - x0), sR = (x1 - X) / (x1 - ix1), sT = (Y - top) / (iy0 - top), sB = (edge - Y) / (edge - vy);
+    const sm = Math.min(sL, sR, sT, sB), d = 1 - Math.min(1, sm);             // d: 1 — у проёма, 0 — дальний конец
+    let v;
+    if (sm >= 1) v = y < vy - 6 ? 12 : 3;                                       // дальняя стена; ниже — провал, марш идёт дальше вниз
+    else if (sm === sB) { const r = edge - 1 - y; v = r === 0 ? 2 : ([2, 4, 6, 7, 8].includes(r) ? 16 + 54 * d : 4 + 5 * d); }   // проступи и щели
+    else if (sm === sT) v = 7 + 10 * d;                                         // потолок марша
+    else { v = 15 + 36 * d + (sm === sR ? 7 * d : 0); if (Math.abs(Y - (base - 22) - (vy + 1 - (base - 22)) * (1 - d)) < 0.6) v -= 8; }   // стены, шов на высоте поручня
+    v = Math.round(v); R(g, x, y, 1, 1, `rgb(${v},${v + 1},${v + 3})`);
+  }
+  for (let r = 0; r < ARCH_LANDING; r++) {                                      // площадка: светлая у порога, кромка над провалом
+    const y = base - 1 - r, ins = r, v = r === ARCH_LANDING - 1 ? 92 : 70 - r * 7;
+    R(g, x0 + Math.floor(ins / 2), y, x1 - x0 - 2 * Math.floor(ins / 2), 1, rgb([v + 4, v + 2, v - 2]));
+  }
+  for (const sgn of [-1, 1]) {                                                  // поручни: вдоль площадки, затем вниз, в глубину
+    const nx = sgn < 0 ? x0 + 1 : x1 - 2, kx = sgn < 0 ? x0 + 4 : x1 - 5, fx2 = sgn < 0 ? cx - 4 : cx + 3;
+    L(g, nx, base - 14, kx, base - 16, '#5e5a52'); L(g, kx, base - 16, fx2, base - 12, '#4a4740');
+    R(g, nx + (sgn < 0 ? 1 : -1), base - 14, 1, 10, '#3a3834');                // стойка на площадке
+  }
 }
 function drawArches(g, floors) {
   for (const q of CONFIG.PASSAGES) for (const e of [q.a, q.b]) if (floors.includes(e.floor)) drawServiceArch(g, e);
@@ -2591,6 +2623,7 @@ const Render = {
     const inArch = Player.state === 'passage' && Player.pass.phase !== 'align' && Player.pass.phase !== 'settle';
     const pFacing = Player.state === 'gate' || inArch ? 1 : Player.facing;
     this.playerOcc = null;
+    this.archDY = 0;
     if (spr && inArch) this.drawInArch(g, spr, px, fy, Player.pass, camI, yo);          // 1.0.1: глубина арки — затемнение, подъём, обрезка косяками
     else if (spr) {
       g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
@@ -2619,15 +2652,24 @@ const Render = {
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
   },
-  /** 1.0.1: герой в служебной арке. k — глубина (0 — у порога, 1 — скрылся): спрайт темнеет под цвет глубины арки,
-      уходит на DEPTH px вверх (дальше от зрителя) и обрезается внутренним краем проёма — косяки и порог оказываются перед ним. */
+  /** 1.0.1: герой в служебной арке. k — глубина (0 — у порога, 1 — скрылся), при входе растёт, при выходе убывает; движение
+      задаёт направление арки, у которой стоит герой: «вверх» — поднимается по ступеням на DEPTH px; «вниз» — проходит площадку
+      и опускается на SINK px за её кромку (кромка закрывает ноги). Спрайт темнеет и обрезается проёмом, размер не меняется. */
   drawInArch(g, spr, px, fy, s, camI, yo) {
     const C = CONFIG.PASSAGE, k = s.k, e = s.at, a = archRect(e);
     if (!this.archTmp) this.archTmp = makeCanvas(SPRITE_W, SPRITE_H);
     const t = this.archTmp, tg = t.getContext('2d');
     tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, SPRITE_W, SPRITE_H); tg.drawImage(spr, 0, 0);
     if (k > 0.01) { tg.globalCompositeOperation = 'source-atop'; tg.fillStyle = `rgba(9,11,13,${(C.DARK * k).toFixed(3)})`; tg.fillRect(0, 0, SPRITE_W, SPRITE_H); }
-    const lift = Math.round(C.DEPTH * k), bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * Math.min(1, k * 3));   // по ступеням вверх, вглубь
+    let lift, bottom;
+    if (e.dir === 'down') {                                                     // спуск: по площадке к кромке, затем вниз за кромку
+      const L0 = C.LANDING_K, on = Math.min(1, k / L0), dn = Math.max(0, (k - L0) / (1 - L0));
+      lift = Math.round(ARCH_LANDING * on - C.SINK * dn);
+      bottom = dn > 0 ? a.base - ARCH_LANDING + yo : Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * on);
+    } else {                                                                    // подъём: по ступеням вверх, вглубь
+      lift = Math.round(C.DEPTH * k); bottom = Math.round(fy + 2 - (fy + 2 - (a.base + yo)) * Math.min(1, k * 3));
+    }
+    this.archDY = lift;                                                        // для pvDebug.player(): смещение героя в арке (+ вверх, − вниз)
     g.save(); g.beginPath(); g.rect(a.x0 - camI, a.top + yo, a.x1 - a.x0, bottom - (a.top + yo)); g.clip();
     g.drawImage(t, px - 13, fy - 40 - lift);
     g.restore();
@@ -3063,7 +3105,7 @@ const Game = {
       advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
       station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
       player: () => { const sp = Player.sprite();                    // 1.0.1: фаза прохода и поза героя (спиной / лицом / боком)
-        return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0,
+        return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0, dy: Render.archDY || 0,
           pose: !sp ? null : SPRITES.backWalk.includes(sp) || sp === SPRITES.back ? 'back' : SPRITES.frontWalk.includes(sp) ? 'front' : 'side' }; },
       card: () => (InfoCard.open ? InfoCard.item.id : null),
       actors: () => ACTORS.map(a => ({ id: a.id, kind: a.kind, set: a.set, x: a.x, y: a.y, facing: a.facing, lamp: a.lamp })),

@@ -161,5 +161,10 @@ ok('Q04 проход через уровень (вестибюль ↔ плат�
 c = clone(CONFIG); c.PASSAGES.find(q => q.id === 'service-utility').a.x = 1845;
 ok('Q05 вход у края ходьбы, недостижимый целиком, пойман', hit(errsOf(c), /недостижимо|пересекаются/));
 ok('Q06 параметры анимации прохода: вход и выход не короче 0.5 с, переход за стеной 0.4–1 с', CONFIG.PASSAGE.ENTER >= 0.5 && CONFIG.PASSAGE.EXIT >= 0.5 && CONFIG.PASSAGE.TRANSIT >= 0.4 && CONFIG.PASSAGE.TRANSIT <= 1);
+const SIGNS = { surface: 'ВЫХОД', vestibule: 'КПП', upper: 'СЛУЖБЫ', platform: 'ПЕРРОН', utility: 'ХОЗБЛОК' };   // утверждённые обозначения уровней
+ok('Q07 указатели арок — утверждённые короткие обозначения уровня назначения (≤ 8 символов), «ЯРУС» нет', CONFIG.PASSAGES.every(q => q.a.sign === SIGNS[q.b.floor] && q.b.sign === SIGNS[q.a.floor]) && CONFIG.PASSAGES.flatMap(q => [q.a.sign, q.b.sign]).every(t => t.length <= 8 && !/ЯРУС/.test(t)));
+ok('Q08 шесть указателей: ▲ КПП, ▼ СЛУЖБЫ, ▼ ПЕРРОН, ▲ СЛУЖБЫ, ▼ ХОЗБЛОК, ▲ ПЕРРОН', CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).map(e => (e.dir === 'up' ? '▲' : '▼') + e.sign).sort().join() === ['▲КПП', '▼СЛУЖБЫ', '▼ПЕРРОН', '▲СЛУЖБЫ', '▼ХОЗБЛОК', '▲ПЕРРОН'].sort().join());
+ok('Q09 анимация учитывает направление: подъём DEPTH > 0, спуск SINK ≥ 24 (за кромку площадки), площадка — часть пути', CONFIG.PASSAGE.DEPTH > 0 && CONFIG.PASSAGE.SINK >= 24 && CONFIG.PASSAGE.LANDING_K > 0 && CONFIG.PASSAGE.LANDING_K < 0.5);
+ok('Q10 по три арки «вверх» и «вниз»', CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).filter(e => e.dir === 'up').length === 3 && CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).filter(e => e.dir === 'down').length === 3);
 
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
