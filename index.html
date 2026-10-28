@@ -227,7 +227,7 @@ const CONFIG = {
   /* 1.1А-UX2: гибридное сенсорное управление. Короткое касание (< HOLD_MS, сдвиг ≤ SLOP CSS px) — идти к точке;
      удерживание или явный сдвиг пальца — прежняя ходьба половинами экрана. Цель — мировой x на текущем этаже;
      касание засчитывается, только если точка по высоте на дорожке этажа: F.y − BAND[0] … F.y + BAND[1]. */
-  TOUCH: { HOLD_MS: 200, SLOP: 10, BAND: [48, 14], MIN_DIST: 5, ARRIVE: 3, MARK: 0.45 },
+  TOUCH: { HOLD_MS: 200, SLOP: 10, BAND: [48, 14], MIN_DIST: 5, ARRIVE: 3, MARK: 0.4 },   // MARK — угасание маркера после прихода, с
   /* 1.1А-UX1: масштаб игрового изображения — множитель к целочисленному масштабу экрана; HUD не масштабируется. */
   ZOOM: { LEVELS: [1, 1.25, 1.5, 1.75], SAVE_KEY: 'pv.zoom.v1', FEET: 0.74 },   // FEET — доля высоты кадра для ступней при увеличении
   /* 1.1А-UX1: личный фонарь героя — свой свет, не зависит от цепей станции; батарейки пока не расходуются. */
@@ -2834,9 +2834,9 @@ const Render = {
       this.playerOcc = { spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha };
       this.occ.push(this.playerOcc);
     }
-    const mk = Game.mark;                                                // 1.1А-UX2: маркер цели — маленький золотой ромб на полу, гаснет
+    const mk = Game.mark;                                                // 1.1А-UX2: маркер цели — маленький золотой ромб на полу (мировой x), пока цель жива
     if (mk && mk.floor === Player.floor) {
-      const mx = Math.round(mk.x) - camI, my = CONFIG.FLOORS[mk.floor].y + yo, a = Math.min(1, mk.t / CONFIG.TOUCH.MARK);
+      const mx = Math.round(mk.x) - camI, my = CONFIG.FLOORS[mk.floor].y + yo, a = mk.fading ? Math.max(0, mk.t / CONFIG.TOUCH.MARK) : 1;
       g.globalAlpha = 0.85 * a; g.fillStyle = '#e8b86a';
       g.fillRect(mx - 3, my, 2, 1); g.fillRect(mx + 2, my, 2, 1); g.fillRect(mx - 1, my - 1, 3, 1); g.fillRect(mx - 1, my + 1, 3, 1);
       g.globalAlpha = 1;
@@ -3380,7 +3380,7 @@ const Game = {
       place: (floor, x, facing = 1) => { Player.place(floor, x, facing); Camera.snap(Player); return true; },   // 1.1А-UX1: для проверок камеры на этажах
       zoom: () => ({ idx: Zoom.idx, factor: Zoom.factor(), scale: Render.scale, base: Render.baseScale, viewW: Render.viewW, viewH: Render.viewH, camX: Camera.x, camY: Camera.y }),
       flashlight: () => ({ ...Player.flashlight(), drawn: Render.drawnLights }),
-      touch: () => ({ target: Player.target, lastTap: Game.lastTap || null, gestures: Input.gestures.size, held: Input.held.length, vx: Player.vx, x: Player.x, scale: Render.scale, camX: Camera.x, camY: Camera.y }),
+      touch: () => ({ mark: Game.mark ? { ...Game.mark } : null, target: Player.target, lastTap: Game.lastTap || null, gestures: Input.gestures.size, held: Input.held.length, vx: Player.vx, x: Player.x, scale: Render.scale, camX: Camera.x, camY: Camera.y }),
       player: () => { const sp = Player.sprite();                    // 1.0.1: фаза прохода и поза героя (спиной / лицом / боком)
         return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0, dy: Render.archDY || 0,
           pose: !sp ? null : SPRITES.backWalk.includes(sp) || sp === SPRITES.back ? 'back' : SPRITES.frontWalk.includes(sp) ? 'front' : 'side' }; },
@@ -3445,9 +3445,15 @@ const Game = {
     // 1.1А-UX2: движение к точке. Ручная ходьба, проход/ворота, открытие окна генератора или карточки — отменяют цель.
     const opened = (GenPanel.open && !this.wasGen) || (InfoCard.open && !this.wasCard);
     this.wasGen = GenPanel.open; this.wasCard = InfoCard.open;
-    if (dir !== 0 || Player.state !== 'walk' || opened) Player.target = null;
-    if (Player.target !== null) { const r = autoWalkDir(CONFIG, Player.x, Player.vx, Player.target); if (r.done) Player.target = null; dir = r.dir; }
-    if (this.mark) { this.mark.t -= dt; if (this.mark.t <= 0) this.mark = null; }
+    // Маркер цели отражает состояние автодвижения: виден, пока цель жива; отмена — исчезает сразу; дошёл — гаснет за MARK с.
+    if (Player.target !== null && (dir !== 0 || Player.state !== 'walk' || opened)) { Player.target = null; this.mark = null; }
+    if (Player.target !== null) {
+      const r = autoWalkDir(CONFIG, Player.x, Player.vx, Player.target);
+      if (r.done) { Player.target = null; if (this.mark) { this.mark.fading = true; this.mark.t = CONFIG.TOUCH.MARK; } }
+      dir = r.dir;
+    }
+    if (this.mark && (this.mark.floor !== Player.floor || (!this.mark.fading && Player.target === null))) this.mark = null;   // этаж сменился / цель снята иначе
+    if (this.mark && this.mark.fading) { this.mark.t -= dt; if (this.mark.t <= 0) this.mark = null; }
     if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
       if (action === 'use') {
         if (it.kind === 'generator') GenPanel.toggle();
@@ -3510,8 +3516,8 @@ const Game = {
     const x = tapTarget(CONFIG, Player.floor, w.x, w.y);
     this.lastTap = { wx: w.x, wy: w.y, x };
     if (x === null) return;
-    if (Math.abs(x - Player.x) < CONFIG.TOUCH.MIN_DIST) { Player.target = null; return; }   // у самого героя — без лишнего шага
-    Player.target = x; this.mark = { x, floor: Player.floor, t: CONFIG.TOUCH.MARK };
+    if (Math.abs(x - Player.x) < CONFIG.TOUCH.MIN_DIST) { Player.target = null; this.mark = null; return; }   // у самого героя — без лишнего шага
+    Player.target = x; this.mark = { x, floor: Player.floor, fading: false, t: CONFIG.TOUCH.MARK };   // прежний маркер заменяется
   },
   /** 1.1А: положение героя (pv.player.v1 через saveKey). Только в обычной ходьбе: во время прохода и ворот — прежняя запись. */
   savePlayer() {
