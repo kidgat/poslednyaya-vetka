@@ -1,13 +1,24 @@
 # PROD и DEV — «Последняя ветка» (этап 0)
 
+## Статус (28.10.2026)
+
+**Этап 0 принят автором.** Выполнено автором вручную и подтверждено:
+- релиз и тег `v1.0.1` → `20c5da5` (проверено `git ls-remote`);
+- `main` защищена активным правилом «Protect PROD main»: прямой push, удаление и force-push запрещены;
+- DEV опубликован через Cloudflare Pages с веткой `dev`: https://poslednyaya-vetka-dev.pages.dev/;
+- автор открыл DEV на iPhone (Safari) и проверил: метка «v1.0.1 DEV», движение, переходы, генератор, сохранения, независимость PROD/DEV — замечаний нет;
+- GitHub Actions `tests` прошли.
+
+Текущая работа — 1.1А «Сердце станции», часть 1 «Дом героя». Только в `dev`, ожидает приёмки автора. `main` = 1.0.1.
+
 ## Схема
 
 | | PROD | DEV |
 |---|---|---|
 | Ветка | `main` — только стабильные релизы | `dev` — вся разработка |
-| Адрес | https://kidgat.github.io/poslednyaya-vetka/ | Cloudflare Pages `*.pages.dev` (ветка `dev`) или GitHub Pages-проект `/poslednyaya-vetka-dev/` |
+| Адрес | https://kidgat.github.io/poslednyaya-vetka/ | https://poslednyaya-vetka-dev.pages.dev/ (Cloudflare Pages, ветка `dev`) |
 | Метка в игре | `v1.0.1` | `v1.0.1 DEV` (оранжевая) |
-| Сохранения | `pv.power.v1`, `pv.scavenge.v1`, `pv.visual.v1` | `pv.dev.power.v1`, `pv.dev.scavenge.v1`, `pv.dev.visual.v1` |
+| Сохранения | `pv.power.v1`, `pv.scavenge.v1`, `pv.visual.v1` (+ `pv.player.v1` с 1.1А) | `pv.dev.power.v1`, `pv.dev.scavenge.v1`, `pv.dev.visual.v1`, `pv.dev.player.v1` |
 | Кэш service worker | `poslednyaya-vetka-<версия>`; чистит только `poslednyaya-vetka-*` | `pv-dev-<версия>`; чистит только `pv-dev-*` |
 | Манифест / имя на «Домой» | `manifest.webmanifest`, «Последняя ветка» | `manifest-dev.webmanifest`, «ПВ DEV» |
 | Стабильная точка | тег `v1.0.1` = `20c5da5` | — |
@@ -25,7 +36,7 @@
 
 Это проверено тестом `envtest`. На Cloudflare origin отдельный, так что изоляция там полная.
 
-## Что должен сделать автор вручную
+## Ручные шаги этапа 0 (выполнены автором)
 
 Из сессии Claude нельзя менять настройки GitHub: прокси разрешает только push веток, а создание тегов, защита веток, создание репозиториев и настройки Pages возвращают 403.
 

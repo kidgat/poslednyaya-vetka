@@ -36,7 +36,7 @@ ok('S13 цепи пространств существуют в POWER.DEMAND', C
 // Негативные случаи: валидатор обязан ловить поломки.
 let c = clone(CONFIG); c.INSPECTS.push({ ...c.INSPECTS[0] });
 ok('N01 повтор id пойман', hit(errsOf(c), /повтор id/));
-c = clone(CONFIG); c.INSPECTS[0].trigger = [734, 746];                    // 1.0.1: на входе служебного прохода платформы
+c = clone(CONFIG); c.INSPECTS.find(i => i.id === 'inspect-west-post').trigger = [734, 746];   // 1.0.1: на входе служебного прохода платформы (1.1А: по id)
 ok('N02 пересечение со служебным проходом поймано', hit(errsOf(c), /пересекаются/));
 c = clone(CONFIG); c.INSPECTS[2].trigger = [1860, 1880];
 ok('N03 недостижимый триггер за maxX пойман', hit(errsOf(c), /недостижимо/));
@@ -121,7 +121,7 @@ ok('W12 арка КПП не задевает проёмы вестибюля и
 ok('W13 арка шлюза не задевает разговор с охранником нижнего поста (1600)', Math.abs(PV.a.x - CONFIG.NPCS['guard-airlock-west'].x) > PV.radius + 12);
 ok('W14 все входы проходов в пределах ходьбы своих этажей', CONFIG.PASSAGES.every(q => [q.a, q.b].every(e => e.x - q.radius >= CONFIG.FLOORS[e.floor].minX && e.x + q.radius <= CONFIG.FLOORS[e.floor].maxX)));
 ok('W15 у всех проходов «вниз» ведёт на уровень ниже (единые правила)', CONFIG.PASSAGES.every(q => { const L = f => CONFIG.STATION.floors.find(x => x.legacyFloor === f).level; return (q.a.dir === 'down') === (L(q.a.floor) > L(q.b.floor)); }));
-ok('W16 проёмы яруса 0 и вестибюля прежние', DW.length === 7 && VD.length === 4);
+ok('W16 проёмы яруса 0 (1.1А: +комната героя, жилой блок ↔ столовая — 8) и вестибюля прежние', DW.length === 8 && VD.length === 4);
 
 // 1.0 «Подземное хозяйство»: ярус −2, лестница с платформы, задел под будущие механики
 const UF = CONFIG.FLOORS.utility, PF = CONFIG.FLOORS.platform;
@@ -139,7 +139,7 @@ ok('U06 арки платформы — в задней стене между к
 const ar = e => ROOMS.find(r => (r.floor || 'upper') === e.floor && e.x - AH >= r.x + 4 && e.x + AH <= r.x + r.w - 4);
 ok('U07 арки ярусов внутри комнат: 0 — в бывшей лестничной клетке, −2 — в лестничном холле; не в проёмах', ar(PU.a)?.id === 'stairwell' && ar(PD.b)?.id === 'utility-stairwell' && [...DW, ...UD].every(([a, b]) => [PU.a, PD.b].every(e => b <= e.x - AH || a >= e.x + AH)));
 ok('U08 входы проходов: свои этажи, в пределах ходьбы, участки действий не пересекаются (реестр без ошибок)', CONFIG.PASSAGES.every(q => [q.a, q.b].every(e => e.x >= CONFIG.FLOORS[e.floor].minX + q.radius && e.x <= CONFIG.FLOORS[e.floor].maxX - q.radius)) && errs.length === 0 && plan.interactions.filter(i => i.kind === 'passage').length === 6);
-ok('U09 старые этажи: камера и границы как в 0.9 (у платформы и яруса нет bottom/cam)', !PF.bottom && !PF.cam && !CONFIG.FLOORS.upper.bottom && !CONFIG.FLOORS.upper.cam && PF.minX === 176 && PF.maxX === 1850 && CONFIG.FLOORS.upper.minX === 150);
+ok('U09 старые этажи: камера и границы как в 0.9 (у платформы и яруса нет bottom/cam)', !PF.bottom && !PF.cam && !CONFIG.FLOORS.upper.bottom && !CONFIG.FLOORS.upper.cam && PF.minX === 176 && PF.maxX === 1850 && CONFIG.FLOORS.upper.minX === 25);   // 1.1А: ярус 0 открыт влево до комнаты героя
 ok('U10 будущие механики — только записи реестра с существующими комнатами; действий и кнопок для них нет', plan.features.length >= 3 && plan.features.every(f => f.status === 'planned') && CONFIG.INSPECTS.every(i => ['talk', 'inspect', 'gate_locked'].includes(i.type)));
 ok('U11 аварийный свет −2: жильё, лестничный холл, дренажная', ['living-pods', 'utility-stairwell', 'drainage'].every(r => CONFIG.EMERGENCY_LAMPS.some(e => e.room === r)));
 c = clone(CONFIG); c.NPCS.storekeeper.x = 1500;
@@ -167,4 +167,23 @@ ok('Q08 шесть указателей: ▲ КПП, ▼ СЛУЖБЫ, ▼ ПЕ�
 ok('Q09 анимация учитывает направление: подъём DEPTH > 0, спуск SINK ≥ 24 (за кромку площадки), площадка — часть пути', CONFIG.PASSAGE.DEPTH > 0 && CONFIG.PASSAGE.SINK >= 24 && CONFIG.PASSAGE.LANDING_K > 0 && CONFIG.PASSAGE.LANDING_K < 0.5);
 ok('Q10 по три арки «вверх» и «вниз»', CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).filter(e => e.dir === 'up').length === 3 && CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).filter(e => e.dir === 'down').length === 3);
 
+// ---- 1.1А «Дом героя»: геометрия яруса 0 и комната ----
+const UP = ROOMS.filter(r => (r.floor || 'upper') === 'upper').sort((a, b) => a.x - b.x);
+const HR = ROOMS.find(r => r.id === 'hero-room');
+ok('H01 комната героя: id hero-room, КОМНАТА, тип hero, цепь living, ярус 0, x 10, ширина 180', HR && HR.label === 'КОМНАТА' && HR.type === 'hero' && HR.circuit === 'living' && !HR.floor && HR.x === 10 && HR.w === 180);
+ok('H02 порядок яруса 0: комната → жилой блок 200/270 → столовая 480/250 → лестница 740 → … → насосная 1730', UP.map(r => r.id).join() === 'hero-room,habitation,kitchen,stairwell,workshop,medical,power,airlock-room,water' && UP[1].x === 200 && UP[1].w === 270 && UP[2].x === 480 && UP[2].w === 250 && UP[8].x === 1730);
+ok('H03 комнаты яруса 0 не перекрываются', UP.every((r, i) => i === 0 || r.x >= UP[i - 1].x + UP[i - 1].w));
+const gapsOK = UP.slice(1).every((r, i) => { const a = UP[i].x + UP[i].w, b = r.x; return DW.some(([l, rr]) => l <= a && rr >= b); });
+ok('H04 между всеми соседними комнатами яруса 0 есть проём (непроходимых стен нет)', gapsOK);
+ok('H05 проёмы [186,204] и [466,484] есть, [426,444] убран, [726,744] на месте', DW.some(d => d[0] === 186 && d[1] === 204) && DW.some(d => d[0] === 466 && d[1] === 484) && !DW.some(d => d[0] === 426) && DW.some(d => d[0] === 726 && d[1] === 744));
+ok('H06 правая граница яруса 0 прежняя (1856), левая — 25 внутри комнаты героя', CONFIG.FLOORS.upper.maxX === 1856 && CONFIG.FLOORS.upper.minX >= HR.x + 4 && CONFIG.FLOORS.upper.minX <= 30);
+const HOME = CONFIG.PLAYER.HOME;
+ok('H07 старт новой игры — ярус 0, x≈90–100, внутри комнаты, вне проёмов', HOME.floor === 'upper' && HOME.x >= 85 && HOME.x <= 105 && HOME.x > HR.x + 20 && HOME.x < HR.x + HR.w - 20 && !DW.some(([l, r]) => HOME.x >= l - 8 && HOME.x <= r + 8));
+const NPCx = Object.entries(CONFIG.NPCS).filter(([, n]) => n.floor === 'upper');
+const roomOf = x => UP.find(r => x >= r.x + 4 && x <= r.x + r.w - 4);
+ok('H08 жители яруса 0 внутри своих комнат (жилец — жилой блок, посетитель — столовая)', roomOf(CONFIG.NPCS.resident.x).id === 'habitation' && roomOf(CONFIG.NPCS.diner.x).id === 'kitchen' && roomOf(CONFIG.NPCS.cook.x).id === 'kitchen' && NPCx.every(([, n]) => roomOf(n.x)));
+const HI = CONFIG.INSPECTS.filter(i => i.space === 'hero-room');
+ok('H09 осмотры «Осмотреть кровать» / «Осмотреть гитару» в комнате героя, заголовки МОЯ КОМНАТА / СТАРАЯ ГИТАРА, по 2 реплики', HI.length === 2 && HI.some(i => /кровать/.test(i.label) && i.title === 'МОЯ КОМНАТА' && i.lines.length === 2) && HI.some(i => /гитару/.test(i.label) && i.title === 'СТАРАЯ ГИТАРА' && i.lines.length === 2) && HI.every(i => i.trigger[0] >= CONFIG.FLOORS.upper.minX && i.trigger[1] <= HR.x + HR.w - 4));
+ok('H10 ключ положения героя pv.player.v1 — отдельный от ресурсов и яркости', CONFIG.PLAYER.SAVE_KEY === 'pv.player.v1' && ![CONFIG.POWER.SAVE_KEY, CONFIG.SCAVENGE.SAVE_KEY, CONFIG.VISUAL.SAVE_KEY].includes(CONFIG.PLAYER.SAVE_KEY));
+ok('H11 реестр с комнатой героя без ошибок', validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0);
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

@@ -179,7 +179,7 @@ const CONFIG = {
   FLOORS: {
     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
     utility:  { y: 368, minX: 310, maxX: 1850, bottom: true },   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
-    upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
+    upper:    { y: 98,  minX: 25,  maxX: 1856 },  // 1.1А: комната героя → жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
     vestibule: { y: -14, minX: 1188, maxX: 1852, cam: 0.40 },   // 0.9: вестибюль +1 — карантин, экипировка, КПП, зал, караульная
     surface:  { y: -122, minX: 1136, maxX: 1980, cam: 0.72 },   // улица (0.9: земля поднята с −61, под ней вестибюль)
   },
@@ -207,7 +207,9 @@ const CONFIG = {
   SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
   STEP: 1 / 60,             // фиксированный шаг логики
   PLAYER: {
-    START_X: 1000,
+    START_X: 1000,          // центр платформы — клавиша R (как раньше)
+    HOME: { floor: 'upper', x: 100 },   // 1.1А: старт новой игры и безопасная точка — комната героя, между гитарой и столом
+    SAVE_KEY: 'pv.player.v1', SAVE_EVERY: 3,   // положение героя: этаж, x, взгляд; раз в 3 с, при уходе в фон и закрытии
     MAX_SPEED: 72,          // пикс/с
     ACCEL: 480, DECEL: 640, TURN: 1300,
     STRIDE: 3.3,            // сколько пикселей пути на один кадр ходьбы
@@ -274,9 +276,9 @@ const CONFIG = {
       onBlackout: ['ЭТО НАДОЛГО?', 'СВЕТ ПРОПАЛ!', 'ПОШЛИ К БОЧКЕ!'], onRestore: ['О, ЗАРАБОТАЛО!', 'ПРОНЕСЛО...'] },
     cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle',
       onBlackout: ['ГДЕ СПИЧКИ?', 'ЧАЙ ЕЩЁ ГОРЯЧИЙ!', 'СВЕЧУ ПРИНЕСИТЕ!'], onRestore: ['ВОТ И СВЕТ!', 'ТЕПЕРЬ ВИДНО КОТЁЛ'] },
-    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 492, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
+    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
       onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
-    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 382, facing: -1, lamp: 'candle',
+    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 442, facing: -1, lamp: 'candle',
       onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
     medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
       onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
@@ -324,6 +326,17 @@ const CONFIG = {
   /* Осмотры и разговоры: data-driven, порядок после лестниц, ворот и генератора. trigger — неподвижный участок;
      npc + radius — разговор с NPC, участок считается от его текущей позиции. lines — реплики по кругу («Далее» / E). */
   INSPECTS: [
+    // 1.1А: комната героя. Реплики — массив lines (как у остальных осмотров), расширяются без переделки системы.
+    { id: 'inspect-hero-bed', space: 'hero-room', type: 'inspect', floor: 'upper', trigger: [30, 66], label: '◎ Осмотреть кровать',
+      title: 'МОЯ КОМНАТА', lines: [
+        '«Моя кровать. Немного скрипит, но после тяжёлого дня это лучшее место на всей станции».',
+        '«Когда-нибудь я выберусь отсюда и увижу город без противогаза».',
+      ] },
+    { id: 'inspect-hero-guitar', space: 'hero-room', type: 'inspect', floor: 'upper', trigger: [76, 90], label: '◎ Осмотреть гитару',
+      title: 'СТАРАЯ ГИТАРА', lines: [
+        '«Досталась мне от прежнего хозяина комнаты».',
+        '«Говорят, до войны на поверхности музыку можно было услышать почти на каждой улице».',
+      ] },
     { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Поговорить с охраной',
       title: 'ПОСТ 1 · К «СПОРТИВНОЙ» · ОХРАНА', lines: [
         '«За этой дверью дорога к станции Спортивная. Пока закрыто».',
@@ -750,6 +763,16 @@ function createReactions(cfg) {
     duration(text) { return Math.max(cfg.DUR[0], Math.min(cfg.DUR[1], 1.6 + text.length * 0.09)); },
   };
 }
+/** 1.1А: разбор сохранения положения героя. Возвращает { floor, x, facing } или null (нет записи / испорчена / нет этажа / x вне minX–maxX).
+    Внутри арки или ворот герой бывает только в анимации перехода, а в ней положение не сохраняется (savePlayer — только в ходьбе);
+    стоянка перед аркой (в т.ч. ровно по центру после выхода) — обычное место. */
+function parsePlayerSave(cfg, raw) {
+  let d; try { d = typeof raw === 'string' ? JSON.parse(raw) : null; } catch (_) { return null; }
+  if (!d || typeof d !== 'object' || d.v !== 1 || typeof d.floor !== 'string' || !Object.prototype.hasOwnProperty.call(cfg.FLOORS, d.floor)) return null;
+  const F = cfg.FLOORS[d.floor], x = d.x;
+  if (typeof x !== 'number' || !Number.isFinite(x) || x < F.minX || x > F.maxX) return null;
+  return { floor: d.floor, x: Math.round(x * 10) / 10, facing: d.facing === -1 ? -1 : 1 };
+}
 /* SCAVENGE:END */
 
 /* =============================== STATION ==================================
@@ -1041,8 +1064,9 @@ function mainTexel(x, y, o) {
 
 /* ---------- MAIN: верхний ярус (декоративные помещения в разрезе) ---------- */
 const ROOMS = [
-  { id: 'habitation', x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
-  { id: 'kitchen',    x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
+  { id: 'hero-room',  x: 10,   w: 180, label: 'КОМНАТА',    type: 'hero',     tint: [98, 78, 58],  light: [255, 188, 118], circuit: 'living' },   // 1.1А: дом героя, точка старта
+  { id: 'habitation', x: 200,  w: 270, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },   // 1.1А: 140/290 → 200/270
+  { id: 'kitchen',    x: 480,  w: 250, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },   // 1.1А: 440/290 → 480/250
   { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА', plate: null, type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },  // 1.0: без крупной таблички (указатели ЖИЛЬЁ/ТЕХ остаются)
   { id: 'workshop',   x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
   { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
@@ -1130,9 +1154,64 @@ const ROOM_DRAW = {
     R(g, sx + 24, 19, 4, 45, '#36383a'); R(g, sx + 8, 57, 14, 7, '#6a6f72'); R(g, sx + 8, 57, 14, 1, '#8a9092');
     const fl = addLight(sx + 15, 82, 40, [255, 130, 60], 'fire', 0.6);
     addEmissive(sx + 7, 80, 16, 7, [255, 128, 48], fl, 'main', 'fire');
-    R(g, r.x + 168, 42, 64, 2, '#6a5038');                              // полка с банками
-    ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, r.x + 172 + k * 10, 35, 6, 7, c));
+    const shx = sx - 50;                                                // полка с банками (1.1А: от буржуйки, не заходит на трубу)
+    R(g, shx, 42, 64, 2, '#6a5038');
+    ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, shx + 4 + k * 10, 35, 6, 7, c));
     for (let k = 0; k < 3; k++) { R(g, r.x + 40 + k * 14, 34, 1, 6, '#2a2a2a'); R(g, r.x + 37 + k * 14, 40, 8, 5, '#5c6266'); }
+  },
+  /** 1.1А: комната героя — кровать, гитара, книги, плакат и фото, стол с лампой, шкафчик, рюкзак, мелочи; рисунок крыльев. */
+  hero(g, r) {
+    const x = r.x;
+    // кровать: металлический каркас, матрас, одеяло, подушка
+    R(g, x + 10, 74, 2, 22, '#4a4844'); R(g, x + 70, 80, 2, 16, '#4a4844'); R(g, x + 10, 74, 2, 1, '#6a6862');
+    R(g, x + 12, 86, 58, 2, '#3e3c38'); R(g, x + 12, 92, 58, 1, '#33312d');
+    R(g, x + 12, 81, 58, 5, '#8c7b60'); R(g, x + 12, 81, 58, 1, '#a8977a');                       // матрас
+    R(g, x + 30, 79, 40, 6, '#5a6a4a'); R(g, x + 30, 79, 40, 1, '#76885e'); R(g, x + 44, 80, 1, 5, '#4a5a3c');   // одеяло
+    R(g, x + 14, 78, 13, 4, '#d0c6aa'); R(g, x + 14, 78, 13, 1, '#e4dcc2');                     // подушка
+    R(g, x + 18, 92, 12, 4, '#6a5038'); R(g, x + 18, 92, 12, 1, '#8a6a48');                     // ящик с вещами под кроватью
+    R(g, x + 36, 93, 6, 3, '#2a2622'); R(g, x + 43, 93, 6, 3, '#2a2622');                       // ботинки
+    // гитара у изножья кровати
+    R(g, x + 77, 58, 2, 18, '#5a3e24'); R(g, x + 76, 56, 4, 3, '#3a2a1a');                      // гриф и голова
+    R(g, x + 73, 76, 10, 9, '#a8743c'); R(g, x + 72, 85, 12, 10, '#b07a40'); R(g, x + 73, 76, 10, 1, '#c89458');
+    R(g, x + 77, 80, 2, 2, '#2a1e12'); R(g, x + 75, 89, 6, 1, '#4a321c');                       // розетка, подставка струн
+    // полка с книгами над кроватью
+    R(g, x + 12, 46, 34, 2, '#6a5038');
+    ['#7a3b34', '#465a6c', '#8a7a4a', '#5a6a4a', '#6a4a5a', '#8a5a3a'].forEach((c, k) => R(g, x + 14 + k * 5, 38 + (k % 3), 4, 8 - (k % 3), c));
+    R(g, x + 45, 41, 3, 5, '#c8bfa8');                                                          // сувенир с поверхности — обломок таблички
+    // плакат: стилизованная Волга и город, без копий готовых изображений
+    R(g, x + 52, 36, 30, 22, '#c8b48a'); R(g, x + 53, 37, 28, 20, '#8aa0a8'); R(g, x + 53, 37, 28, 4, '#c89a6a');   // закат
+    R(g, x + 53, 50, 28, 7, '#4a6a84'); for (let k = 0; k < 4; k++) R(g, x + 55 + k * 7, 52 + (k % 2), 4, 1, '#9ab8c8');   // река
+    [[56, 44, 4], [61, 41, 3], [66, 45, 5], [72, 42, 3], [76, 46, 3]].forEach(([dx, y, w]) => R(g, x + dx, y, w, 50 - y, '#5a5a62'));   // силуэт города
+    R(g, x + 62, 38, 1, 3, '#5a5a62');                                                          // шпиль
+    // фотографии
+    R(g, x + 86, 34, 9, 11, '#b8a98a'); R(g, x + 87, 35, 7, 7, '#6a7a6a');
+    R(g, x + 86, 48, 9, 8, '#b8a98a'); R(g, x + 87, 49, 7, 5, '#7a6a5a');
+    // рисунок крыльев на листке (намёк на Орден, без знака)
+    R(g, x + 100, 40, 16, 12, '#d8d0bc'); R(g, x + 100, 40, 16, 1, '#ece4d2');
+    for (let k = 0; k < 5; k++) { R(g, x + 107 - k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); R(g, x + 109 + k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); }
+    R(g, x + 108, 44, 1, 5, '#4a4440');
+    // часы на стене
+    R(g, x + 124, 32, 7, 7, '#3a3834'); R(g, x + 125, 33, 5, 5, '#d8d0bc'); R(g, x + 127, 34, 1, 2, '#2a2622'); R(g, x + 127, 35, 2, 1, '#2a2622');
+    // письменный стол: кружка, блокнот, записи, фонарик, лампа
+    R(g, x + 96, 78, 46, 3, '#7a5a3e'); R(g, x + 96, 78, 46, 1, '#9c7a58'); R(g, x + 96, 81, 46, 1, '#4e3a28');
+    R(g, x + 98, 82, 2, 14, '#3e2e20'); R(g, x + 138, 82, 2, 14, '#3e2e20'); R(g, x + 124, 82, 14, 8, '#5e4630');   // ножки, тумба
+    R(g, x + 128, 85, 6, 1, '#3e2e20');
+    R(g, x + 102, 75, 9, 3, '#d8d0bc'); R(g, x + 104, 74, 8, 1, '#c8bfa8');                     // записи
+    R(g, x + 113, 74, 7, 4, '#6a3a2a'); R(g, x + 113, 74, 7, 1, '#8a4a34');                     // блокнот
+    R(g, x + 122, 74, 4, 4, '#8a8a84'); R(g, x + 126, 75, 1, 2, '#8a8a84');                     // кружка
+    R(g, x + 128, 76, 6, 2, '#3a4448'); R(g, x + 133, 76, 1, 2, '#c8c0a0');                     // фонарик
+    R(g, x + 138, 64, 1, 14, '#3a3834'); R(g, x + 134, 63, 7, 3, '#5a5a52'); R(g, x + 136, 77, 5, 1, '#3a3834');   // настольная лампа
+    const dl = addLight(x + 137, 67, 26, [255, 196, 120], 'steady', 0.55);                     // свет у стола (цепь living)
+    addEmissive(x + 135, 66, 5, 1, [255, 226, 170], dl);
+    R(g, x + 104, 88, 10, 2, '#5e4630'); R(g, x + 105, 90, 1, 6, '#3e2e20'); R(g, x + 112, 90, 1, 6, '#3e2e20');   // табурет
+    R(g, x + 116, 92, 9, 4, '#4a5258'); R(g, x + 116, 92, 9, 1, '#6a7278'); R(g, x + 118, 91, 5, 1, '#8a8a84');   // ящик с инструментами
+    // рюкзак на крючке и личный шкафчик
+    R(g, x + 146, 56, 2, 2, '#6a6862');
+    R(g, x + 143, 58, 8, 12, '#5a5a3a'); R(g, x + 143, 58, 8, 1, '#7a7a52'); R(g, x + 144, 63, 6, 4, '#4a4a30'); R(g, x + 145, 69, 1, 2, '#3a3a28');
+    const lx = x + 154;
+    R(g, lx, 52, 22, 44, '#55625f'); R(g, lx, 52, 22, 1, '#7a8784'); R(g, lx + 11, 53, 1, 43, '#3a4442');
+    for (let k = 0; k < 3; k++) { R(g, lx + 3, 57 + k * 3, 6, 1, '#2e3432'); R(g, lx + 14, 57 + k * 3, 6, 1, '#2e3432'); }
+    R(g, lx + 8, 72, 1, 3, '#a8a8a0'); R(g, lx + 13, 72, 1, 3, '#a8a8a0');                     // ручки
   },
   /** Лестничная клетка: завал разобран (проход на запад открыт), обломки сложены на стене-полке; таблички направлений. */
   /** 1.0.1: бывшая лестничная клетка — холл с аркой служебной лестницы на перрон (арка — drawArches). */
@@ -1728,7 +1807,7 @@ function drawFore(g, w) {
 }
 
 /* ---------- MAIN: проёмы между комнатами верхнего яруса и лестница ---------- */
-const DOORWAYS = [[426, 444], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
+const DOORWAYS = [[186, 204], [466, 484], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
 /** Проёмы между комнатами вестибюля (0.9), в координатах шаблона комнаты. */
 const VEST_DOORWAYS = [[1326, 1344], [1446, 1464], [1592, 1610], [1746, 1764]];
 function drawDoorways(g, list = DOORWAYS) {
@@ -2148,7 +2227,7 @@ function placeActors() {
   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
   Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
   // охрана шлюза, рабочие мастерской и насосной, житель столовой — с 0.8.1 в CONFIG.NPCS (без копий здесь)
-  actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+  actor('sleeper', 'resB', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [294, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
   actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
   const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: ярус −2 — спящие в ячейках и свиньи в загоне
@@ -2303,15 +2382,20 @@ const Input = {
 
 /* ================================ PLAYER ================================== */
 const Player = {
-  floor: 'platform', state: 'walk',      // state: 'walk' | 'passage' | 'gate' (1.0.1: открытых маршей нет)
-  x: CONFIG.PLAYER.START_X, prevX: CONFIG.PLAYER.START_X,
-  y: CONFIG.FLOORS.platform.y, prevY: CONFIG.FLOORS.platform.y,
+  floor: CONFIG.PLAYER.HOME.floor, state: 'walk',      // state: 'walk' | 'passage' | 'gate' (1.0.1: открытых маршей нет)
+  x: CONFIG.PLAYER.HOME.x, prevX: CONFIG.PLAYER.HOME.x,
+  y: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y, prevY: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y,
   vx: 0, facing: 1, path: null, gate: null, alpha: 1,
   walkDist: 0, frame: 0, idleT: 0, blinkT: 3, onStep: null,
   reset() {
     this.floor = 'platform'; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
     this.x = this.prevX = CONFIG.PLAYER.START_X; this.y = this.prevY = CONFIG.FLOORS.platform.y;
     this.vx = 0; this.walkDist = 0;
+  },
+  /** 1.1А: поставить героя на этаж и x (старт, загрузка сохранения) — обычная ходьба, без прохода и ворот. */
+  place(floor, x, facing = 1) {
+    this.floor = floor; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
+    this.x = this.prevX = x; this.y = this.prevY = CONFIG.FLOORS[floor].y; this.facing = facing; this.vx = 0; this.walkDist = 0;
   },
   /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
   interaction() {
@@ -3107,12 +3191,12 @@ const Game = {
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
-    Visual.load(); this.loadPower(); this.loadScavenge(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+    Visual.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
     GenPanel.init(); InfoCard.init(); Visual.init();
     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
-    addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); } });
+    addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); this.savePlayer(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); this.savePlayer(); } });
     Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); Visual.hide(); };
     Render.init(document.getElementById('screen'));
     Debug.init();
@@ -3221,6 +3305,8 @@ const Game = {
     if (cy.textContent !== ct) { cy.textContent = ct; cy.hidden = !ct; }
     this.saveSt = (this.saveSt || 0) + dt;
     if (this.saveSt >= 5) { this.saveSt = 0; this.saveScavenge(); }      // таймер тайника — раз в 5 с
+    this.savePt = (this.savePt || 0) + dt;
+    if (this.savePt >= CONFIG.PLAYER.SAVE_EVERY) { this.savePt = 0; this.savePlayer(); }   // 1.1А: положение героя
   },
   saveScavenge() { try { localStorage.setItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY), JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   /** Отдельный ключ: испорченная запись поиска сбрасывает только поиск, энергосистему не трогает. */
@@ -3229,6 +3315,23 @@ const Game = {
       const raw = localStorage.getItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
       if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
     } catch (_) { try { localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY)); } catch (__) { /* нет доступа */ } }
+  },
+  /** 1.1А: положение героя (pv.player.v1 через saveKey). Только в обычной ходьбе: во время прохода и ворот — прежняя запись. */
+  savePlayer() {
+    if (Player.state !== 'walk') return;
+    const rec = JSON.stringify({ v: 1, floor: Player.floor, x: Math.round(Player.x * 10) / 10, facing: Player.facing });
+    if (rec === this.lastPlayerRec) return;                               // не писать то же самое
+    try { localStorage.setItem(saveKey(CONFIG.PLAYER.SAVE_KEY), rec); this.lastPlayerRec = rec; } catch (_) { /* хранилище недоступно */ }
+  },
+  loadPlayer() {
+    const H = CONFIG.PLAYER.HOME;
+    let raw = null; try { raw = localStorage.getItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
+    const p = raw ? parsePlayerSave(CONFIG, raw) : null;
+    if (p) Player.place(p.floor, p.x, p.facing);
+    else {
+      Player.place(H.floor, H.x, 1);                                     // нет записи или она испорчена — дома; прочие сохранения не трогаем
+      if (raw) try { localStorage.removeItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
+    }
   },
   savePower() { try { localStorage.setItem(saveKey(CONFIG.POWER.SAVE_KEY), JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   loadPower() {
