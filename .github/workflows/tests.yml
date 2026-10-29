@@ -1,0 +1,20 @@
+# Этап 0: юнит-тесты на каждый push в dev и на каждый Pull Request в main.
+# Имя проверки «tests» — его нужно отметить обязательным в защите ветки main (см. docs/PROD_DEV.md).
+name: tests
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: |
+          for t in env station life power scavenge player ux input; do
+            echo "== $t"; node tests/$t.test.js | tail -1; node tests/$t.test.js > /dev/null || exit 1
+          done

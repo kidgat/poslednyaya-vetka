@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 1.0.1</title>
+<title>Последняя ветка 1.1.0</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -39,8 +39,26 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   min-height:36px;min-width:140px;margin-top:5px;cursor:pointer;text-align:left;padding:0 10px}
 #opts button[aria-pressed="true"]{background:rgba(232,184,106,.32);border-color:rgba(232,184,106,.9)}
 .hud-r{display:flex;align-items:flex-start}
+/* 1.1А-UX1: кнопки масштаба — как ⚙: прозрачная область 44×44, видимая плашка внутри; на краю шкалы — неактивна */
+.hb{pointer-events:auto;position:relative;width:44px;height:44px;margin:-8px 0 0 0;padding:0;background:transparent;border:0;
+  cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;font:inherit}
+.hb i{display:flex;align-items:center;justify-content:center;width:30px;height:28px;box-sizing:border-box;background:var(--panel);
+  border:1px solid var(--line);color:var(--ink);font-style:normal;font-size:16px;pointer-events:none}
+.hb.press i{border-color:rgba(232,184,106,.75);color:var(--gold);background:rgba(232,184,106,.22)}
+.hb:disabled{cursor:default}.hb:disabled i{opacity:.32}
+/* 1.1А-UX1: кнопка фонаря — внизу справа, вне центральной кнопки действия; включён — золотая рамка и свечение */
+#lamp{position:fixed;z-index:4;right:calc(env(safe-area-inset-right) + 14px);bottom:calc(env(safe-area-inset-bottom) + 16px);
+  width:56px;height:56px;padding:0;background:transparent;border:0;cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;
+  display:flex;align-items:center;justify-content:center}
+#lamp i{display:flex;align-items:center;justify-content:center;width:46px;height:46px;box-sizing:border-box;border-radius:50%;
+  background:rgba(14,12,8,.72);border:2px solid rgba(232,184,106,.45);color:var(--muted);pointer-events:none}
+#lamp .ray{opacity:0}
+#lamp.on i{border-color:#cfe2ff;color:#eef4ff;background:rgba(150,180,230,.30);box-shadow:0 0 12px rgba(190,215,255,.55)}
+#lamp.on .ray{opacity:1}
+#lamp.press i{background:rgba(232,184,106,.38)}
 #ver{pointer-events:auto;background:var(--panel);border:1px solid var(--line);color:var(--muted);font:inherit;font-size:11px;
   padding:6px 9px;letter-spacing:.08em;cursor:pointer}
+#ver.dev{color:#ffb35a;border-color:#a8652a}   /* DEV-метка: «v… DEV» оранжевым, на месте номера версии */
 #hint{position:fixed;z-index:3;left:50%;bottom:calc(env(safe-area-inset-bottom) + 16px);transform:translateX(-50%);
   font-size:11px;color:#d4ccb6;background:var(--panel);padding:6px 11px;border:1px solid var(--line);white-space:nowrap;
   pointer-events:none;transition:opacity 1s}
@@ -110,10 +128,11 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.0.1</button></div>
+  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.1.0</button></div>
 </div>
-<div id="hint">Коснись и удерживай левую или правую половину экрана</div>
+<div id="hint">Коснись точки на полу или удерживай левую/правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
+<button id="lamp" type="button" aria-label="Фонарь" aria-pressed="false"><i><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3 9h9l4-3v12l-4-3H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path class="ray" d="M18.5 8.5l3-2M19 12h3M18.5 15.5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></i></button>
 <div id="opts" role="dialog" aria-label="Яркость сцены"><b>ЯРКОСТЬ СЦЕНЫ</b>
   <button type="button" data-b="dark">Атмосферно</button><button type="button" data-b="normal">Нормально</button><button type="button" data-b="bright">Светлее</button>
 </div>
@@ -136,7 +155,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 1.0.1 «Служебные переходы»<br>
+    <p>Станция «Гагаринская» · прототип 1.1.0 «Сердце станции: дом героя»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -145,7 +164,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.0.1 «Служебные переходы»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.1.0 «Сердце станции: дом героя»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -154,16 +173,31 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 (() => {
 'use strict';
 
+/* ============================ ENV (PROD / DEV) =========================== */
+/* ENV:BEGIN — окружение по адресу. PROD — kidgat.github.io/poslednyaya-vetka/ (и всё, что не DEV: локальные файлы, тесты).
+   DEV — тестовая публикация: *.pages.dev (Cloudflare Pages, ветка dev) или папка /poslednyaya-vetka-dev/ (отдельный GitHub Pages-проект).
+   В DEV сохранения живут под pv.dev.* — ключи PROD (pv.power.v1, pv.scavenge.v1, pv.visual.v1) не читаются и не пишутся.
+   Код одинаковый для обеих публикаций: на адресе PROD он никогда не возьмёт тестовые сохранения. */
+function detectEnv(loc) {
+  if (!loc || !loc.hostname) return 'prod';
+  if (/\.pages\.dev$/i.test(loc.hostname) || /^\/poslednyaya-vetka-dev(\/|$)/.test(loc.pathname || '')) return 'dev';
+  return 'prod';
+}
+function envSaveKey(env, key) { return env === 'dev' ? key.replace(/^pv\./, 'pv.dev.') : key; }
+/* ENV:END */
+const ENV = detectEnv(typeof location === 'undefined' ? null : location);
+const saveKey = key => envSaveKey(ENV, key);
+
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '1.0.1',
+  VERSION: '1.1.0',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
   FLOORS: {
     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
     utility:  { y: 368, minX: 310, maxX: 1850, bottom: true },   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
-    upper:    { y: 98,  minX: 150, maxX: 1856 },  // жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
+    upper:    { y: 98,  minX: 25,  maxX: 1856 },  // 1.1А: комната героя → жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
     vestibule: { y: -14, minX: 1188, maxX: 1852, cam: 0.40 },   // 0.9: вестибюль +1 — карантин, экипировка, КПП, зал, караульная
     surface:  { y: -122, minX: 1136, maxX: 1980, cam: 0.72 },   // улица (0.9: земля поднята с −61, под ней вестибюль)
   },
@@ -190,8 +224,18 @@ const CONFIG = {
     b: { floor: 'surface', x: 1650, dir: 'down', label: '▼ В вестибюль' } }],
   SEED: 2055,               // зерно генерации деталей (одинаковая картинка при каждом запуске)
   STEP: 1 / 60,             // фиксированный шаг логики
+  /* 1.1А-UX2: гибридное сенсорное управление. Короткое касание (< HOLD_MS, сдвиг ≤ SLOP CSS px) — идти к точке;
+     удерживание или явный сдвиг пальца — прежняя ходьба половинами экрана. Цель — мировой x на текущем этаже;
+     касание засчитывается, только если точка по высоте на дорожке этажа: F.y − BAND[0] … F.y + BAND[1]. */
+  TOUCH: { HOLD_MS: 200, SLOP: 10, BAND: [48, 14], MIN_DIST: 5, ARRIVE: 3, MARK: 0.4 },   // MARK — угасание маркера после прихода, с
+  /* 1.1А-UX1: масштаб игрового изображения — множитель к целочисленному масштабу экрана; HUD не масштабируется. */
+  ZOOM: { LEVELS: [1, 1.25, 1.5, 1.75], SAVE_KEY: 'pv.zoom.v1', FEET: 0.74 },   // FEET — доля высоты кадра для ступней при увеличении
+  /* 1.1А-UX1: личный фонарь героя — свой свет, не зависит от цепей станции; батарейки пока не расходуются. */
+  FLASHLIGHT: { RANGE: 110, HAND: [7, 25], SPOT: 20, SPOT_ALPHA: 0.3, ALPHA: 0.95 },
   PLAYER: {
-    START_X: 1000,
+    START_X: 1000,          // центр платформы — клавиша R (как раньше)
+    HOME: { floor: 'upper', x: 100 },   // 1.1А: старт новой игры и безопасная точка — комната героя, между гитарой и столом
+    SAVE_KEY: 'pv.player.v1', SAVE_EVERY: 3,   // положение героя: этаж, x, взгляд; раз в 3 с, при уходе в фон и закрытии
     MAX_SPEED: 72,          // пикс/с
     ACCEL: 480, DECEL: 640, TURN: 1300,
     STRIDE: 3.3,            // сколько пикселей пути на один кадр ходьбы
@@ -258,9 +302,9 @@ const CONFIG = {
       onBlackout: ['ЭТО НАДОЛГО?', 'СВЕТ ПРОПАЛ!', 'ПОШЛИ К БОЧКЕ!'], onRestore: ['О, ЗАРАБОТАЛО!', 'ПРОНЕСЛО...'] },
     cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle',
       onBlackout: ['ГДЕ СПИЧКИ?', 'ЧАЙ ЕЩЁ ГОРЯЧИЙ!', 'СВЕЧУ ПРИНЕСИТЕ!'], onRestore: ['ВОТ И СВЕТ!', 'ТЕПЕРЬ ВИДНО КОТЁЛ'] },
-    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 492, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
+    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
       onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
-    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 382, facing: -1, lamp: 'candle',
+    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 442, facing: -1, lamp: 'candle',
       onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
     medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
       onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
@@ -308,6 +352,17 @@ const CONFIG = {
   /* Осмотры и разговоры: data-driven, порядок после лестниц, ворот и генератора. trigger — неподвижный участок;
      npc + radius — разговор с NPC, участок считается от его текущей позиции. lines — реплики по кругу («Далее» / E). */
   INSPECTS: [
+    // 1.1А: комната героя. Реплики — массив lines (как у остальных осмотров), расширяются без переделки системы.
+    { id: 'inspect-hero-bed', space: 'hero-room', type: 'inspect', floor: 'upper', trigger: [30, 66], label: '◎ Осмотреть кровать',
+      title: 'МОЯ КОМНАТА', lines: [
+        '«Моя кровать. Немного скрипит, но после тяжёлого дня это лучшее место на всей станции».',
+        '«Когда-нибудь я выберусь отсюда и увижу город без противогаза».',
+      ] },
+    { id: 'inspect-hero-guitar', space: 'hero-room', type: 'inspect', floor: 'upper', trigger: [76, 90], label: '◎ Осмотреть гитару',
+      title: 'СТАРАЯ ГИТАРА', lines: [
+        '«Досталась мне от прежнего хозяина комнаты».',
+        '«Говорят, до войны на поверхности музыку можно было услышать почти на каждой улице».',
+      ] },
     { id: 'inspect-west-post', space: 'west-checkpoint', type: 'gate_locked', floor: 'platform', trigger: [176, 198], label: '◎ Поговорить с охраной',
       title: 'ПОСТ 1 · К «СПОРТИВНОЙ» · ОХРАНА', lines: [
         '«За этой дверью дорога к станции Спортивная. Пока закрыто».',
@@ -734,6 +789,52 @@ function createReactions(cfg) {
     duration(text) { return Math.max(cfg.DUR[0], Math.min(cfg.DUR[1], 1.6 + text.length * 0.09)); },
   };
 }
+/** 1.1А: разбор сохранения положения героя. Возвращает { floor, x, facing } или null (нет записи / испорчена / нет этажа / x вне minX–maxX).
+    Внутри арки или ворот герой бывает только в анимации перехода, а в ней положение не сохраняется (savePlayer — только в ходьбе);
+    стоянка перед аркой (в т.ч. ровно по центру после выхода) — обычное место. */
+function parsePlayerSave(cfg, raw) {
+  let d; try { d = typeof raw === 'string' ? JSON.parse(raw) : null; } catch (_) { return null; }
+  if (!d || typeof d !== 'object' || d.v !== 1 || typeof d.floor !== 'string' || !Object.prototype.hasOwnProperty.call(cfg.FLOORS, d.floor)) return null;
+  const F = cfg.FLOORS[d.floor], x = d.x;
+  if (typeof x !== 'number' || !Number.isFinite(x) || x < F.minX || x > F.maxX) return null;
+  return { floor: d.floor, x: Math.round(x * 10) / 10, facing: d.facing === -1 ? -1 : 1 };
+}
+/** 1.1А-UX1: разбор сохранения масштаба: { v:1, level } → индекс в LEVELS; нет записи / испорчена / чужое значение → 0 (100%). */
+function parseZoom(cfg, raw) {
+  let d; try { d = typeof raw === 'string' ? JSON.parse(raw) : null; } catch (_) { return 0; }
+  if (!d || typeof d !== 'object' || d.v !== 1 || typeof d.level !== 'number') return 0;
+  const i = cfg.ZOOM.LEVELS.indexOf(d.level);
+  return i < 0 ? 0 : i;
+}
+/** Следующий индекс масштаба: ступень ±1, не выходит за пределы LEVELS. */
+function zoomStep(cfg, idx, d) { return Math.max(0, Math.min(cfg.ZOOM.LEVELS.length - 1, idx + d)); }
+/** 1.1А-UX2: жест одного пальца в игровой области. dt — мс с касания, dist — сдвиг в CSS px, released — палец отпущен,
+    multi — в это время в игровой области был ещё палец. → 'pending' (ещё не ясно) | 'hold' (ручная ходьба) | 'tap' | 'none'. */
+function classifyGesture(cfg, dt, dist, released, multi) {
+  const T = cfg.TOUCH;
+  if (dist > T.SLOP || dt >= T.HOLD_MS) return 'hold';                 // явный сдвиг или удерживание — прежняя ходьба
+  if (!released) return 'pending';
+  return multi ? 'none' : 'tap';                                        // два пальца — не точка назначения (задел под pinch)
+}
+/** Точка касания (CSS px) → мировые координаты: прямоугольник canvas, его пиксели (devicePixelRatio), масштаб рендера и камера. */
+function screenToWorld(v, cssX, cssY) {
+  const dx = (cssX - v.left) * (v.devW / v.cssW), dy = (cssY - v.top) * (v.devH / v.cssH);
+  return { x: v.camX + dx / v.scale, y: v.camY + dy / v.scale };
+}
+/** Цель касания на текущем этаже: точка по высоте на дорожке этажа, x ограничен проходимым участком; иначе null. */
+function tapTarget(cfg, floor, wx, wy) {
+  const F = cfg.FLOORS[floor], B = cfg.TOUCH.BAND;
+  if (!F || !Number.isFinite(wx) || !Number.isFinite(wy) || wy < F.y - B[0] || wy > F.y + B[1]) return null;
+  return Math.round(Math.max(F.minX, Math.min(F.maxX, wx)) * 10) / 10;
+}
+/** Направление ходьбы к цели с учётом тормозного пути (без перелёта и дрожания). → { dir, done }. */
+function autoWalkDir(cfg, x, vx, target) {
+  const d = target - x, P = cfg.PLAYER, T = cfg.TOUCH;
+  if (Math.abs(d) <= T.ARRIVE && Math.abs(vx) < 8) return { dir: 0, done: true };
+  if (vx !== 0 && Math.sign(vx) === Math.sign(d) && (vx * vx) / (2 * P.DECEL) >= Math.abs(d) - 0.5) return { dir: 0, done: false };   // тормозим
+  if (Math.abs(d) <= T.ARRIVE) return { dir: 0, done: false };          // догорает торможение у цели
+  return { dir: Math.sign(d), done: false };
+}
 /* SCAVENGE:END */
 
 /* =============================== STATION ==================================
@@ -1025,8 +1126,9 @@ function mainTexel(x, y, o) {
 
 /* ---------- MAIN: верхний ярус (декоративные помещения в разрезе) ---------- */
 const ROOMS = [
-  { id: 'habitation', x: 140,  w: 290, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },
-  { id: 'kitchen',    x: 440,  w: 290, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },
+  { id: 'hero-room',  x: 10,   w: 180, label: 'КОМНАТА',    type: 'hero',     tint: [98, 78, 58],  light: [255, 188, 118], circuit: 'living' },   // 1.1А: дом героя, точка старта
+  { id: 'habitation', x: 200,  w: 270, label: 'ЖИЛОЙ БЛОК', type: 'bunks',    tint: [92, 76, 60],  light: [255, 196, 130], circuit: 'living' },   // 1.1А: 140/290 → 200/270
+  { id: 'kitchen',    x: 480,  w: 250, label: 'СТОЛОВАЯ',   type: 'kitchen',  tint: [96, 80, 60],  light: [255, 190, 120], circuit: 'living' },   // 1.1А: 440/290 → 480/250
   { id: 'stairwell',  x: 740,  w: 120, label: 'ЛЕСТНИЦА', plate: null, type: 'stairwell', tint: [72, 74, 72], light: [255, 206, 150], circuit: 'platform' },  // 1.0: без крупной таблички (указатели ЖИЛЬЁ/ТЕХ остаются)
   { id: 'workshop',   x: 870,  w: 280, label: 'МАСТЕРСКАЯ', type: 'workshop', tint: [62, 84, 74],  light: [255, 206, 150], circuit: 'technical' },
   { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
@@ -1114,9 +1216,64 @@ const ROOM_DRAW = {
     R(g, sx + 24, 19, 4, 45, '#36383a'); R(g, sx + 8, 57, 14, 7, '#6a6f72'); R(g, sx + 8, 57, 14, 1, '#8a9092');
     const fl = addLight(sx + 15, 82, 40, [255, 130, 60], 'fire', 0.6);
     addEmissive(sx + 7, 80, 16, 7, [255, 128, 48], fl, 'main', 'fire');
-    R(g, r.x + 168, 42, 64, 2, '#6a5038');                              // полка с банками
-    ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, r.x + 172 + k * 10, 35, 6, 7, c));
+    const shx = sx - 50;                                                // полка с банками (1.1А: от буржуйки, не заходит на трубу)
+    R(g, shx, 42, 64, 2, '#6a5038');
+    ['#8a6a3a', '#5a7a5a', '#9a8a5a', '#6a5a7a', '#8a4a3a', '#7a8a8a'].forEach((c, k) => R(g, shx + 4 + k * 10, 35, 6, 7, c));
     for (let k = 0; k < 3; k++) { R(g, r.x + 40 + k * 14, 34, 1, 6, '#2a2a2a'); R(g, r.x + 37 + k * 14, 40, 8, 5, '#5c6266'); }
+  },
+  /** 1.1А: комната героя — кровать, гитара, книги, плакат и фото, стол с лампой, шкафчик, рюкзак, мелочи; рисунок крыльев. */
+  hero(g, r) {
+    const x = r.x;
+    // кровать: металлический каркас, матрас, одеяло, подушка
+    R(g, x + 10, 74, 2, 22, '#4a4844'); R(g, x + 70, 80, 2, 16, '#4a4844'); R(g, x + 10, 74, 2, 1, '#6a6862');
+    R(g, x + 12, 86, 58, 2, '#3e3c38'); R(g, x + 12, 92, 58, 1, '#33312d');
+    R(g, x + 12, 81, 58, 5, '#8c7b60'); R(g, x + 12, 81, 58, 1, '#a8977a');                       // матрас
+    R(g, x + 30, 79, 40, 6, '#5a6a4a'); R(g, x + 30, 79, 40, 1, '#76885e'); R(g, x + 44, 80, 1, 5, '#4a5a3c');   // одеяло
+    R(g, x + 14, 78, 13, 4, '#d0c6aa'); R(g, x + 14, 78, 13, 1, '#e4dcc2');                     // подушка
+    R(g, x + 18, 92, 12, 4, '#6a5038'); R(g, x + 18, 92, 12, 1, '#8a6a48');                     // ящик с вещами под кроватью
+    R(g, x + 36, 93, 6, 3, '#2a2622'); R(g, x + 43, 93, 6, 3, '#2a2622');                       // ботинки
+    // гитара у изножья кровати
+    R(g, x + 77, 58, 2, 18, '#5a3e24'); R(g, x + 76, 56, 4, 3, '#3a2a1a');                      // гриф и голова
+    R(g, x + 73, 76, 10, 9, '#a8743c'); R(g, x + 72, 85, 12, 10, '#b07a40'); R(g, x + 73, 76, 10, 1, '#c89458');
+    R(g, x + 77, 80, 2, 2, '#2a1e12'); R(g, x + 75, 89, 6, 1, '#4a321c');                       // розетка, подставка струн
+    // полка с книгами над кроватью
+    R(g, x + 12, 46, 34, 2, '#6a5038');
+    ['#7a3b34', '#465a6c', '#8a7a4a', '#5a6a4a', '#6a4a5a', '#8a5a3a'].forEach((c, k) => R(g, x + 14 + k * 5, 38 + (k % 3), 4, 8 - (k % 3), c));
+    R(g, x + 45, 41, 3, 5, '#c8bfa8');                                                          // сувенир с поверхности — обломок таблички
+    // плакат: стилизованная Волга и город, без копий готовых изображений
+    R(g, x + 52, 36, 30, 22, '#c8b48a'); R(g, x + 53, 37, 28, 20, '#8aa0a8'); R(g, x + 53, 37, 28, 4, '#c89a6a');   // закат
+    R(g, x + 53, 50, 28, 7, '#4a6a84'); for (let k = 0; k < 4; k++) R(g, x + 55 + k * 7, 52 + (k % 2), 4, 1, '#9ab8c8');   // река
+    [[56, 44, 4], [61, 41, 3], [66, 45, 5], [72, 42, 3], [76, 46, 3]].forEach(([dx, y, w]) => R(g, x + dx, y, w, 50 - y, '#5a5a62'));   // силуэт города
+    R(g, x + 62, 38, 1, 3, '#5a5a62');                                                          // шпиль
+    // фотографии
+    R(g, x + 86, 34, 9, 11, '#b8a98a'); R(g, x + 87, 35, 7, 7, '#6a7a6a');
+    R(g, x + 86, 48, 9, 8, '#b8a98a'); R(g, x + 87, 49, 7, 5, '#7a6a5a');
+    // рисунок крыльев на листке
+    R(g, x + 100, 40, 16, 12, '#d8d0bc'); R(g, x + 100, 40, 16, 1, '#ece4d2');
+    for (let k = 0; k < 5; k++) { R(g, x + 107 - k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); R(g, x + 109 + k, 45 - (k >> 1), 1, 1 + (k >> 1), '#4a4440'); }
+    R(g, x + 108, 44, 1, 5, '#4a4440');
+    // часы на стене
+    R(g, x + 124, 32, 7, 7, '#3a3834'); R(g, x + 125, 33, 5, 5, '#d8d0bc'); R(g, x + 127, 34, 1, 2, '#2a2622'); R(g, x + 127, 35, 2, 1, '#2a2622');
+    // письменный стол: кружка, блокнот, записи, фонарик, лампа
+    R(g, x + 96, 78, 46, 3, '#7a5a3e'); R(g, x + 96, 78, 46, 1, '#9c7a58'); R(g, x + 96, 81, 46, 1, '#4e3a28');
+    R(g, x + 98, 82, 2, 14, '#3e2e20'); R(g, x + 138, 82, 2, 14, '#3e2e20'); R(g, x + 124, 82, 14, 8, '#5e4630');   // ножки, тумба
+    R(g, x + 128, 85, 6, 1, '#3e2e20');
+    R(g, x + 102, 75, 9, 3, '#d8d0bc'); R(g, x + 104, 74, 8, 1, '#c8bfa8');                     // записи
+    R(g, x + 113, 74, 7, 4, '#6a3a2a'); R(g, x + 113, 74, 7, 1, '#8a4a34');                     // блокнот
+    R(g, x + 122, 74, 4, 4, '#8a8a84'); R(g, x + 126, 75, 1, 2, '#8a8a84');                     // кружка
+    R(g, x + 128, 76, 6, 2, '#3a4448'); R(g, x + 133, 76, 1, 2, '#c8c0a0');                     // фонарик
+    R(g, x + 138, 64, 1, 14, '#3a3834'); R(g, x + 134, 63, 7, 3, '#5a5a52'); R(g, x + 136, 77, 5, 1, '#3a3834');   // настольная лампа
+    const dl = addLight(x + 137, 67, 26, [255, 196, 120], 'steady', 0.55);                     // свет у стола (цепь living)
+    addEmissive(x + 135, 66, 5, 1, [255, 226, 170], dl);
+    R(g, x + 104, 88, 10, 2, '#5e4630'); R(g, x + 105, 90, 1, 6, '#3e2e20'); R(g, x + 112, 90, 1, 6, '#3e2e20');   // табурет
+    R(g, x + 116, 92, 9, 4, '#4a5258'); R(g, x + 116, 92, 9, 1, '#6a7278'); R(g, x + 118, 91, 5, 1, '#8a8a84');   // ящик с инструментами
+    // рюкзак на крючке и личный шкафчик
+    R(g, x + 146, 56, 2, 2, '#6a6862');
+    R(g, x + 143, 58, 8, 12, '#5a5a3a'); R(g, x + 143, 58, 8, 1, '#7a7a52'); R(g, x + 144, 63, 6, 4, '#4a4a30'); R(g, x + 145, 69, 1, 2, '#3a3a28');
+    const lx = x + 154;
+    R(g, lx, 52, 22, 44, '#55625f'); R(g, lx, 52, 22, 1, '#7a8784'); R(g, lx + 11, 53, 1, 43, '#3a4442');
+    for (let k = 0; k < 3; k++) { R(g, lx + 3, 57 + k * 3, 6, 1, '#2e3432'); R(g, lx + 14, 57 + k * 3, 6, 1, '#2e3432'); }
+    R(g, lx + 8, 72, 1, 3, '#a8a8a0'); R(g, lx + 13, 72, 1, 3, '#a8a8a0');                     // ручки
   },
   /** Лестничная клетка: завал разобран (проход на запад открыт), обломки сложены на стене-полке; таблички направлений. */
   /** 1.0.1: бывшая лестничная клетка — холл с аркой служебной лестницы на перрон (арка — drawArches). */
@@ -1712,7 +1869,7 @@ function drawFore(g, w) {
 }
 
 /* ---------- MAIN: проёмы между комнатами верхнего яруса и лестница ---------- */
-const DOORWAYS = [[426, 444], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
+const DOORWAYS = [[186, 204], [466, 484], [726, 744], [856, 874], [1146, 1164], [1306, 1324], [1536, 1554], [1716, 1734]];   // [левый край, правый край] прохода
 /** Проёмы между комнатами вестибюля (0.9), в координатах шаблона комнаты. */
 const VEST_DOORWAYS = [[1326, 1344], [1446, 1464], [1592, 1610], [1746, 1764]];
 function drawDoorways(g, list = DOORWAYS) {
@@ -2132,7 +2289,7 @@ function placeActors() {
   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
   Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
   // охрана шлюза, рабочие мастерской и насосной, житель столовой — с 0.8.1 в CONFIG.NPCS (без копий здесь)
-  actor('sleeper', 'resB', 0, 0, { bed: [158, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [234, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [310, 88] });
+  actor('sleeper', 'resB', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [294, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
   actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
   actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
   const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: ярус −2 — спящие в ячейках и свиньи в загоне
@@ -2254,7 +2411,9 @@ const Input = {
   release(id) { this.held = this.held.filter(h => h.id !== id); },
   queue(a) { this.action = a; if (this.onFirstInput) { this.onFirstInput(); this.onFirstInput = null; } },
   takeAction() { const a = this.action; this.action = null; return a; },
-  clear() { this.held.length = 0; this.action = null; },
+  clear() { this.held.length = 0; this.action = null; if (this.gestures) { this.gestures.forEach(g => clearTimeout(g.timer)); this.gestures.clear(); } },
+  onTap: null,                             // 1.1А-UX2: короткое касание точки → (clientX, clientY)
+  gestures: new Map(),                     // pointerId → { x0, y0, t0, mode: 'pending' | 'hold', multi, timer } (задел под pinch)
   init(touchEl, onReset) {
     const KEYS = { ArrowLeft: -1, KeyA: -1, ArrowRight: 1, KeyD: 1 };
     const ACTIONS = { ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down', KeyE: 'use' };
@@ -2263,20 +2422,47 @@ const Input = {
       else if (e.code in ACTIONS) { e.preventDefault(); if (!e.repeat) this.queue(ACTIONS[e.code]); }
       else if (e.code === 'Escape' && this.onEscape) this.onEscape();
       else if (e.code === 'KeyR') onReset();
+      else if (e.code === 'KeyF') { e.preventDefault(); if (!e.repeat) Player.toggleFlashlight(); }          // 1.1А-UX1: фонарь
+      else if (e.code === 'Minus' || e.code === 'NumpadSubtract') { if (!e.repeat) Zoom.step(-1); }       // масштаб
+      else if (e.code === 'Equal' || e.code === 'NumpadAdd') { if (!e.repeat) Zoom.step(1); }
       else if (e.code === 'Backquote' || e.code === 'F3') { e.preventDefault(); Debug.toggle(); }
     });
     addEventListener('keyup', e => { if (e.code in KEYS) { e.preventDefault(); this.release('k' + e.code); } });
     const side = e => (e.clientX < innerWidth / 2 ? -1 : 1);
+    // 1.1А-UX2: палец сначала «ждёт»: короткое касание — точка назначения, удерживание (HOLD_MS) или сдвиг (SLOP) — ходьба как раньше.
+    const G = this.gestures, T = CONFIG.TOUCH;
+    const toHold = (id, x) => { const g = G.get(id); if (!g || g.mode === 'hold') return; g.mode = 'hold'; clearTimeout(g.timer); this.press('p' + id, x < innerWidth / 2 ? -1 : 1); };
     touchEl.addEventListener('pointerdown', e => {
       e.preventDefault();
       try { touchEl.setPointerCapture(e.pointerId); } catch (_) { /* capture не обязателен */ }
-      this.press('p' + e.pointerId, side(e));
+      const multi = G.size > 0; if (multi) G.forEach(g => { g.multi = true; });
+      const g = { x0: e.clientX, y0: e.clientY, x: e.clientX, t0: performance.now(), mode: 'pending', multi };
+      g.timer = setTimeout(() => toHold(e.pointerId, g.x), T.HOLD_MS);
+      G.set(e.pointerId, g);
     });
-    touchEl.addEventListener('pointermove', e => {                       // палец переполз на другую половину
-      const h = this.held.find(x => x.id === 'p' + e.pointerId);
+    touchEl.addEventListener('pointermove', e => {
+      const g = G.get(e.pointerId); if (!g) return;
+      g.x = e.clientX;
+      if (g.mode === 'pending') {
+        if (classifyGesture(CONFIG, performance.now() - g.t0, Math.hypot(e.clientX - g.x0, e.clientY - g.y0), false, g.multi) === 'hold') toHold(e.pointerId, e.clientX);
+        return;
+      }
+      const h = this.held.find(x => x.id === 'p' + e.pointerId);         // палец переполз на другую половину
       if (h && h.dir !== side(e)) this.press(h.id, side(e));
     });
-    ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => touchEl.addEventListener(t, e => this.release('p' + e.pointerId)));
+    const end = (e, cancel) => {
+      const g = G.get(e.pointerId); G.delete(e.pointerId);
+      this.release('p' + e.pointerId);
+      if (!g) return;
+      clearTimeout(g.timer);
+      if (cancel || g.mode !== 'pending') return;
+      const kind = classifyGesture(CONFIG, performance.now() - g.t0, Math.hypot(e.clientX - g.x0, e.clientY - g.y0), true, g.multi);
+      if (kind !== 'tap') return;
+      if (this.onFirstInput) { this.onFirstInput(); this.onFirstInput = null; return; }   // первое касание — только старт игры
+      if (this.onTap) this.onTap(e.clientX, e.clientY);
+    };
+    touchEl.addEventListener('pointerup', e => end(e, false));
+    ['pointercancel', 'lostpointercapture'].forEach(t => touchEl.addEventListener(t, e => end(e, true)));
     addEventListener('blur', () => this.clear());
     addEventListener('pagehide', () => this.clear());
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.clear(); });
@@ -2287,15 +2473,29 @@ const Input = {
 
 /* ================================ PLAYER ================================== */
 const Player = {
-  floor: 'platform', state: 'walk',      // state: 'walk' | 'passage' | 'gate' (1.0.1: открытых маршей нет)
-  x: CONFIG.PLAYER.START_X, prevX: CONFIG.PLAYER.START_X,
-  y: CONFIG.FLOORS.platform.y, prevY: CONFIG.FLOORS.platform.y,
+  floor: CONFIG.PLAYER.HOME.floor, state: 'walk',      // state: 'walk' | 'passage' | 'gate' (1.0.1: открытых маршей нет)
+  x: CONFIG.PLAYER.HOME.x, prevX: CONFIG.PLAYER.HOME.x,
+  y: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y, prevY: CONFIG.FLOORS[CONFIG.PLAYER.HOME.floor].y,
   vx: 0, facing: 1, path: null, gate: null, alpha: 1,
+  target: null,                          // 1.1А-UX2: точка назначения касанием (мировой x на текущем этаже); не сохраняется
+  flashlightOn: false,                   // 1.1А-UX1: личный фонарь (после перезагрузки — выключен)
+  /** Состояние фонаря для игровой логики (будущие скрытность, NPC): включён ли, откуда и куда светит, дальность в мировых px.
+      lit — виден ли свет сейчас (во время прохода и ворот луч скрыт). */
+  flashlight() {
+    const F = CONFIG.FLASHLIGHT, lit = this.flashlightOn && this.state === 'walk' && this.alpha > 0.5;
+    return { on: this.flashlightOn, lit, floor: this.floor, x: Math.round(this.x) + this.facing * F.HAND[0], y: this.y - F.HAND[1], facing: this.facing, range: F.RANGE };
+  },
+  toggleFlashlight() { this.flashlightOn = !this.flashlightOn; Flashlight.render(); return this.flashlightOn; },
   walkDist: 0, frame: 0, idleT: 0, blinkT: 3, onStep: null,
   reset() {
     this.floor = 'platform'; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
     this.x = this.prevX = CONFIG.PLAYER.START_X; this.y = this.prevY = CONFIG.FLOORS.platform.y;
     this.vx = 0; this.walkDist = 0;
+  },
+  /** 1.1А: поставить героя на этаж и x (старт, загрузка сохранения) — обычная ходьба, без прохода и ворот. */
+  place(floor, x, facing = 1) {
+    this.floor = floor; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
+    this.x = this.prevX = x; this.y = this.prevY = CONFIG.FLOORS[floor].y; this.facing = facing; this.vx = 0; this.walkDist = 0;
   },
   /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
   interaction() {
@@ -2448,6 +2648,7 @@ const Camera = {
       1.0.1: при служебном проходе этаж меняется, пока героя не видно, — камера плавно догоняет новую цель. */
   floorY(f) {
     const maxY = H - this.viewH, F = CONFIG.FLOORS[f];
+    if (Zoom.factor() > 1) return clamp(F.y - this.viewH * CONFIG.ZOOM.FEET, -SURF_H, WORLD_BOTTOM - this.viewH);   // 1.1А-UX1: кадр меньше — у каждого этажа ступни на FEET высоты
     if (F.bottom) return Math.max(-SURF_H, WORLD_BOTTOM - this.viewH);    // 1.0: ярус −2 — низ кадра = низ мира
     return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;   // старые этажи — как в 0.9
   },
@@ -2559,7 +2760,9 @@ const Render = {
     this.devW = Math.round(cssW * this.dpr); this.devH = Math.round(cssH * this.dpr);
     this.canvas.width = this.devW; this.canvas.height = this.devH;
     this.canvas.style.width = cssW + 'px'; this.canvas.style.height = cssH + 'px';
-    this.scale = Math.max(1, Math.floor(this.devH / H));
+    this.baseScale = Math.max(1, Math.floor(this.devH / H));
+    this.scale = this.baseScale * Zoom.factor();                         // 1.1А-UX1: увеличение — игровой рендер и камера, не CSS
+    // На iPhone (×4 по высоте) все уровни дают целый масштаб (4/5/6/7); на других экранах — кратный ступени, выборка nearest.
     this.viewH = Math.ceil(this.devH / this.scale) + 1;                 // +1 строка под дробный сдвиг камеры по Y
     this.viewW = Math.min(W, Math.ceil(this.devW / this.scale));
     this.buf = makeCanvas(this.viewW + 1, this.viewH); this.g = this.buf.getContext('2d');
@@ -2571,6 +2774,7 @@ const Render = {
     this.vignette = this.makeVignette();
     Camera.viewW = this.viewW; Camera.viewH = this.devH / this.scale;
     this.ctx.imageSmoothingEnabled = false;
+    this.zoomed = Zoom.factor() > 1;
   },
   makeVignette() {
     const c = makeCanvas(this.viewW + 1, this.viewH), g = c.getContext('2d'), w = c.width, h = c.height;
@@ -2629,6 +2833,13 @@ const Render = {
       g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
       this.playerOcc = { spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha };
       this.occ.push(this.playerOcc);
+    }
+    const mk = Game.mark;                                                // 1.1А-UX2: маркер цели — маленький золотой ромб на полу (мировой x), пока цель жива
+    if (mk && mk.floor === Player.floor) {
+      const mx = Math.round(mk.x) - camI, my = CONFIG.FLOORS[mk.floor].y + yo, a = mk.fading ? Math.max(0, mk.t / CONFIG.TOUCH.MARK) : 1;
+      g.globalAlpha = 0.85 * a; g.fillStyle = '#e8b86a';
+      g.fillRect(mx - 3, my, 2, 1); g.fillRect(mx + 2, my, 2, 1); g.fillRect(mx - 1, my - 1, 3, 1); g.fillRect(mx - 1, my + 1, 3, 1);
+      g.globalAlpha = 1;
     }
     // 5. Карта освещения: тёмный фон + сложение источников, затем умножение на сцену.
     this.drawLightmap(camX, frac, t, px, fy);
@@ -2777,6 +2988,18 @@ const Render = {
       gl.beginPath(); gl.rect(this.sx(c.x0, 1, camX, frac), c.y0 + yo, c.x1 - c.x0, c.y1 - c.y0); gl.clip();
       gl.globalAlpha = 0.8 * cd.lamp * (0.82 + 0.18 * noise1(t * 7, 33)); gl.drawImage(tex, x - 40, y - 40); gl.restore(); n++;
     }
+    const fl = Player.flashlight();                                      // 1.1А-UX1: личный фонарь — та же текстура луча, что у охраны
+    if (fl.lit) {
+      const F = CONFIG.FLASHLIGHT, P = { x: Player.x, y: Player.y, floor: Player.floor, facing: Player.facing, lampType: 'beam', kind: 'walker' };
+      const clip = actorClip(P), x = playerSX + Player.facing * F.HAND[0], y = playerFY - F.HAND[1];
+      const cx0 = clip.x0 > -1e9 ? this.sx(clip.x0, 1, camX, frac) : 0, cx1 = clip.x1 < 1e9 ? this.sx(clip.x1, 1, camX, frac) : vw;
+      const cy0 = clip.y0 > -1e9 ? clip.y0 + yo : 0, cy1 = clip.y1 < 1e9 ? clip.y1 + yo : this.viewH;
+      gl.save(); gl.beginPath(); gl.rect(cx0, cy0, cx1 - cx0, cy1 - cy0); gl.clip();              // свет не выходит за стены и перекрытия
+      gl.globalAlpha = F.SPOT_ALPHA; gl.drawImage(this.lampDisc(F.SPOT, [205, 222, 255]), x - F.SPOT, y + 4 - F.SPOT);   // пятно у руки
+      const k = (F.RANGE / 120) * this.beamFit(P, clip, F.RANGE / 120);                       // у стены луч короче и гаснет
+      gl.globalAlpha = F.ALPHA; gl.translate(x, y); gl.scale(Player.facing * k, k); gl.drawImage(this.beamTex, -2, -18);
+      gl.restore(); n += 2;
+    }
     const pClip = Player.state !== 'walk' ? null : { surface: SURF_CLIP, vestibule: VEST_CLIP, upper: UPPER_CLIP, utility: UTIL_CLIP }[Player.floor] || HALL_CLIP;
     blob(playerSX, playerFY - 23, 50, [160, 150, 128], 0.5 * (0.35 + 0.65 * PowerView.main), 1, pClip);   // в блэкаут слабее                 // мягкая подсветка героя для читаемости
     this.drawnLights = n;
@@ -2882,6 +3105,12 @@ const Render = {
       tg.globalAlpha = 1;
     }
     if (d) this.flushGlow(d, [po]);                                       // герой стоит перед NPC — вырезается только он
+    const fl = Player.flashlight();                                      // 1.1А-UX1: фонарь в руке героя — корпус и линза поверх спрайта
+    if (fl.lit && po) {
+      const x = po.cx + Player.facing * CONFIG.FLASHLIGHT.HAND[0], y = po.top + 40 - CONFIG.FLASHLIGHT.HAND[1];
+      this.g.fillStyle = '#3a3e40'; this.g.fillRect(x - Player.facing * 3, y, 4, 2);
+      this.g.fillStyle = '#eef4ff'; this.g.fillRect(x + (Player.facing > 0 ? 1 : -1), y, 1, 2);
+    }
   },
   /** Канистры и состояние точек поиска на поверхности (меняются после сбора). */
   drawScavenge(g, camI, yo) {
@@ -2967,14 +3196,58 @@ const Debug = {
 /* ================================ VISUAL ==================================
    Режим яркости сцены: «Атмосферно» / «Нормально» (по умолчанию) / «Светлее». Меняет карту освещения и виньетку,
    HUD и карточки не трогает. Своё сохранение pv.visual.v1 — ресурсы (pv.power.v1, pv.scavenge.v1) не затрагиваются. */
+/** 1.1А-UX1: кнопка интерфейса по отпусканию пальца (как ⚙): касание не уходит в сенсорный слой ходьбы. */
+function tapButton(btn, fn) {
+  let down = null, skip = false;
+  btn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); down = e.pointerId; btn.classList.add('press'); try { btn.setPointerCapture(e.pointerId); } catch (_) { /* не обязателен */ } });
+  btn.addEventListener('pointerup', e => {
+    e.stopPropagation(); e.preventDefault(); btn.classList.remove('press');
+    if (down !== e.pointerId) return; down = null;
+    const r = btn.getBoundingClientRect(), m = 12;
+    if (e.clientX >= r.left - m && e.clientX <= r.right + m && e.clientY >= r.top - m && e.clientY <= r.bottom + m) { fn(); skip = true; }
+  });
+  btn.addEventListener('pointercancel', () => { down = null; btn.classList.remove('press'); });
+  btn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); if (skip) { skip = false; return; } fn(); });   // клавиатура
+}
+/* ================================ ZOOM ===================================== */
+const Zoom = {
+  idx: 0,
+  factor() { return CONFIG.ZOOM.LEVELS[this.idx]; },
+  load() { try { this.idx = parseZoom(CONFIG, localStorage.getItem(saveKey(CONFIG.ZOOM.SAVE_KEY))); } catch (_) { this.idx = 0; } },
+  step(d) {
+    const i = zoomStep(CONFIG, this.idx, d);
+    if (i === this.idx) return;
+    this.idx = i;
+    try { localStorage.setItem(saveKey(CONFIG.ZOOM.SAVE_KEY), JSON.stringify({ v: 1, level: this.factor() })); } catch (_) { /* хранилище недоступно */ }
+    if (Render.canvas) { Render.resize(); Camera.snap(Player); }         // герой остаётся на месте, кадр центрируется на нём
+    this.render();
+  },
+  init() {
+    this.els = { out: document.getElementById('zoomOut'), in: document.getElementById('zoomIn') };
+    tapButton(this.els.out, () => this.step(-1)); tapButton(this.els.in, () => this.step(1));
+    this.render();
+  },
+  render() {
+    if (!this.els) return;
+    const last = CONFIG.ZOOM.LEVELS.length - 1;
+    this.els.out.disabled = this.idx === 0; this.els.in.disabled = this.idx === last;
+    const pct = Math.round(this.factor() * 100) + '%';
+    this.els.out.setAttribute('aria-label', 'Уменьшить изображение (сейчас ' + pct + ')'); this.els.in.setAttribute('aria-label', 'Увеличить изображение (сейчас ' + pct + ')');
+  },
+};
+/* ============================== FLASHLIGHT ================================ */
+const Flashlight = {
+  init() { this.el = document.getElementById('lamp'); tapButton(this.el, () => Player.toggleFlashlight()); this.render(); },
+  render() { if (!this.el) return; this.el.setAttribute('aria-pressed', String(Player.flashlightOn)); this.el.classList.toggle('on', Player.flashlightOn); },
+};
 const Visual = {
   id: CONFIG.VISUAL.DEFAULT, els: {},
   preset() { return CONFIG.VISUAL.PRESETS[this.id]; },
-  load() { try { this.id = parseVisual(CONFIG.VISUAL, localStorage.getItem(CONFIG.VISUAL.SAVE_KEY)); } catch (_) { this.id = CONFIG.VISUAL.DEFAULT; } },
+  load() { try { this.id = parseVisual(CONFIG.VISUAL, localStorage.getItem(saveKey(CONFIG.VISUAL.SAVE_KEY))); } catch (_) { this.id = CONFIG.VISUAL.DEFAULT; } },
   set(id) {
     if (!CONFIG.VISUAL.PRESETS[id]) return;
     this.id = id;
-    try { localStorage.setItem(CONFIG.VISUAL.SAVE_KEY, JSON.stringify({ v: 1, brightness: id })); } catch (_) { /* хранилище недоступно */ }
+    try { localStorage.setItem(saveKey(CONFIG.VISUAL.SAVE_KEY), JSON.stringify({ v: 1, brightness: id })); } catch (_) { /* хранилище недоступно */ }
     if (Render.canvas) Render.vignette = Render.makeVignette();          // маска виньетки — только при смене режима
     this.render();
   },
@@ -3091,12 +3364,12 @@ const Game = {
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
-    Visual.load(); this.loadPower(); this.loadScavenge(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
-    GenPanel.init(); InfoCard.init(); Visual.init();
+    Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+    GenPanel.init(); InfoCard.init(); Visual.init(); Zoom.init(); Flashlight.init();
     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
-    addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); } });
+    addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); this.savePlayer(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); this.savePlayer(); } });
     Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); Visual.hide(); };
     Render.init(document.getElementById('screen'));
     Debug.init();
@@ -3104,6 +3377,10 @@ const Game = {
       snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
       advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
       station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
+      place: (floor, x, facing = 1) => { Player.place(floor, x, facing); Camera.snap(Player); return true; },   // 1.1А-UX1: для проверок камеры на этажах
+      zoom: () => ({ idx: Zoom.idx, factor: Zoom.factor(), scale: Render.scale, base: Render.baseScale, viewW: Render.viewW, viewH: Render.viewH, camX: Camera.x, camY: Camera.y }),
+      flashlight: () => ({ ...Player.flashlight(), drawn: Render.drawnLights }),
+      touch: () => ({ mark: Game.mark ? { ...Game.mark } : null, target: Player.target, lastTap: Game.lastTap || null, gestures: Input.gestures.size, held: Input.held.length, vx: Player.vx, x: Player.x, scale: Render.scale, camX: Camera.x, camY: Camera.y }),
       player: () => { const sp = Player.sprite();                    // 1.0.1: фаза прохода и поза героя (спиной / лицом / боком)
         return { x: Player.x, y: Player.y, floor: Player.floor, state: Player.state, phase: Player.pass ? Player.pass.phase : null, k: Player.pass ? Player.pass.k : 0, dy: Render.archDY || 0,
           pose: !sp ? null : SPRITES.backWalk.includes(sp) || sp === SPRITES.back ? 'back' : SPRITES.frontWalk.includes(sp) ? 'front' : 'side' }; },
@@ -3130,6 +3407,7 @@ const Game = {
     act.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); act.classList.add('press'); Input.queue('use'); });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => act.addEventListener(t, () => act.classList.remove('press')));
     Input.init(document.getElementById('touch'), () => { Player.reset(); Camera.snap(Player); });
+    Input.onTap = (x, y) => this.tapAt(x, y);
     Input.onFirstInput = () => this.hideTitle();
     this.els.title.addEventListener('pointerdown', e => { e.preventDefault(); this.hideTitle(); });
     addEventListener('keydown', () => this.hideTitle(), { once: true });
@@ -3144,6 +3422,7 @@ const Game = {
     requestAnimationFrame(now => this.frame(now));
   },
   hideTitle() {
+    Input.onFirstInput = null;                                         // 1.1А-UX2: заставку убрало её собственное касание — следующее касание мира уже игровое
     if (this.els.title.classList.contains('gone')) return;
     this.els.title.classList.add('gone');
     setTimeout(() => this.els.hint.classList.add('gone'), 6000);
@@ -3161,7 +3440,20 @@ const Game = {
   },
   update(dt) {
     this.t += dt;
-    const dir = Input.dir(), action = Input.takeAction(), it = Player.interaction();
+    let dir = Input.dir();
+    const action = Input.takeAction(), it = Player.interaction();
+    // 1.1А-UX2: движение к точке. Ручная ходьба, проход/ворота, открытие окна генератора или карточки — отменяют цель.
+    const opened = (GenPanel.open && !this.wasGen) || (InfoCard.open && !this.wasCard);
+    this.wasGen = GenPanel.open; this.wasCard = InfoCard.open;
+    // Маркер цели отражает состояние автодвижения: виден, пока цель жива; отмена — исчезает сразу; дошёл — гаснет за MARK с.
+    if (Player.target !== null && (dir !== 0 || Player.state !== 'walk' || opened)) { Player.target = null; this.mark = null; }
+    if (Player.target !== null) {
+      const r = autoWalkDir(CONFIG, Player.x, Player.vx, Player.target);
+      if (r.done) { Player.target = null; if (this.mark) { this.mark.fading = true; this.mark.t = CONFIG.TOUCH.MARK; } }
+      dir = r.dir;
+    }
+    if (this.mark && (this.mark.floor !== Player.floor || (!this.mark.fading && Player.target === null))) this.mark = null;   // этаж сменился / цель снята иначе
+    if (this.mark && this.mark.fading) { this.mark.t -= dt; if (this.mark.t <= 0) this.mark = null; }
     if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
       if (action === 'use') {
         if (it.kind === 'generator') GenPanel.toggle();
@@ -3205,20 +3497,50 @@ const Game = {
     if (cy.textContent !== ct) { cy.textContent = ct; cy.hidden = !ct; }
     this.saveSt = (this.saveSt || 0) + dt;
     if (this.saveSt >= 5) { this.saveSt = 0; this.saveScavenge(); }      // таймер тайника — раз в 5 с
+    this.savePt = (this.savePt || 0) + dt;
+    if (this.savePt >= CONFIG.PLAYER.SAVE_EVERY) { this.savePt = 0; this.savePlayer(); }   // 1.1А: положение героя
   },
-  saveScavenge() { try { localStorage.setItem(CONFIG.SCAVENGE.SAVE_KEY, JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
+  saveScavenge() { try { localStorage.setItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY), JSON.stringify(Scavenge.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   /** Отдельный ключ: испорченная запись поиска сбрасывает только поиск, энергосистему не трогает. */
   loadScavenge() {
     try {
-      const raw = localStorage.getItem(CONFIG.SCAVENGE.SAVE_KEY);
-      if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY);
-    } catch (_) { try { localStorage.removeItem(CONFIG.SCAVENGE.SAVE_KEY); } catch (__) { /* нет доступа */ } }
+      const raw = localStorage.getItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
+      if (raw && !Scavenge.restore(JSON.parse(raw))) localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY));
+    } catch (_) { try { localStorage.removeItem(saveKey(CONFIG.SCAVENGE.SAVE_KEY)); } catch (__) { /* нет доступа */ } }
   },
-  savePower() { try { localStorage.setItem(CONFIG.POWER.SAVE_KEY, JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
+  /** 1.1А-UX2: короткое касание игровой области → цель на текущем этаже (или отказ: другой этаж, мимо дорожки, герой занят). */
+  tapAt(cx, cy) {
+    if (Player.state !== 'walk' || !Render.canvas) return;
+    const r = Render.canvas.getBoundingClientRect();
+    const w = screenToWorld({ left: r.left, top: r.top, cssW: r.width, cssH: r.height, devW: Render.canvas.width, devH: Render.canvas.height, scale: Render.scale, camX: Camera.x, camY: Camera.y }, cx, cy);
+    const x = tapTarget(CONFIG, Player.floor, w.x, w.y);
+    this.lastTap = { wx: w.x, wy: w.y, x };
+    if (x === null) return;
+    if (Math.abs(x - Player.x) < CONFIG.TOUCH.MIN_DIST) { Player.target = null; this.mark = null; return; }   // у самого героя — без лишнего шага
+    Player.target = x; this.mark = { x, floor: Player.floor, fading: false, t: CONFIG.TOUCH.MARK };   // прежний маркер заменяется
+  },
+  /** 1.1А: положение героя (pv.player.v1 через saveKey). Только в обычной ходьбе: во время прохода и ворот — прежняя запись. */
+  savePlayer() {
+    if (Player.state !== 'walk') return;
+    const rec = JSON.stringify({ v: 1, floor: Player.floor, x: Math.round(Player.x * 10) / 10, facing: Player.facing });
+    if (rec === this.lastPlayerRec) return;                               // не писать то же самое
+    try { localStorage.setItem(saveKey(CONFIG.PLAYER.SAVE_KEY), rec); this.lastPlayerRec = rec; } catch (_) { /* хранилище недоступно */ }
+  },
+  loadPlayer() {
+    const H = CONFIG.PLAYER.HOME;
+    let raw = null; try { raw = localStorage.getItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
+    const p = raw ? parsePlayerSave(CONFIG, raw) : null;
+    if (p) Player.place(p.floor, p.x, p.facing);
+    else {
+      Player.place(H.floor, H.x, 1);                                     // нет записи или она испорчена — дома; прочие сохранения не трогаем
+      if (raw) try { localStorage.removeItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
+    }
+  },
+  savePower() { try { localStorage.setItem(saveKey(CONFIG.POWER.SAVE_KEY), JSON.stringify(Power.snapshot())); } catch (_) { /* хранилище недоступно */ } },
   loadPower() {
     try {
-      const raw = localStorage.getItem(CONFIG.POWER.SAVE_KEY);
-      if (raw && !Power.restore(JSON.parse(raw))) localStorage.removeItem(CONFIG.POWER.SAVE_KEY);   // испорченная запись
+      const raw = localStorage.getItem(saveKey(CONFIG.POWER.SAVE_KEY));
+      if (raw && !Power.restore(JSON.parse(raw))) localStorage.removeItem(saveKey(CONFIG.POWER.SAVE_KEY));   // испорченная запись
     } catch (_) { /* битый JSON или нет доступа — стартуем с начальных запасов */ }
   },
   /** Кнопка действия: у лестницы, гермоворот или пульта генератора и только когда персонаж стоит на полу. */
@@ -3252,6 +3574,12 @@ Game.start();
 
 /* Офлайн-режим: на обычном хостинге (https) игра кэшируется и потом открывается без интернета.
    С диска (file://) и во встроенных просмотрщиках регистрация не нужна и тихо пропускается. */
+if (ENV === 'dev') {                                                 // DEV: метка, своё имя на экране «Домой», свой манифест
+  const v = document.getElementById('ver'); v.textContent = 'v' + CONFIG.VERSION + ' DEV'; v.classList.add('dev');
+  document.title = 'Последняя ветка DEV ' + CONFIG.VERSION;
+  const t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = 'ПВ DEV';
+  const m = document.querySelector('link[rel="manifest"]'); if (m) m.href = 'manifest-dev.webmanifest';
+}
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => { /* офлайн-кэш недоступен — игра работает и так */ });
 }

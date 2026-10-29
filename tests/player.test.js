@@ -1,0 +1,27 @@
+/* 1.1А: сохранение положения героя — разбор pv.player.v1 (parsePlayerSave из блока SCAVENGE:BEGIN/END) и ключ PROD/DEV. */
+const fs = require('fs'), path = require('path');
+const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
+const { parsePlayerSave } = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { parsePlayerSave };`)();
+const { envSaveKey } = Function(`${src.slice(src.indexOf('/* ENV:BEGIN'), src.indexOf('/* ENV:END */'))}; return { envSaveKey };`)();
+let pass = 0, fail = 0;
+const ok = (n, c, i = '') => { (c ? pass++ : fail++); console.log(`${c ? 'PASS' : 'FAIL'}  ${n}${i ? '  [' + i + ']' : ''}`); };
+const P = o => parsePlayerSave(CONFIG, JSON.stringify(o));
+const good = P({ v: 1, floor: 'utility', x: 1040, facing: -1 });
+ok('P01 верная запись загружается: этаж, x, взгляд', good && good.floor === 'utility' && good.x === 1040 && good.facing === -1, JSON.stringify(good));
+ok('P02 все пять этажей принимаются в своих границах', Object.entries(CONFIG.FLOORS).every(([f, F]) => P({ v: 1, floor: f, x: Math.round((F.minX + F.maxX) / 2) + 7, facing: 1 })));
+ok('P03 нет записи / пусто / не JSON / не объект → null', [null, '', 'xx{', '42', '"str"', 'null', '[]'].every(r => parsePlayerSave(CONFIG, r) === null));
+ok('P04 чужая версия формата → null', P({ v: 2, floor: 'upper', x: 100 }) === null && P({ floor: 'upper', x: 100 }) === null);
+ok('P05 несуществующий этаж (и прототипные ключи) → null', ['basement', 'toString', '__proto__', ''].every(f => P({ v: 1, floor: f, x: 100 }) === null));
+ok('P06 x не число / NaN / Infinity → null', ['100', null, true].every(x => P({ v: 1, floor: 'upper', x }) === null) && parsePlayerSave(CONFIG, '{"v":1,"floor":"upper","x":1e999}') === null);
+const U = CONFIG.FLOORS.upper;
+ok('P07 x за границами этажа → null (в стене, за торцом)', P({ v: 1, floor: 'upper', x: U.minX - 1 }) === null && P({ v: 1, floor: 'upper', x: U.maxX + 1 }) === null && P({ v: 1, floor: 'upper', x: -50 }) === null);
+ok('P08 стоянка у арки и у ворот (в т.ч. ровно по центру после выхода) загружается — внутри арки герой только в анимации, она не сохраняется', CONFIG.PASSAGES.every(q => [q.a, q.b].every(e => P({ v: 1, floor: e.floor, x: e.x }) !== null)) && CONFIG.GATES.every(g => [g.a, g.b].every(e => P({ v: 1, floor: e.floor, x: e.x }) !== null)));
+ok('P09 на поверхности вне её участка (x 100 < minX) → null', P({ v: 1, floor: 'surface', x: 100 }) === null);
+ok('P10 взгляд по умолчанию вправо, мусор в facing не ломает', P({ v: 1, floor: 'upper', x: 300 }).facing === 1 && P({ v: 1, floor: 'upper', x: 300, facing: 'x' }).facing === 1);
+const H = CONFIG.PLAYER.HOME;
+ok('P11 точка старта сама проходит проверку загрузки', P({ v: 1, floor: H.floor, x: H.x }) !== null);
+ok('P12 ключи: PROD pv.player.v1, DEV pv.dev.player.v1', envSaveKey('prod', CONFIG.PLAYER.SAVE_KEY) === 'pv.player.v1' && envSaveKey('dev', CONFIG.PLAYER.SAVE_KEY) === 'pv.dev.player.v1');
+ok('P13 index.html: положение пишется только в ходьбе, не чаще SAVE_EVERY, и при уходе в фон/закрытии', /savePlayer\(\) \{\s*if \(Player\.state !== 'walk'\) return;/.test(src) && CONFIG.PLAYER.SAVE_EVERY >= 1 && /pagehide', \(\) => \{[^}]*savePlayer\(\)/.test(src) && /document\.hidden\) \{[^}]*savePlayer\(\)/.test(src));
+ok('P14 испорченная запись положения удаляется только своим ключом (ресурсы и яркость не трогаются)', /removeItem\(saveKey\(CONFIG\.PLAYER\.SAVE_KEY\)\)/.test(src));
+console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
