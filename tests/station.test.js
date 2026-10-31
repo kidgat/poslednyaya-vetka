@@ -206,4 +206,9 @@ ok('ST10 аварийный свет: em-pumps — в насосной на −2
 ok('ST11 три служебных перехода и ворота не изменились', JSON.stringify(CONFIG.PASSAGES.map(q => [q.id, q.a.floor, q.a.x, q.b.floor, q.b.x])) === JSON.stringify([['service-vestibule', 'upper', 1680, 'vestibule', 1570], ['service-upper', 'upper', 806, 'platform', 740], ['service-utility', 'platform', 1540, 'utility', 1500]]) && CONFIG.GATES.length === 1);
 ok('ST12 нового выхода нет: в комнатах ST-001 нет переходов, ворот и осмотров-дверей', ![...CONFIG.PASSAGES.flatMap(q => [q.a, q.b]), ...CONFIG.GATES.flatMap(g => [g.a, g.b])].some(e => (e.floor === 'upper' && e.x >= HQ.x) || (e.floor === 'utility' && e.x >= DR.x)));
 ok('ST13 реестр ST-001 без ошибок', validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0, validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).join('; '));
+const usDraw = cut('  utilstairs(g, r) {', '\n  },');
+ok('ST14 указатель холла −2: «ВОДОУЗЕЛ ▶» вместо «ДРЕНАЖ ▶»; таблички и id комнат прежние', /'ВОДОУЗЕЛ ▶'/.test(usDraw) && !/ДРЕНАЖ ▶/.test(src) && RM('drainage').label === 'ДРЕНАЖНАЯ' && RM('water').label === 'НАСОСНАЯ');
+ok('ST15 «ВОДОУЗЕЛ ▶» помещается в лестничный холл справа и выше шкафчиков (не наползает на шкафчики и дверной проём)', (() => {
+  const r = RM('utility-stairwell'), tw = ('ВОДОУЗЕЛ ▶'.length) * 6 - 1, x0 = r.x + r.w - 9 - tw, x1 = x0 + tw, y0 = 44, y1 = y0 + 7, lockers = [r.x + 150, r.x + 180, 52];
+  return /r\.x \+ r\.w - 9 - textWidth\('ВОДОУЗЕЛ ▶'\), 44,/.test(usDraw) && x1 <= r.x + r.w - 4 && (x0 >= lockers[1] || y1 <= lockers[2]); })());
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
