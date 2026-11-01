@@ -232,4 +232,9 @@ ok('ST19 только осмотры: по 2 реплики, без предме
 const pumpsDraw = cut('  pumps(g, r) {', '\n  },');
 ok('ST20 манометр перенесён на щит автоматики (участок осмотра «щит»), прежнего места r.x + 52 нет', /const gx = r\.x \+ r\.w - 30;/.test(pumpsDraw) && !/r\.x \+ 52, 40/.test(pumpsDraw)
   && (() => { const gx = WR.x + WR.w - 30, p = CONFIG.INSPECTS.find(i => i.id === 'inspect-pump-panel').trigger; return gx >= p[0] - 10 && gx <= p[1] + 10; })());
+ok('ST21 маршрут техника дренажной 1714–1756 (старт 1730): разговор 1702–1768 — в дренажной, левая часть комнаты свободна для осмотров', (() => {
+  const n = CONFIG.NPCS['drain-tech'], t = CONFIG.INSPECTS.find(i => i.id === 'talk-drainage');
+  return n.walk[0] === 1714 && n.walk[1] === 1756 && n.x === 1730 && n.walk[0] - t.radius >= 1700 && inRoomST(n, DR) && t.lines.length === 6; })());
+{ const c = clone(CONFIG); c.NPCS['drain-tech'].walk = [1660, 1750]; c.NPCS['drain-tech'].x = 1700;
+  ok('ST22 прежний маршрут 1660–1750 пересёкся бы с осмотрами дренажной — реестр это ловит', !c.INSPECTS.some(i => i.space === 'drainage') || hit(errsOf(c), /пересекаются.*(inspect-drain|talk-drainage)/)); }
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
