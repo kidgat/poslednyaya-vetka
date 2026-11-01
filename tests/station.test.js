@@ -243,4 +243,16 @@ ok('ST23 дренажная: осмотры «насос с задвижкой»
   const grille = [DR.x + 48, DR.x + 74], lamp = DR.x + 60;
   return P && S && P.trigger.join() === '1650,1670' && S.trigger.join() === '1680,1698' && /R\(g, r\.x \+ 48, 92, 26, 4/.test(drDraw) && /addLight\(r\.x \+ 60, 46/.test(drDraw)
     && ivl(S.trigger, grille) && lamp >= S.trigger[0] && lamp <= S.trigger[1] + 4 && 1646 + 20 >= P.trigger[0] && 1646 + 20 <= P.trigger[1]; })());
+// ---- CL-006: ферментационная и свинарник ----
+const CL6 = [['inspect-ferment-vat', 'tea-ferment', '«Пахнет кислым хлебом, грибами и чем-то ещё. Говорят, из этого получается чай. Настоящий я уже и не помню».', [740 + 74, 740 + 108]],
+  ['inspect-pigsty', 'pigsty', '«Смотрит на меня так, будто это я у неё еду выпрашиваю. Хотя, если подумать, недалеко от истины».', [930 + 150, 930 + 176]]];
+ok('CL01 осмотры ферментационной (ёмкости настоя) и свинарника (кормушка) — утверждённые реплики дословно, одна реплика, только осмотр', CL6.every(([id, room, line, obj]) => {
+  const i = CONFIG.INSPECTS.find(x => x.id === id), r = RM(room);
+  return i && i.type === 'inspect' && i.space === room && i.floor === 'utility' && i.lines.length === 1 && i.lines[0] === line
+    && Object.keys(i).every(k => ['id', 'space', 'type', 'floor', 'trigger', 'label', 'title', 'lines'].includes(k))
+    && i.trigger[0] >= r.x + 4 && i.trigger[1] <= r.x + r.w - 4 && ivl(i.trigger, obj); }));
+ok('CL02 участки не заходят в проёмы, арки и зоны разговора NPC; реестр без ошибок', CL6.every(([id]) => { const i = CONFIG.INSPECTS.find(x => x.id === id);
+  const talks = CONFIG.INSPECTS.filter(t => t.npc && t.floor === 'utility').map(t => { const n = CONFIG.NPCS[t.npc], [a, b] = n.walk || [n.x, n.x]; return [a - t.radius, b + t.radius]; });
+  return !UDW.some(d => ivl(i.trigger, d)) && !CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).some(e => e.floor === 'utility' && ivl(i.trigger, [e.x - 21, e.x + 21])) && !talks.some(z => ivl(z, i.trigger)); })
+  && validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0);
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
