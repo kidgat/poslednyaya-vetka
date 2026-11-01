@@ -211,4 +211,25 @@ ok('ST14 указатель холла −2: «ВОДОУЗЕЛ ▶» вмест
 ok('ST15 «ВОДОУЗЕЛ ▶» помещается в лестничный холл справа и выше шкафчиков (не наползает на шкафчики и дверной проём)', (() => {
   const r = RM('utility-stairwell'), tw = ('ВОДОУЗЕЛ ▶'.length) * 6 - 1, x0 = r.x + r.w - 9 - tw, x1 = x0 + tw, y0 = 44, y1 = y0 + 7, lockers = [r.x + 150, r.x + 180, 52];
   return /r\.x \+ r\.w - 9 - textWidth\('ВОДОУЗЕЛ ▶'\), 44,/.test(usDraw) && x1 <= r.x + r.w - 4 && (x0 >= lockers[1] || y1 <= lockers[2]); })());
+// ---- ST-001 C: осмотры насосной, дренажной и кабинета «НАЧАЛЬНИК СТАНЦИИ» ----
+const UDW = Function(`${cut('const UTIL_DOORWAYS = ', ';')} return UTIL_DOORWAYS;`)();
+const C_IDS = { water: ['inspect-pump-unit', 'inspect-pump-pipe', 'inspect-pump-panel'], hq: ['inspect-hq-desk', 'inspect-hq-bed', 'inspect-hq-armory'] };
+if (CONFIG.INSPECTS.some(i => i.space === 'drainage')) C_IDS.drainage = ['inspect-drain-pump', 'inspect-drain-sump'];
+const C_ALL = Object.entries(C_IDS).flatMap(([room, ids]) => ids.map(id => ({ room, id, i: CONFIG.INSPECTS.find(x => x.id === id) })));
+const ivl = (a, b) => a[0] <= b[1] && b[0] <= a[1];
+ok('ST16 осмотры ST-001 C на месте: в своей комнате и на её ярусе, с отступом от стен, в пределах ходьбы', C_ALL.every(({ room, i }) => {
+  const r = RM(room), F = CONFIG.FLOORS[r.floor || 'upper'];
+  return i && i.type === 'inspect' && i.space === room && i.floor === (r.floor || 'upper') && i.trigger[0] >= r.x + 4 && i.trigger[1] <= r.x + r.w - 4 && i.trigger[0] >= F.minX && i.trigger[1] <= F.maxX; }),
+  C_ALL.filter(c => !c.i).map(c => c.id).join());
+ok('ST17 участки осмотров не заходят в дверные проёмы и арки служебных проходов', C_ALL.every(({ i }) =>
+  !(i.floor === 'upper' ? DW : UDW).some(d => ivl(i.trigger, d)) && !CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).some(e => e.floor === i.floor && ivl(i.trigger, [e.x - 21, e.x + 21]))));
+ok('ST18 участки не пересекаются друг с другом и с полными зонами разговора NPC (маршрут ± радиус)', (() => {
+  const talks = CONFIG.INSPECTS.filter(t => t.npc).map(t => { const n = CONFIG.NPCS[t.npc], [a, b] = n.walk || [n.x, n.x]; return { floor: t.floor, z: [a - t.radius, b + t.radius] }; });
+  return C_ALL.every(({ i }, k) => !talks.some(t => t.floor === i.floor && ivl(t.z, i.trigger)) && C_ALL.every(({ i: j }, m) => m === k || j.floor !== i.floor || !ivl(i.trigger, j.trigger))); })());
+ok('ST19 только осмотры: по 2 реплики, без предметов, лута, Colt и Нефёдова; оружейка — «ЗАПЕРТО»', C_ALL.every(({ i }) =>
+  Object.keys(i).every(k => ['id', 'space', 'type', 'floor', 'trigger', 'label', 'title', 'lines'].includes(k)) && i.lines.length === 2
+  && !i.lines.some(l => /colt|python|револьвер|нефёдов|нефедов/i.test(l))) && /ЗАПЕРТО/.test(CONFIG.INSPECTS.find(i => i.id === 'inspect-hq-armory').title));
+const pumpsDraw = cut('  pumps(g, r) {', '\n  },');
+ok('ST20 манометр перенесён на щит автоматики (участок осмотра «щит»), прежнего места r.x + 52 нет', /const gx = r\.x \+ r\.w - 30;/.test(pumpsDraw) && !/r\.x \+ 52, 40/.test(pumpsDraw)
+  && (() => { const gx = WR.x + WR.w - 30, p = CONFIG.INSPECTS.find(i => i.id === 'inspect-pump-panel').trigger; return gx >= p[0] - 10 && gx <= p[1] + 10; })());
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
