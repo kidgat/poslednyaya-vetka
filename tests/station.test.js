@@ -211,4 +211,50 @@ ok('ST14 указатель холла −2: «ВОДОУЗЕЛ ▶» вмест
 ok('ST15 «ВОДОУЗЕЛ ▶» помещается в лестничный холл справа и выше шкафчиков (не наползает на шкафчики и дверной проём)', (() => {
   const r = RM('utility-stairwell'), tw = ('ВОДОУЗЕЛ ▶'.length) * 6 - 1, x0 = r.x + r.w - 9 - tw, x1 = x0 + tw, y0 = 44, y1 = y0 + 7, lockers = [r.x + 150, r.x + 180, 52];
   return /r\.x \+ r\.w - 9 - textWidth\('ВОДОУЗЕЛ ▶'\), 44,/.test(usDraw) && x1 <= r.x + r.w - 4 && (x0 >= lockers[1] || y1 <= lockers[2]); })());
+// ---- ST-001 C: осмотры насосной, дренажной и кабинета «НАЧАЛЬНИК СТАНЦИИ» ----
+const UDW = Function(`${cut('const UTIL_DOORWAYS = ', ';')} return UTIL_DOORWAYS;`)();
+const C_IDS = { water: ['inspect-pump-unit', 'inspect-pump-pipe', 'inspect-pump-panel'], hq: ['inspect-hq-desk', 'inspect-hq-bed', 'inspect-hq-armory'] };
+if (CONFIG.INSPECTS.some(i => i.space === 'drainage')) C_IDS.drainage = ['inspect-drain-pump', 'inspect-drain-sump'];
+const C_ALL = Object.entries(C_IDS).flatMap(([room, ids]) => ids.map(id => ({ room, id, i: CONFIG.INSPECTS.find(x => x.id === id) })));
+const ivl = (a, b) => a[0] <= b[1] && b[0] <= a[1];
+ok('ST16 осмотры ST-001 C на месте: в своей комнате и на её ярусе, с отступом от стен, в пределах ходьбы', C_ALL.every(({ room, i }) => {
+  const r = RM(room), F = CONFIG.FLOORS[r.floor || 'upper'];
+  return i && i.type === 'inspect' && i.space === room && i.floor === (r.floor || 'upper') && i.trigger[0] >= r.x + 4 && i.trigger[1] <= r.x + r.w - 4 && i.trigger[0] >= F.minX && i.trigger[1] <= F.maxX; }),
+  C_ALL.filter(c => !c.i).map(c => c.id).join());
+ok('ST17 участки осмотров не заходят в дверные проёмы и арки служебных проходов', C_ALL.every(({ i }) =>
+  !(i.floor === 'upper' ? DW : UDW).some(d => ivl(i.trigger, d)) && !CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).some(e => e.floor === i.floor && ivl(i.trigger, [e.x - 21, e.x + 21]))));
+ok('ST18 участки не пересекаются друг с другом и с полными зонами разговора NPC (маршрут ± радиус)', (() => {
+  const talks = CONFIG.INSPECTS.filter(t => t.npc).map(t => { const n = CONFIG.NPCS[t.npc], [a, b] = n.walk || [n.x, n.x]; return { floor: t.floor, z: [a - t.radius, b + t.radius] }; });
+  return C_ALL.every(({ i }, k) => !talks.some(t => t.floor === i.floor && ivl(t.z, i.trigger)) && C_ALL.every(({ i: j }, m) => m === k || j.floor !== i.floor || !ivl(i.trigger, j.trigger))); })());
+ok('ST19 только осмотры: по 2 реплики, без предметов, лута, Colt и Нефёдова; оружейка — «ЗАПЕРТО»', C_ALL.every(({ i }) =>
+  Object.keys(i).every(k => ['id', 'space', 'type', 'floor', 'trigger', 'label', 'title', 'lines'].includes(k)) && i.lines.length === 2
+  && !i.lines.some(l => /colt|python|револьвер|нефёдов|нефедов/i.test(l))) && /ЗАПЕРТО/.test(CONFIG.INSPECTS.find(i => i.id === 'inspect-hq-armory').title));
+const pumpsDraw = cut('  pumps(g, r) {', '\n  },');
+ok('ST20 манометр перенесён на щит автоматики (участок осмотра «щит»), прежнего места r.x + 52 нет', /const gx = r\.x \+ r\.w - 30;/.test(pumpsDraw) && !/r\.x \+ 52, 40/.test(pumpsDraw)
+  && (() => { const gx = WR.x + WR.w - 30, p = CONFIG.INSPECTS.find(i => i.id === 'inspect-pump-panel').trigger; return gx >= p[0] - 10 && gx <= p[1] + 10; })());
+ok('ST21 маршрут техника дренажной 1714–1756 (старт 1730): разговор 1702–1768 — в дренажной, левая часть комнаты свободна для осмотров', (() => {
+  const n = CONFIG.NPCS['drain-tech'], t = CONFIG.INSPECTS.find(i => i.id === 'talk-drainage');
+  return n.walk[0] === 1714 && n.walk[1] === 1756 && n.x === 1730 && n.walk[0] - t.radius >= 1700 && inRoomST(n, DR) && t.lines.length === 6; })());
+{ const c = clone(CONFIG); c.NPCS['drain-tech'].walk = [1660, 1750]; c.NPCS['drain-tech'].x = 1700;
+  ok('ST22 прежний маршрут 1660–1750 пересёкся бы с осмотрами дренажной — реестр это ловит', !c.INSPECTS.some(i => i.space === 'drainage') || hit(errsOf(c), /пересекаются.*(inspect-drain|talk-drainage)/)); }
+const drDraw = cut('  drainage(g, r) {', '\n  },');
+ok('ST23 дренажная: осмотры «насос с задвижкой» [1650,1670] и «приямок» [1680,1698]; решётка и лампа уровня — у осмотра приямка', (() => {
+  const P = CONFIG.INSPECTS.find(i => i.id === 'inspect-drain-pump'), S = CONFIG.INSPECTS.find(i => i.id === 'inspect-drain-sump');
+  const grille = [DR.x + 48, DR.x + 74], lamp = DR.x + 60;
+  return P && S && P.trigger.join() === '1650,1670' && S.trigger.join() === '1680,1698' && /R\(g, r\.x \+ 48, 92, 26, 4/.test(drDraw) && /addLight\(r\.x \+ 60, 46/.test(drDraw)
+    && ivl(S.trigger, grille) && lamp >= S.trigger[0] && lamp <= S.trigger[1] + 4 && 1646 + 20 >= P.trigger[0] && 1646 + 20 <= P.trigger[1]; })());
+// ---- CL-006: ферментационная и свинарник ----
+const CL6 = [['inspect-ferment-vat', 'tea-ferment', ['«Пахнет кислым хлебом, грибами и чем-то ещё. Говорят, из этого получается чай. Настоящий я уже и не помню».',
+    '«В больших баках настой выдерживают несколько дней. На станции шутят, что хороший чай здесь ценится почти как патроны».'], [740 + 74, 740 + 108]],
+  ['inspect-pigsty', 'pigsty', ['«Смотрит на меня так, будто это я у неё еду выпрашиваю. Хотя, если подумать, недалеко от истины».',
+    '«У этих хрюшек хотя бы питание по расписанию. А я иногда даже про ужин забываю».'], [930 + 150, 930 + 176]]];
+ok('CL01 осмотры ферментационной (ёмкости настоя) и свинарника (кормушка) — по две реплики дословно (первая — автора, вторая — ШТАБ-008), только осмотр', CL6.every(([id, room, lines, obj]) => {
+  const i = CONFIG.INSPECTS.find(x => x.id === id), r = RM(room);
+  return i && i.type === 'inspect' && i.space === room && i.floor === 'utility' && i.lines.length === 2 && i.lines.join('|') === lines.join('|')
+    && Object.keys(i).every(k => ['id', 'space', 'type', 'floor', 'trigger', 'label', 'title', 'lines'].includes(k))
+    && i.trigger[0] >= r.x + 4 && i.trigger[1] <= r.x + r.w - 4 && ivl(i.trigger, obj); }));
+ok('CL02 участки не заходят в проёмы, арки и зоны разговора NPC; реестр без ошибок', CL6.every(([id]) => { const i = CONFIG.INSPECTS.find(x => x.id === id);
+  const talks = CONFIG.INSPECTS.filter(t => t.npc && t.floor === 'utility').map(t => { const n = CONFIG.NPCS[t.npc], [a, b] = n.walk || [n.x, n.x]; return [a - t.radius, b + t.radius]; });
+  return !UDW.some(d => ivl(i.trigger, d)) && !CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).some(e => e.floor === 'utility' && ivl(i.trigger, [e.x - 21, e.x + 21])) && !talks.some(z => ivl(z, i.trigger)); })
+  && validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0);
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
