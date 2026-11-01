@@ -237,4 +237,10 @@ ok('ST21 маршрут техника дренажной 1714–1756 (стар�
   return n.walk[0] === 1714 && n.walk[1] === 1756 && n.x === 1730 && n.walk[0] - t.radius >= 1700 && inRoomST(n, DR) && t.lines.length === 6; })());
 { const c = clone(CONFIG); c.NPCS['drain-tech'].walk = [1660, 1750]; c.NPCS['drain-tech'].x = 1700;
   ok('ST22 прежний маршрут 1660–1750 пересёкся бы с осмотрами дренажной — реестр это ловит', !c.INSPECTS.some(i => i.space === 'drainage') || hit(errsOf(c), /пересекаются.*(inspect-drain|talk-drainage)/)); }
+const drDraw = cut('  drainage(g, r) {', '\n  },');
+ok('ST23 дренажная: осмотры «насос с задвижкой» [1650,1670] и «приямок» [1680,1698]; решётка и лампа уровня — у осмотра приямка', (() => {
+  const P = CONFIG.INSPECTS.find(i => i.id === 'inspect-drain-pump'), S = CONFIG.INSPECTS.find(i => i.id === 'inspect-drain-sump');
+  const grille = [DR.x + 48, DR.x + 74], lamp = DR.x + 60;
+  return P && S && P.trigger.join() === '1650,1670' && S.trigger.join() === '1680,1698' && /R\(g, r\.x \+ 48, 92, 26, 4/.test(drDraw) && /addLight\(r\.x \+ 60, 46/.test(drDraw)
+    && ivl(S.trigger, grille) && lamp >= S.trigger[0] && lamp <= S.trigger[1] + 4 && 1646 + 20 >= P.trigger[0] && 1646 + 20 <= P.trigger[1]; })());
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
