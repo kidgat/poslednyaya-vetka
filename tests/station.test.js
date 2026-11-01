@@ -257,4 +257,17 @@ ok('CL02 участки не заходят в проёмы, арки и зон�
   const talks = CONFIG.INSPECTS.filter(t => t.npc && t.floor === 'utility').map(t => { const n = CONFIG.NPCS[t.npc], [a, b] = n.walk || [n.x, n.x]; return [a - t.radius, b + t.radius]; });
   return !UDW.some(d => ivl(i.trigger, d)) && !CONFIG.PASSAGES.flatMap(q => [q.a, q.b]).some(e => e.floor === 'utility' && ivl(i.trigger, [e.x - 21, e.x + 21])) && !talks.some(z => ivl(z, i.trigger)); })
   && validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0);
+// ---- SAN-001: «САНБЛОК» на −2 слева от жилых ячеек ----
+const SAN = RM('sanitary'), PODS = RM('living-pods');
+ok('SAN01 «САНБЛОК»: id sanitary, ярус −2, x 60–290, цепь living, свой рисунок', SAN && SAN.floor === 'utility' && SAN.x === 60 && SAN.x + SAN.w === 290 && SAN.label === 'САНБЛОК' && SAN.circuit === 'living' && SAN.type === 'sanblock' && /\n  sanblock\(g, r\) \{/.test(src));
+ok('SAN02 граница ходьбы −2 слева — 74 (внутри санблока), справа прежняя 1975; жилые ячейки на месте (300–520)', CONFIG.FLOORS.utility.minX === 74 && CONFIG.FLOORS.utility.minX >= SAN.x + 4 + 10 && CONFIG.FLOORS.utility.maxX === 1975 && PODS.x === 300 && PODS.w === 220);
+ok('SAN03 проём санблок ↔ жилые ячейки [286,304]; не задевает первую койку (стойка x 312) и спящего (кровать x 316)', UDW.some(d => d[0] === 286 && d[1] === 304) && 304 < PODS.x + 12 && /actor\('sleeper', 'resA', 0, 0, \{ bed: \[316,/.test(src));
+ok('SAN04 аварийный свет em-sanitary — внутри санблока; реестр без ошибок', (() => { const e = CONFIG.EMERGENCY_LAMPS.find(x => x.id === 'em-sanitary'); return e && e.room === 'sanitary' && e.x > SAN.x + 4 && e.x < SAN.x + SAN.w - 4; })() && validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG).length === 0);
+ok('SAN05 в санблоке нет переходов, ворот, осмотров, лута и NPC (только комната)', ![...CONFIG.PASSAGES.flatMap(q => [q.a, q.b]), ...CONFIG.GATES.flatMap(g => [g.a, g.b])].some(e => e.floor === 'utility' && e.x < 300)
+  && !CONFIG.INSPECTS.some(i => i.space === 'sanitary' || (i.floor === 'utility' && i.trigger && i.trigger[0] < 300)) && !CONFIG.SCAVENGE.SPOTS.some(sp => sp.floor === 'utility' && sp.trigger[0] < 300)
+  && !Object.values(CONFIG.NPCS).some(n => n.floor === 'utility' && (n.walk ? n.walk[0] : n.x) < 300));
+ok('SAN06 рисунок санблока не выходит за внутреннюю стену комнаты (r.x + 4 … r.x + 226)', (() => {
+  const body = cut('  sanblock(g, r) {', '\n  },'); const offs = [...body.matchAll(/(?<![\w.])x \+ (\d+)/g)].map(m => +m[1]);
+  return offs.length > 20 && Math.min(...offs) >= 4 && Math.max(...offs) <= 226; })());
+ok('SAN07 DEV-метка сборки: buildId() только в DEV-блоке, PROD-метка не меняется', /function buildId\(\)/.test(src) && /if \(ENV === 'dev'\) \{[^\n]*\n  const v = document\.getElementById\('ver'\); v\.textContent = 'v' \+ CONFIG\.VERSION \+ ' DEV · ' \+ buildId\(\);/.test(src));
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
