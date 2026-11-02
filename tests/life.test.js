@@ -46,7 +46,7 @@ const N = CONFIG.NPCS;
 // 0.9: правый охранник шлюза (x 1670) перенесён на КПП вестибюля вместе с репликами — копии на ярусе 0 нет
 ok('N01 охрана: нижний пост upper x1600 и КПП vestibule x1480, у обоих луч; guard-airlock-east больше нет', N['guard-airlock-west'].floor === 'upper' && N['guard-airlock-west'].x === 1600 && N['guard-airlock-west'].lamp === 'beam'
   && N['guard-kpp'] && N['guard-kpp'].floor === 'vestibule' && N['guard-kpp'].x === 1480 && N['guard-kpp'].lamp === 'beam' && !N['guard-airlock-east']);
-ok('N02 рабочие мастерской и насосной: прежние участки ходьбы, фонари', N['worker-workshop'].walk.join() === '900,1100' && N['worker-pumps'].walk.join() === '1748,1852' && N['worker-workshop'].lamp && N['worker-pumps'].lamp);
+ok('N02 рабочие мастерской и насосной: участки ходьбы (насосная — на −2 по ST-001), фонари', N['worker-workshop'].walk.join() === '900,1100' && N['worker-pumps'].walk.join() === '1810,1950' && N['worker-workshop'].lamp && N['worker-pumps'].lamp);
 ok('N03 механик: налобный фонарь, участок 1340–1460 прежний', N.mechanic.lamp === 'headlamp' && N.mechanic.walk.join() === '1340,1460');
 const place = cut('function placeActors() {', '\n}');
 ok('N04 в placeActors не осталось копий охраны шлюза, рабочих и жителя столовой', !/actor\('guard', 'guard', 16[07]0/.test(place) && !/actor\('walker', 'worker'/.test(place) && !/actor\('sitter', 'resA', 492/.test(place));
