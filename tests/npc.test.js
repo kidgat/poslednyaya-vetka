@@ -12,10 +12,10 @@ const ok = (name, cond, info = '') => { (cond ? pass++ : fail++); console.log(`$
 const clone = o => JSON.parse(JSON.stringify(o, (k, v) => (v === Infinity ? 1e9 : v)));
 const errsOf = cfg => lib.validateStationPlan(lib.buildStationPlan(cfg, ROOMS), cfg);
 const BASE = {"npc":{"guard-west":"platform|guard|158||-1|beam|0","guard-west2":"platform|guard|118||1|beam|0","guard-east":"platform|guard|1864||1|beam|0","guard-east2":"platform|sitguard|1884||-1|lantern|0","resident-platform":"platform|walker|400|240-630|0|candle|20","cook":"upper|idle|648||1|candle|0","diner":"upper|sitter|532||1||0","resident":"upper|sitter|442||-1|candle|0","medic":"upper|walker|1200|1172-1232|0||16","mechanic":"upper|walker|1400|1340-1460|0|headlamp|24","worker-workshop":"upper|walker|1000|900-1100|0|beam|22","worker-pumps":"utility|walker|1880|1810-1950|0|beam|18","guard-airlock-west":"upper|guard|1600||1|beam|0","mushroom-grower":"utility|walker|640|590-690|0|headlamp|12","storekeeper":"utility|idle|1262||-1|lantern|0","drain-tech":"utility|walker|1730|1714-1756|0|headlamp|16","guard-kpp":"vestibule|guard|1480||1|beam|0","quarantine-medic":"vestibule|idle|1260||-1|lantern|0","guard-rest":"vestibule|sitguard|1810||-1|lantern|0"},"acts":["sleeper|0, 0, { bed: [218, 88] })","sleeper|0, 0, { bed: [294, 70] })","sleeper|0, 0, { bed: [370, 88] })","sitter|546, U, { facing: 1 })","sitter|590, U, { facing: -1 })","sitter|528, P, { facing: 1 })","sitter|1062, P, { facing: -1 })","sleeper|0, 0, { bed: [316, UY - 10] })","sleeper|0, 0, { bed: [386, UY - 28] })","pig|990, UY, { minX: 972, maxX: 1040, speed: 7, facing: 1 })","pig|1062, UY, { minX: 1046, maxX: 1110, speed: 6, facing: -1 })","pig|1086, UY, { minX: 1086, maxX: 1086, facing: -1 })","mutant|1250, S, { minX: 1140, maxX: 1560, speed: 20 })","mutant|1480, S, { minX: 1300, maxX: 1580, speed: 15 })","mutant|1820, S, { minX: 1730, maxX: 1975, speed: 24 })","sitter|940, P, { facing: -1 })","sitter|962, P, { facing: -1 })","stand|832, P, { facing: 1 })"]};
-const L = CONFIG.LOOKS, A = L.ARCHETYPES, IDS = ['resident-m', 'resident-f', 'elder', 'young', 'tech', 'guard', 'trader', 'stalker'];
-const OPTS = ['cap', 'capC', 'hairStyle', 'beard', 'hood', 'goggles', 'vest', 'apron', 'bag', 'coat', 'gun', 'pack'];
+const L = CONFIG.LOOKS, A = L.ARCHETYPES, IDS = ['resident-m', 'resident-f', 'elder', 'young', 'tech', 'guard', 'trader', 'stalker', 'medic'];
+const OPTS = ['cap', 'capC', 'hairStyle', 'beard', 'hood', 'goggles', 'vest', 'apron', 'bag', 'coat', 'gun', 'pack', 'cross'];
 
-ok('NPC01 восемь архетипов (житель, жительница, пожилой, молодой, техник, охранник, торговец, сталкер) × по три облика; статус — предложение', Object.keys(A).join() === IDS.join()
+ok('NPC01 девять архетипов (житель, жительница, пожилой, молодой, техник, охранник, торговец, сталкер, медик) × по три облика = 27; статус — предложение', Object.keys(A).join() === IDS.join()
   && IDS.every(id => A[id].variants.length === 3 && typeof A[id].label === 'string' && A[id].label.length > 3) && L.STATUS === 'proposal');
 ok('NPC02 облик — только палитра (ключи палитры героя, цвета #rrggbb) и детали силуэта; поведения в обликах нет', IDS.every(id => A[id].variants.every(v =>
   Object.keys(v).sort().join() === 'opts,pal' && Object.entries(v.pal).every(([k, c]) => k in HERO_PAL && /^#[0-9a-f]{6}$/.test(c))
@@ -35,12 +35,21 @@ ok('NPC08 безымянные жители (спящие, сидящие, ст�
   const a = src.indexOf('function placeActors() {'), b = src.indexOf('\n}\n', a);
   const acts = [...src.slice(a, b).matchAll(/actor\('(\w+)', '[^']+', ([^)]*\))/g)].map(m => m[1] + '|' + m[2].replace(/\s+/g, ' '));
   return JSON.stringify(acts) === JSON.stringify(BASE.acts); })());
-ok('NPC09 все 8 архетипов есть на станции; медики — прежний набор medic (вне восьми архетипов)', (() => {
+ok('NPC09 все 9 архетипов есть на станции; медики (врач и санитар карантина) — в обликах медика, прежний набор medic оставлен как запасной', (() => {
   const a = src.indexOf('function placeActors() {'), b = src.indexOf('\n}\n', a);
   const used = new Set([...Object.values(CONFIG.NPCS).map(n => n.look).filter(Boolean), ...[...src.slice(a, b).matchAll(/actor\('\w+', '([a-z-]+)\.\d'/g)].map(m => m[1] + '.0')].map(l => l.split('.')[0]));
-  return IDS.every(id => used.has(id)) && CONFIG.NPCS.medic.set === 'medic' && !CONFIG.NPCS.medic.look && CONFIG.NPCS['quarantine-medic'].set === 'medic'; })());
+  return IDS.every(id => used.has(id)) && CONFIG.NPCS.medic.look === 'medic.0' && CONFIG.NPCS['quarantine-medic'].look === 'medic.1' && CONFIG.NPCS.medic.set === 'medic' && CONFIG.NPCS['quarantine-medic'].set === 'medic'; })());
 ok('NPC10 детали силуэта рисуются только при заданных опциях (прежние спрайты не меняются) — вызовы в кадрах стоя и сидя', /headExtras\(g, o, PAL, b\); bodyExtras\(g, o, PAL, b, false\);/.test(src)
   && /headExtras\(g, o, PAL, 6 \+ b\); bodyExtras\(g, o, PAL, b, true\);/.test(src) && /if \(o\.coat\)/.test(src)
   && cut('function headExtras(', '\nfunction bodyExtras(').split('\n').slice(1, -1).every(l => /^\s*(if \(o\.|\}|\/\/)/.test(l) || !l.trim()));
 ok('NPC11 галерея обликов — только DEV или ?debug и только с ?npc', src.includes("if ((ENV === 'dev' || Debug.on) && /[?&]npc(?:[=&]|$)/.test(location.search)) {"));
+// ---- NPC-002 ----
+ok('NPC12 27 обликов: 9 архетипов × 3, ключи «архетип.номер» уникальны', IDS.flatMap(id => A[id].variants.map((v, i) => id + '.' + i)).length === 27 && new Set(IDS.flatMap(id => A[id].variants.map((v, i) => id + '.' + i))).size === 27);
+ok('NPC13 медик — отдельный архетип: крест у всех трёх, без оружия и рюкзака; сталкер остался со своими тремя обликами', A.medic.variants.every(v => v.opts.cross === true && !v.opts.gun && !v.opts.pack)
+  && A.stalker.variants.length === 3 && A.stalker.variants.every(v => v.opts.pack && !v.opts.cross) && IDS.every(id => id === 'medic' || A[id].variants.every(v => !v.opts.cross)));
+ok('NPC14 врач и санитар: поведение, маршрут, свет и разговоры прежние (talk-medic / talk-quarantine на тех же NPC)', (() => {
+  const m = CONFIG.NPCS.medic, q = CONFIG.NPCS['quarantine-medic'];
+  return m.kind === 'walker' && m.walk.join() === '1172,1232' && m.speed === 16 && !m.lamp && q.kind === 'idle' && q.x === 1260 && q.lamp === 'lantern'
+    && CONFIG.INSPECTS.some(i => i.id === 'talk-medic' && i.npc === 'medic') && CONFIG.INSPECTS.some(i => i.id === 'talk-quarantine' && i.npc === 'quarantine-medic'); })());
+ok('NPC15 сюжетных персонажей нет в общем пуле обликов (Глеб, Нефёдов, Дед)', !/nefedov|нефёдов|нефедов|ded\b|дед|gleb|глеб/i.test(JSON.stringify(A)) && !Object.keys(CONFIG.NPCS).some(k => /nefedov|ded|gleb/i.test(k)));
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

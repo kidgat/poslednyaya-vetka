@@ -306,7 +306,7 @@ const CONFIG = {
       onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
     resident:      { floor: 'upper', kind: 'sitter', set: 'resC', look: 'resident-f.0',    x: 442, facing: -1, lamp: 'candle',
       onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
-    medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
+    medic:         { floor: 'upper', kind: 'walker', set: 'medic', look: 'medic.0',   x: 1200, walk: [1172, 1232], speed: 16,
       onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
     mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', look: 'tech.1', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
       onBlackout: ['СЕТЬ УПАЛА!', 'ПРОВЕРЮ МОТОР!', 'НЕ ТРОГАЙТЕ ЩИТОК!'], onRestore: ['ВОССТАНОВИЛИ СЕТЬ!', 'ДВИГАТЕЛЬ ПОШЁЛ!'] },
@@ -324,7 +324,7 @@ const CONFIG = {
       onBlackout: ['НАСОСЫ ВСТАЛИ!', 'ВОДА ПОДНИМЕТСЯ!', 'ПРОВЕРЮ ЗАДВИЖКУ!'], onRestore: ['НАСОСЫ ПОШЛИ', 'УРОВЕНЬ ПАДАЕТ'] },
     'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', look: 'guard.2', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
       onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
-    'quarantine-medic': { floor: 'vestibule', kind: 'idle', set: 'medic', x: 1260, facing: -1, lamp: 'lantern',               // 0.9: санитар карантина
+    'quarantine-medic': { floor: 'vestibule', kind: 'idle', set: 'medic', look: 'medic.1', x: 1260, facing: -1, lamp: 'lantern',               // 0.9: санитар карантина
       onBlackout: ['КАРАНТИН НЕ ПОКИДАТЬ!', 'ФОНАРЬ СЮДА!', 'ВСЕМ СТОЯТЬ НА МЕСТЕ!'], onRestore: ['ПРОДОЛЖАЕМ ОСМОТР', 'ВСЁ, СВЕТ ЕСТЬ'] },
     'guard-rest':  { floor: 'vestibule', kind: 'sitguard', set: 'guard', look: 'guard.1', x: 1810, facing: -1, lamp: 'lantern',               // 0.9: караульный в караульной
       onBlackout: ['ТРЕВОГА! ВСТАВАЙ!', 'ГДЕ МОЙ ФОНАРЬ?', 'ВСЕ ПО МЕСТАМ!'], onRestore: ['ОТБОЙ ТРЕВОГИ', 'МОЖНО ДОПИТЬ ЧАЙ'] },
@@ -332,6 +332,7 @@ const CONFIG = {
   /* Короткие реакции на блэкаут и возвращение сети: очередь с разносом во времени (0.8.1). */
   /* NPC-001: облики жителей — 8 архетипов × 3 варианта. Поведение задаёт kind в NPCS (ходит / стоит / сидит / пост); облик — только
      палитра (поверх палитры героя) и детали силуэта для генератора спрайтов. Логика поведения не дублируется ради внешности.
+     NPC-002: 9 архетипов × 3 = 27 (добавлен медик / санитар). Сюжетные персонажи (Глеб, Нефёдов, Дед и др.) — НЕ из этого пула, у них отдельный арт.
      Все варианты — [ПРЕДЛОЖЕНИЕ] Claude (нейтральные технические, до спецификации Grok GK-010 и решения автора). Размер — 26×42, как у Глеба. */
   LOOKS: {
     STATUS: 'proposal',
@@ -375,6 +376,11 @@ const CONFIG = {
         { pal: { jacket: '#4a5040', jacketHi: '#5e6652', jacketSh: '#363c2e', zip: '#363c2e', scarf: '#3e4436', scarfSh: '#2e3228', hair: '#2a2420' }, opts: { pack: true, hood: '#3e4436', goggles: true } },
         { pal: { jacket: '#5a5448', jacketHi: '#6e685a', jacketSh: '#44403a', zip: '#44403a', scarf: '#7a3a30', scarfSh: '#5a2a24', hair: '#3a2a20' }, opts: { pack: true, coat: true, cap: 'helmet', capC: '#4a4a40' } },
         { pal: { jacket: '#5a4a3a', jacketHi: '#6e5c4a', jacketSh: '#44382c', zip: '#44382c', scarf: '#5a6a6a', scarfSh: '#424e4e', hair: '#4a3628' }, opts: { pack: true, cap: 'beanie', capC: '#3a3a34', beard: '#4a3628', bag: '#6a5a3a' } },
+      ] },
+      medic: { label: 'Медик / санитар', variants: [                       // NPC-002: отдельный архетип (не замена сталкера); в конце списка — одеяла прежних 24 обликов не сдвигаются
+        { pal: { jacket: '#c4c6bc', jacketHi: '#dcded4', jacketSh: '#9a9c92', zip: '#8a8c84', scarf: '#c4c6bc', scarfSh: '#9a9c92', pants: '#3a4048', pantsSh: '#2c3138', hair: '#3a2e26', skin: '#c89676' }, opts: { coat: true, cross: true, bag: '#7a3a30' } },
+        { pal: { jacket: '#7a8a80', jacketHi: '#8e9e94', jacketSh: '#5e6c64', zip: '#5e6c64', scarf: '#c8ccc4', scarfSh: '#9a9e98', pants: '#5e6c64', pantsSh: '#4a5650', hair: '#2a2220', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { apron: '#d0d0c8', cap: 'beanie', capC: '#d0d0c8', cross: true } },
+        { pal: { jacket: '#4a5a5a', jacketHi: '#5e6e6e', jacketSh: '#364444', zip: '#364444', scarf: '#a83a30', scarfSh: '#7a2a24', hair: '#6a4a32', hairHi: '#86603e', skin: '#d6a688' }, opts: { hairStyle: 'long', vest: '#c8ccc4', cross: true } },
       ] },
     },
     BLANKETS: ['#7a3b34', '#465a6c', '#5a6a4a', '#6a5a7a'],              // одеяла спящих (кадры «лёжа» есть у каждого облика)
@@ -2270,6 +2276,7 @@ function bodyExtras(g, o, PAL, b, sit) {
   const t = sit ? 20 + b : 14 + b, h = sit ? 11 - b : 11;
   if (o.vest) { R(g, 10, t + 1, 7, h - 2, o.vest); R(g, 10, t + 1, 7, 1, 'rgba(255,255,255,.18)'); if (/^#c/.test(o.vest)) R(g, 10, t + 6, 7, 1, '#e8e0b0'); }   // жилет (жёлтый — со светоотражающей полосой)
   if (o.apron) { R(g, 13, t + 3, 6, sit ? h - 1 : 14, o.apron); R(g, 13, t + 3, 1, sit ? h - 1 : 14, 'rgba(0,0,0,.18)'); L(g, 14, t, 17, t + 3, o.apron); }   // фартук
+  if (o.cross) { R(g, 10, t + 3, 3, 1, '#b83a30'); R(g, 11, t + 2, 1, 3, '#b83a30'); }   // NPC-002: красный крест медика на груди
   if (o.bag && !sit) { L(g, 11, t + 1, 16, t + 10, '#3a3028', 1); R(g, 15, t + 10, 5, 5, o.bag); R(g, 15, t + 10, 5, 1, 'rgba(255,255,255,.18)'); }   // сумка через плечо
 }
 function drawPersonFrame(o, PAL = HERO_PAL) {
@@ -2452,7 +2459,7 @@ function lookSheet(k = 3) {
   const A = Object.entries(CONFIG.LOOKS.ARCHETYPES), cw = 26 * 3 + 42 + 14, rh = 66, lw = 120;
   const c = makeCanvas((lw + cw * 3) * k, (A.length * rh + 22) * k), g = c.getContext('2d');
   g.imageSmoothingEnabled = false; g.scale(k, k); g.fillStyle = '#14181a'; g.fillRect(0, 0, c.width, c.height);
-  g.fillStyle = '#e0c48c'; g.font = '9px monospace'; g.fillText('NPC-001 · 8 архетипов × 3 облика · [ПРЕДЛОЖЕНИЕ] — до решения автора', 6, 12);
+  g.fillStyle = '#e0c48c'; g.font = '9px monospace'; g.fillText(`NPC-002 · ${A.length} архетипов × 3 облика · временная техническая база [ПРЕДЛОЖЕНИЕ]`, 6, 12);
   A.forEach(([id, a], r) => {
     const y = 22 + r * rh; g.fillStyle = '#c8c0a8'; g.fillText(a.label, 6, y + 28); g.fillStyle = '#7a8284'; g.fillText(id, 6, y + 40);
     a.variants.forEach((v, i) => {
