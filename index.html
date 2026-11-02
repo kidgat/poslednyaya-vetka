@@ -292,44 +292,93 @@ const CONFIG = {
   /* Собеседники и охрана с фонарями (0.8): один источник истины для расстановки, разговоров и проверки реестра.
      walk — участок, где ходит NPC; lamp — что он зажигает при блэкауте; tunnel — куда светит охрана поста. */
   NPCS: {
-    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1,
+    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.0',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1,
       onBlackout: ['ДЕРЖИТЕ ПОСТ!', 'СМОТРИ В ТОННЕЛЬ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
-    'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
-    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1,
+    'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.1',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
+    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.2',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1,
       onBlackout: ['СМОТРИ В ТОННЕЛЬ!', 'ДЕРЖИТЕ ПОСТ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
-    'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard',   x: 1884, facing: -1, lamp: 'lantern' },
-    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', x: 400, walk: [240, 630], speed: 20, lamp: 'candle',
+    'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard', look: 'guard.0',   x: 1884, facing: -1, lamp: 'lantern' },
+    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', look: 'young.0', x: 400, walk: [240, 630], speed: 20, lamp: 'candle',
       onBlackout: ['ЭТО НАДОЛГО?', 'СВЕТ ПРОПАЛ!', 'ПОШЛИ К БОЧКЕ!'], onRestore: ['О, ЗАРАБОТАЛО!', 'ПРОНЕСЛО...'] },
-    cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle',
+    cook:          { floor: 'upper', kind: 'idle',   set: 'resA', look: 'resident-f.1',    x: 648, facing: 1, lamp: 'candle',
       onBlackout: ['ГДЕ СПИЧКИ?', 'ЧАЙ ЕЩЁ ГОРЯЧИЙ!', 'СВЕЧУ ПРИНЕСИТЕ!'], onRestore: ['ВОТ И СВЕТ!', 'ТЕПЕРЬ ВИДНО КОТЁЛ'] },
-    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
+    diner:         { floor: 'upper', kind: 'sitter', set: 'resA', look: 'resident-m.0',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
       onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
-    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 442, facing: -1, lamp: 'candle',
+    resident:      { floor: 'upper', kind: 'sitter', set: 'resC', look: 'resident-f.0',    x: 442, facing: -1, lamp: 'candle',
       onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
     medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
       onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
-    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
+    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', look: 'tech.1', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
       onBlackout: ['СЕТЬ УПАЛА!', 'ПРОВЕРЮ МОТОР!', 'НЕ ТРОГАЙТЕ ЩИТОК!'], onRestore: ['ВОССТАНОВИЛИ СЕТЬ!', 'ДВИГАТЕЛЬ ПОШЁЛ!'] },
-    'worker-workshop': { floor: 'upper', kind: 'walker', set: 'worker', x: 1000, walk: [900, 1100], speed: 22, lamp: 'beam',   // 0.8.1: из placeActors
+    'worker-workshop': { floor: 'upper', kind: 'walker', set: 'worker', look: 'tech.2', x: 1000, walk: [900, 1100], speed: 22, lamp: 'beam',   // 0.8.1: из placeActors
       onBlackout: ['НЕ ВИЖУ ИНСТРУМЕНТ!', 'ДАЙТЕ СВЕТ!', 'ОПЯТЬ ГЕНЕРАТОР?'], onRestore: ['РАБОТАЕМ ДАЛЬШЕ', 'ДРУГОЕ ДЕЛО!'] },
-    'worker-pumps':    { floor: 'utility', kind: 'walker', set: 'worker', x: 1880, walk: [1810, 1950], speed: 18, lamp: 'beam',   // ST-001: техник насосной — теперь на −2  // 0.8.1: из placeActors
+    'worker-pumps':    { floor: 'utility', kind: 'walker', set: 'worker', look: 'tech.0', x: 1880, walk: [1810, 1950], speed: 18, lamp: 'beam',   // ST-001: техник насосной — теперь на −2  // 0.8.1: из placeActors
       onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
-    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на служебную арку в вестибюль
+    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', look: 'guard.1', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на служебную арку в вестибюль
       onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
-    'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
+    'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', look: 'young.2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
       onBlackout: ['ГРИБАМ ВСЁ РАВНО', 'ГДЕ ФОНАРЬ?', 'НЕ ТОПЧИТЕ ГРЯДКИ!'], onRestore: ['ВОТ, ДРУГОЕ ДЕЛО', 'СВЕТ ЕСТЬ'] },
-    'storekeeper': { floor: 'utility', kind: 'idle', set: 'resB', x: 1262, facing: -1, lamp: 'lantern',                              // 1.0: склад
+    'storekeeper': { floor: 'utility', kind: 'idle', set: 'resB', look: 'trader.0', x: 1262, facing: -1, lamp: 'lantern',                              // 1.0: склад
       onBlackout: ['СКЛАД НЕ ТРОГАТЬ!', 'ВСЁ ПЕРЕСЧИТАНО!', 'ФОНАРЬ НА ПОЛКЕ'], onRestore: ['СВЕТ! ПЕРЕСЧИТАЮ', 'НУ, СЛАВА БОГУ'] },
-    'drain-tech':  { floor: 'utility', kind: 'walker', set: 'worker', x: 1730, walk: [1714, 1756], speed: 16, lamp: 'headlamp',   // ST-001 C: участок 1714–1756 — разговор (±12) не задевает осмотры насоса и приямка     // 1.0: дренажная
+    'drain-tech':  { floor: 'utility', kind: 'walker', set: 'worker', look: 'tech.1', x: 1730, walk: [1714, 1756], speed: 16, lamp: 'headlamp',   // ST-001 C: участок 1714–1756 — разговор (±12) не задевает осмотры насоса и приямка     // 1.0: дренажная
       onBlackout: ['НАСОСЫ ВСТАЛИ!', 'ВОДА ПОДНИМЕТСЯ!', 'ПРОВЕРЮ ЗАДВИЖКУ!'], onRestore: ['НАСОСЫ ПОШЛИ', 'УРОВЕНЬ ПАДАЕТ'] },
-    'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
+    'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', look: 'guard.2', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
       onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
     'quarantine-medic': { floor: 'vestibule', kind: 'idle', set: 'medic', x: 1260, facing: -1, lamp: 'lantern',               // 0.9: санитар карантина
       onBlackout: ['КАРАНТИН НЕ ПОКИДАТЬ!', 'ФОНАРЬ СЮДА!', 'ВСЕМ СТОЯТЬ НА МЕСТЕ!'], onRestore: ['ПРОДОЛЖАЕМ ОСМОТР', 'ВСЁ, СВЕТ ЕСТЬ'] },
-    'guard-rest':  { floor: 'vestibule', kind: 'sitguard', set: 'guard', x: 1810, facing: -1, lamp: 'lantern',               // 0.9: караульный в караульной
+    'guard-rest':  { floor: 'vestibule', kind: 'sitguard', set: 'guard', look: 'guard.1', x: 1810, facing: -1, lamp: 'lantern',               // 0.9: караульный в караульной
       onBlackout: ['ТРЕВОГА! ВСТАВАЙ!', 'ГДЕ МОЙ ФОНАРЬ?', 'ВСЕ ПО МЕСТАМ!'], onRestore: ['ОТБОЙ ТРЕВОГИ', 'МОЖНО ДОПИТЬ ЧАЙ'] },
   },
   /* Короткие реакции на блэкаут и возвращение сети: очередь с разносом во времени (0.8.1). */
+  /* NPC-001: облики жителей — 8 архетипов × 3 варианта. Поведение задаёт kind в NPCS (ходит / стоит / сидит / пост); облик — только
+     палитра (поверх палитры героя) и детали силуэта для генератора спрайтов. Логика поведения не дублируется ради внешности.
+     Все варианты — [ПРЕДЛОЖЕНИЕ] Claude (нейтральные технические, до спецификации Grok GK-010 и решения автора). Размер — 26×42, как у Глеба. */
+  LOOKS: {
+    STATUS: 'proposal',
+    ARCHETYPES: {
+      'resident-m': { label: 'Мужчина-житель', variants: [
+        { pal: { jacket: '#5e5850', jacketHi: '#746c62', jacketSh: '#46423c', zip: '#46423c', scarf: '#7a6a5a', scarfSh: '#5a4e42', hair: '#3a2e26' }, opts: { cap: 'beanie', capC: '#4a4a52' } },
+        { pal: { jacket: '#5a5e48', jacketHi: '#6e735a', jacketSh: '#444736', zip: '#444736', scarf: '#8a7a5a', scarfSh: '#6a5c44', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { bag: '#6a5038' } },
+        { pal: { jacket: '#3e4656', jacketHi: '#525c6e', jacketSh: '#2e3440', zip: '#2e3440', scarf: '#6a6a6e', scarfSh: '#4e4e52', hair: '#4a3628' }, opts: { coat: true, beard: '#3a2a20' } },
+      ] },
+      'resident-f': { label: 'Женщина-жительница', variants: [
+        { pal: { jacket: '#6e3e46', jacketHi: '#844e56', jacketSh: '#522e34', zip: '#522e34', scarf: '#c8b898', scarfSh: '#9a8c72', hair: '#5a3a2a', hairHi: '#74503a', skin: '#d6a688' }, opts: { hairStyle: 'long' } },
+        { pal: { jacket: '#5a5a5e', jacketHi: '#6e6e74', jacketSh: '#444448', zip: '#444448', scarf: '#8a5a4a', scarfSh: '#6a4436', hair: '#2a2220', skin: '#c49474' }, opts: { hairStyle: 'bun', apron: '#b8b0a0' } },
+        { pal: { jacket: '#4e5e4e', jacketHi: '#627262', jacketSh: '#3a463a', zip: '#3a463a', scarf: '#9a7a5a', scarfSh: '#7a5e44', hair: '#7a5a3a', skin: '#d8aa8a' }, opts: { coat: true, hood: '#8a6a5a' } },
+      ] },
+      elder: { label: 'Пожилой житель', variants: [
+        { pal: { jacket: '#5a524a', jacketHi: '#6e665c', jacketSh: '#443e38', zip: '#443e38', scarf: '#6a6458', scarfSh: '#4e4a42', hair: '#b8b4ac', hairHi: '#d0ccc4', skin: '#c08e72' }, opts: { hairStyle: 'bald', beard: '#b8b4ac', coat: true } },
+        { pal: { jacket: '#4e5a5e', jacketHi: '#626e72', jacketSh: '#3a4448', zip: '#3a4448', scarf: '#7a6a52', scarfSh: '#5a4e3c', hair: '#a8a49c', hairHi: '#c4c0b8', skin: '#b88a6e' }, opts: { cap: 'cap', capC: '#4a4438' } },
+        { pal: { jacket: '#5e4e5a', jacketHi: '#726270', jacketSh: '#463a44', zip: '#463a44', scarf: '#8a8a7a', scarfSh: '#6a6a5c', hair: '#c8c4bc', hairHi: '#dcd8d0', skin: '#d0a084' }, opts: { hairStyle: 'long', hood: '#6a5a6a', coat: true } },
+      ] },
+      young: { label: 'Молодой житель', variants: [
+        { pal: { jacket: '#8a4a34', jacketHi: '#a05c44', jacketSh: '#6a3826', zip: '#6a3826', scarf: '#4a5a6a', scarfSh: '#36424e', hair: '#2a2018' }, opts: { cap: 'beanie', capC: '#8a7a3a' } },
+        { pal: { jacket: '#4a6a5a', jacketHi: '#5e806e', jacketSh: '#36503e', zip: '#36503e', scarf: '#4a6a5a', scarfSh: '#36503e', hair: '#3a2a20', skin: '#c89676' }, opts: { hood: '#4a6a5a' } },
+        { pal: { jacket: '#3a5a7a', jacketHi: '#4e6e8e', jacketSh: '#2a4258', zip: '#2a4258', scarf: '#a08a5a', scarfSh: '#7a6a44', hair: '#8a6a4a', hairHi: '#a88a62', skin: '#dcae90' }, opts: { bag: '#7a6a4a', hairStyle: 'long' } },
+      ] },
+      tech: { label: 'Техник', variants: [
+        { pal: { jacket: '#8a6a3a', jacketHi: '#a3824e', jacketSh: '#6a5030', zip: '#5a4228', scarf: '#4a5a6a', scarfSh: '#36424e', pants: '#4a4030', pantsSh: '#3a3226', hair: '#3a2a20' }, opts: { cap: 'helmet', capC: '#c8a03c' } },
+        { pal: { jacket: '#3e5a6a', jacketHi: '#527484', jacketSh: '#2e4450', zip: '#9aa4a8', scarf: '#8a6a3a', scarfSh: '#6a5030', pants: '#3e5a6a', pantsSh: '#2e4450', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { vest: '#c8a83a', cap: 'beanie', capC: '#3a3e44' } },
+        { pal: { jacket: '#5a5e60', jacketHi: '#6e7274', jacketSh: '#44484a', zip: '#44484a', scarf: '#6a5a4a', scarfSh: '#4e4236', pants: '#3a3e44', pantsSh: '#2c2f34', hair: '#4a3a2e' }, opts: { apron: '#5a4632', goggles: true } },
+      ] },
+      guard: { label: 'Охранник', variants: [
+        { pal: { jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' }, opts: { gun: true, cap: 'helmet', capC: '#3e4636' } },
+        { pal: { jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { gun: true, vest: '#3a4034', cap: 'cap', capC: '#2e3430' } },
+        { pal: { jacket: '#4a5240', jacketHi: '#5e6852', jacketSh: '#363c2e', zip: '#2a2e24', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#3a2e26', skin: '#c49474' }, opts: { gun: true, cap: 'beanie', capC: '#2a2e2a', beard: '#3a2e26' } },
+      ] },
+      trader: { label: 'Торговец / снабженец', variants: [
+        { pal: { jacket: '#6a5a3a', jacketHi: '#7e6c4a', jacketSh: '#4e422a', zip: '#4e422a', scarf: '#5a6a5a', scarfSh: '#424e42', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { apron: '#8a7a5a', cap: 'cap', capC: '#5a4a3a' } },
+        { pal: { jacket: '#5a4a5a', jacketHi: '#6e5e6e', jacketSh: '#443844', zip: '#443844', scarf: '#a08a5a', scarfSh: '#7a6a44', hair: '#4a3a2e' }, opts: { coat: true, bag: '#8a6a3a', beard: '#4a3a2e' } },
+        { pal: { jacket: '#9a8a6a', jacketHi: '#ae9e7e', jacketSh: '#7a6c52', zip: '#7a6c52', scarf: '#6a4a3a', scarfSh: '#4e362a', hair: '#2a2220' }, opts: { vest: '#4a3a2a', cap: 'beanie', capC: '#6a4a3a' } },
+      ] },
+      stalker: { label: 'Сталкер / ходок', variants: [
+        { pal: { jacket: '#4a5040', jacketHi: '#5e6652', jacketSh: '#363c2e', zip: '#363c2e', scarf: '#3e4436', scarfSh: '#2e3228', hair: '#2a2420' }, opts: { pack: true, hood: '#3e4436', goggles: true } },
+        { pal: { jacket: '#5a5448', jacketHi: '#6e685a', jacketSh: '#44403a', zip: '#44403a', scarf: '#7a3a30', scarfSh: '#5a2a24', hair: '#3a2a20' }, opts: { pack: true, coat: true, cap: 'helmet', capC: '#4a4a40' } },
+        { pal: { jacket: '#5a4a3a', jacketHi: '#6e5c4a', jacketSh: '#44382c', zip: '#44382c', scarf: '#5a6a6a', scarfSh: '#424e4e', hair: '#4a3628' }, opts: { pack: true, cap: 'beanie', capC: '#3a3a34', beard: '#4a3628', bag: '#6a5a3a' } },
+      ] },
+    },
+    BLANKETS: ['#7a3b34', '#465a6c', '#5a6a4a', '#6a5a7a'],              // одеяла спящих (кадры «лёжа» есть у каждого облика)
+  },
   REACT: { FIRST: 1.0, GAP: [0.6, 1.5], DUR: [2, 4], MAX_BLACKOUT: 5, MAX_RESTORE: 3, COOLDOWN: 6, MAX_ON: 3 },
   /* Аварийные светильники в помещениях (0.8.1, цепь emergency, гаснут при пустом аккумуляторе) и красные отсветы
      у постов, где охрана стоит перед маяком двери. Существующие маяки (BEACONS, шлюз, посты) не дублируются. */
@@ -903,6 +952,11 @@ function inspectZone(cfg, i) {
   const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
   const [a, b] = n.walk || [n.x, n.x]; return [a - i.radius, b + i.radius];
 }
+/** NPC-001: облик «архетип.номер» (например tech.1) есть в CONFIG.LOOKS. */
+function lookExists(cfg, look) {
+  const m = /^([a-z-]+)\.(\d)$/.exec(look || ''), A = m && cfg.LOOKS && cfg.LOOKS.ARCHETYPES[m[1]];
+  return !!(A && A.variants[+m[2]]);
+}
 function buildStationPlan(cfg, rooms) {
   const st = cfg.STATION, act = 'active';
   const plan = {
@@ -990,6 +1044,7 @@ function validateStationPlan(plan, cfg) {
       && (!Array.isArray(n[key]) || !n[key].length || n[key].some(t => typeof t !== 'string' || !t.trim() || t.length > 22))) err.push(`NPC ${id}: плохие ${key}`);
     if (n.walk && !(n.walk[0] <= n.x && n.x <= n.walk[1])) err.push(`NPC ${id}: старт вне участка ходьбы`);
     if (n.lamp && !['beam', 'lantern', 'candle', 'headlamp'].includes(n.lamp)) err.push(`NPC ${id}: неизвестный свет ${n.lamp}`);
+    if (n.look !== undefined && !lookExists(cfg, n.look)) err.push(`NPC ${id}: неизвестный облик ${n.look}`);   // NPC-001
   }
   for (const e of cfg.EMERGENCY_LAMPS || []) {                               // аварийный свет — внутри своей комнаты
     const r = plan.rooms.find(x => x.id === e.room && x.status === 'active');
@@ -2198,6 +2253,25 @@ const HERO_PAL = {
   belt: '#2e2a26', buckle: '#b39a62', pack: '#4f574a', packHi: '#626b5a', packSh: '#3a4136', roll: '#7e725a', rollSh: '#5f5644',
   pants: '#39404c', pantsSh: '#2a2f39', boot: '#1f2024', bootHi: '#3a3a40', glove: '#8a7a64', outline: '#0b0d10',
 };
+/** NPC-001: детали силуэта жителей. Рисуются только при заданных опциях — прежние спрайты (Глеб, охрана, жители) не меняются.
+    dy — сдвиг головы (сидя +6). Лицо смотрит вправо: лоб x 11–17, глаз x 16, затылок x 10–11. */
+function headExtras(g, o, PAL, y) {
+  if (o.hairStyle === 'long') { R(g, 9, 4 + y, 3, 9, PAL.hair); R(g, 10, 13 + y, 2, 1, PAL.hair); R(g, 10, 2 + y, 1, 3, PAL.hairHi); }   // волосы до плеч
+  if (o.hairStyle === 'bun') { R(g, 7, 2 + y, 4, 4, PAL.hair); R(g, 7, 2 + y, 4, 1, PAL.hairHi); }                        // пучок на затылке
+  if (o.hairStyle === 'bald') { R(g, 12, 2 + y, 6, 3, PAL.skin); R(g, 13, 2 + y, 3, 1, PAL.skinSh); R(g, 17, 4 + y, 1, 1, PAL.skin); }   // лысина, виски остаются
+  if (o.beard) { R(g, 13, 9 + y, 5, 3, o.beard); R(g, 14, 12 + y, 4, 1, o.beard); R(g, 16, 10 + y, 1, 1, PAL.skinSh); }   // борода, рот
+  if (o.hood) { R(g, 9, 1 + y, 9, 3, o.hood); R(g, 9, 4 + y, 3, 9, o.hood); R(g, 17, 2 + y, 1, 2, o.hood); R(g, 9, 1 + y, 9, 1, 'rgba(255,255,255,.18)'); }   // капюшон / платок
+  if (o.cap === 'beanie') { R(g, 10, 1 + y, 8, 3, o.capC); R(g, 10, 3 + y, 8, 1, 'rgba(0,0,0,.25)'); R(g, 13, 0 + y, 2, 1, o.capC); }   // вязаная шапка с помпоном
+  if (o.cap === 'cap') { R(g, 10, 1 + y, 8, 3, o.capC); R(g, 17, 3 + y, 4, 1, o.capC); R(g, 10, 1 + y, 8, 1, 'rgba(255,255,255,.18)'); }   // кепка с козырьком
+  if (o.cap === 'helmet') { R(g, 9, 1 + y, 10, 4, o.capC); R(g, 9, 1 + y, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + y, 10, 1, 'rgba(0,0,0,.35)'); R(g, 18, 4 + y, 2, 1, o.capC); }   // каска
+  if (o.goggles) { R(g, 11, 4 + y, 8, 1, '#2a2e30'); R(g, 15, 3 + y, 3, 2, '#2a2e30'); R(g, 16, 3 + y, 1, 1, '#8aaab0'); }   // очки на лбу
+}
+function bodyExtras(g, o, PAL, b, sit) {
+  const t = sit ? 20 + b : 14 + b, h = sit ? 11 - b : 11;
+  if (o.vest) { R(g, 10, t + 1, 7, h - 2, o.vest); R(g, 10, t + 1, 7, 1, 'rgba(255,255,255,.18)'); if (/^#c/.test(o.vest)) R(g, 10, t + 6, 7, 1, '#e8e0b0'); }   // жилет (жёлтый — со светоотражающей полосой)
+  if (o.apron) { R(g, 13, t + 3, 6, sit ? h - 1 : 14, o.apron); R(g, 13, t + 3, 1, sit ? h - 1 : 14, 'rgba(0,0,0,.18)'); L(g, 14, t, 17, t + 3, o.apron); }   // фартук
+  if (o.bag && !sit) { L(g, 11, t + 1, 16, t + 10, '#3a3028', 1); R(g, 15, t + 10, 5, 5, o.bag); R(g, 15, t + 10, 5, 1, 'rgba(255,255,255,.18)'); }   // сумка через плечо
+}
 function drawPersonFrame(o, PAL = HERO_PAL) {
   const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true }), b = o.bob;
   const leg = (hx, fx, lift, col, colSh) => {
@@ -2227,6 +2301,8 @@ function drawPersonFrame(o, PAL = HERO_PAL) {
   if (o.blink) R(g, 16, 7 + b, 2, 1, PAL.skinSh); else { R(g, 16, 7 + b, 1, 1, PAL.eye); R(g, 16, 6 + b, 2, 1, PAL.hair); }
   R(g, 17, 10 + b, 1, 1, PAL.skinSh);
   if (o.hat) { R(g, 9, 1 + b, 10, 4, o.hat); R(g, 9, 1 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + b, 10, 1, 'rgba(0,0,0,.35)'); }
+  headExtras(g, o, PAL, b); bodyExtras(g, o, PAL, b, false);            // NPC-001: только при заданных опциях
+  if (o.coat) { R(g, 9, 27 + b, 9, 4, PAL.jacket); R(g, 17, 27 + b, 1, 4, PAL.jacketSh); R(g, 9, 30 + b, 9, 1, PAL.jacketSh); }   // длинная куртка / пальто поверх бёдер
   arm(o.armFront, PAL.jacket);                                          // ближняя рука
   if (o.gun) { L(g, 8, 27 + b, 21, 14 + b, '#222426', 2); R(g, 6, 26 + b, 4, 3, '#4a3a2a'); R(g, 15, 21 + b, 2, 4, '#222426'); R(g, 20, 13 + b, 2, 1, '#55595c'); }
   outline(g);
@@ -2313,6 +2389,7 @@ function drawSitFrame(PAL, b, o = {}) {
   if (o.blink) R(g, 16, 13 + b, 2, 1, PAL.skinSh); else { R(g, 16, 13 + b, 1, 1, PAL.eye); R(g, 16, 12 + b, 2, 1, PAL.hair); }
   R(g, 17, 16 + b, 1, 1, PAL.skinSh);
   if (o.hat) { R(g, 9, 7 + b, 10, 4, o.hat); R(g, 9, 7 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 11 + b, 10, 1, 'rgba(0,0,0,.35)'); }
+  headExtras(g, o, PAL, 6 + b); bodyExtras(g, o, PAL, b, true);         // NPC-001: только при заданных опциях
   L(g, 13, 22 + b, 16, 27, PAL.jacket, 3); L(g, 16, 27, 19, 30, PAL.jacket, 3); R(g, 18, 30, 3, 2, PAL.glove);   // ближняя рука на колене
   if (o.gun) { R(g, 6, 29, 17, 2, '#222426'); R(g, 4, 29, 3, 3, '#4a3a2a'); }
   outline(g);
@@ -2327,8 +2404,8 @@ function alphaBox(c) {
   return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
 }
 /** Спящий: кадр стоя с закрытыми глазами, повёрнутый на 90° (голова слева), под одеялом. rise — дыхание одеяла. */
-function makeLying(PAL, rise, blanket) {
-  const src = drawPersonFrame({ legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
+function makeLying(PAL, rise, blanket, look = {}) {                    // look — детали облика NPC-001 (голова); прежние спящие — без них
+  const src = drawPersonFrame({ ...look, legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
   const c = makeCanvas(SPRITE_H, SPRITE_W), g = c.getContext('2d', { willReadFrequently: true });
   g.imageSmoothingEnabled = false; g.translate(0, SPRITE_W); g.rotate(-Math.PI / 2); g.drawImage(src, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
   const bb = alphaBox(c), bx = bb.x + Math.round(bb.w * 0.34);
@@ -2369,6 +2446,44 @@ function drawMutantFrame(i) {
   return c;
 }
 /** Набор кадров одного персонажа: ходьба, дыхание, моргание; по запросу — сидя и лёжа. */
+/** NPC-001: наборы кадров всех обликов CONFIG.LOOKS — ключ «архетип.номер». Тот же генератор personSet, что у Глеба и прежних жителей. */
+/** NPC-001: лист галереи — по строке на архетип: 3 облика × (стоит, шаг, сидит, лежит). Подпись — «[ПРЕДЛОЖЕНИЕ]». */
+function lookSheet(k = 3) {
+  const A = Object.entries(CONFIG.LOOKS.ARCHETYPES), cw = 26 * 3 + 42 + 14, rh = 66, lw = 120;
+  const c = makeCanvas((lw + cw * 3) * k, (A.length * rh + 22) * k), g = c.getContext('2d');
+  g.imageSmoothingEnabled = false; g.scale(k, k); g.fillStyle = '#14181a'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#e0c48c'; g.font = '9px monospace'; g.fillText('NPC-001 · 8 архетипов × 3 облика · [ПРЕДЛОЖЕНИЕ] — до решения автора', 6, 12);
+  A.forEach(([id, a], r) => {
+    const y = 22 + r * rh; g.fillStyle = '#c8c0a8'; g.fillText(a.label, 6, y + 28); g.fillStyle = '#7a8284'; g.fillText(id, 6, y + 40);
+    a.variants.forEach((v, i) => {
+      const s = SETS[id + '.' + i], x = lw + i * cw; g.fillStyle = '#1e2426'; g.fillRect(x, y, cw - 6, rh - 6);
+      g.drawImage(s.idle[0], x + 2, y + 4); g.drawImage(s.walk[2], x + 28, y + 4); g.drawImage(s.sit[0], x + 54, y + 4);
+      g.drawImage(s.lie[0].c, x + 80, y + 18); g.fillStyle = '#7a8284'; g.fillText(id + '.' + i, x + 2, y + 56);
+    });
+  });
+  return c;
+}
+/** NPC-001: отчёт по обликам для проверок (?debug): кадры, общая граница непрозрачных пикселей, отпечаток пикселей набора. */
+function lookReport() {
+  const fp = cs => { let h = 0x811c9dc5; for (const c of cs) { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 3) { h ^= d[i]; h = Math.imul(h, 0x01000193) >>> 0; } } return h.toString(16); };
+  const out = {};
+  for (const [id, s] of Object.entries(SETS)) {
+    if (!s.walk || !s.idle || id === 'pig' || id === 'mutant') continue;
+    const frames = [...s.walk, ...s.idle, s.blink, ...(s.sit || []), ...(s.lie || []).map(l => l.c)].filter(Boolean);
+    const st = [...s.walk, ...s.idle, s.blink, ...(s.sit || [])].filter(Boolean).map(alphaBox);
+    out[id] = { frames: frames.length, sit: (s.sit || []).length, lie: (s.lie || []).length, w: frames[0].width, h: frames[0].height,
+      box: { x0: Math.min(...st.map(b => b.x)), y0: Math.min(...st.map(b => b.y)), x1: Math.max(...st.map(b => b.x + b.w)), y1: Math.max(...st.map(b => b.y + b.h)) }, fp: fp(frames) };
+  }
+  out.hero = { fp: fp([...SPRITES.walk, ...SPRITES.idle, SPRITES.blink, SPRITES.back, ...SPRITES.backWalk, ...SPRITES.frontWalk]) };
+  return out;
+}
+function buildLookSets() {
+  const L = CONFIG.LOOKS; let k = 0;
+  for (const [id, A] of Object.entries(L.ARCHETYPES)) A.variants.forEach((v, i) => {
+    const { pack, ...rest } = v.opts;
+    SETS[id + '.' + i] = personSet({ ...HERO_PAL, ...v.pal }, { ...rest, look: true, noPack: !pack, sit: true, blanket: L.BLANKETS[k++ % L.BLANKETS.length] });
+  });
+}
 function personSet(pal, o = {}) {
   const set = { walk: [], idle: [], blink: null, sit: [], lie: [] };
   for (let i = 0; i < 8; i++) {                                          // 8 кадров ходьбы
@@ -2380,7 +2495,8 @@ function personSet(pal, o = {}) {
   set.idle.push(drawPersonFrame({ ...stand, bob: 0, blink: false }, pal), drawPersonFrame({ ...stand, bob: 1, blink: false }, pal));
   set.blink = drawPersonFrame({ ...stand, bob: 0, blink: true }, pal);
   if (o.sit) set.sit.push(drawSitFrame(pal, 0, o), drawSitFrame(pal, 1, o));
-  if (o.blanket) set.lie.push(makeLying(pal, 0, o.blanket), makeLying(pal, 1, o.blanket));
+  if (o.blanket) { const look = o.look ? { hairStyle: o.hairStyle, beard: o.beard, hood: o.hood, cap: o.cap, capC: o.capC } : {};   // NPC-001
+    set.lie.push(makeLying(pal, 0, o.blanket, look), makeLying(pal, 1, o.blanket, look)); }
   return set;
 }
 const SETS = {};
@@ -2397,6 +2513,7 @@ function buildSprites() {
   SETS.resB    = personSet(RES_B_PAL,   { noPack: true, sit: true, blanket: '#465a6c' });
   SETS.resC    = personSet(RES_C_PAL,   { noPack: true, sit: true });
   SETS.mutant  = { walk: [0, 1, 2, 3, 4, 5].map(drawMutantFrame) };
+  buildLookSets();                                                        // NPC-001: 8 архетипов × 3 облика
   SETS.pig     = { walk: [0, 1, 2, 3].map(i => drawPigFrame(i, 0)), idle: [drawPigFrame(0, 0), drawPigFrame(0, 1)] };   // 1.0
 }
 
@@ -2415,26 +2532,26 @@ function actor(kind, set, x, y, o = {}) {
 /** Персонаж из CONFIG.NPCS (охрана постов, собеседники, жители со свечами). */
 function npcActor(id) {
   const n = CONFIG.NPCS[id], [a, b] = n.walk || [n.x, n.x];
-  return actor(n.kind, n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, floor: n.floor, facing: n.facing, minX: a, maxX: b, speed: n.speed, lamp: n.lamp, tunnel: n.tunnel || n.aim });
+  return actor(n.kind, n.look || n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, floor: n.floor, facing: n.facing, minX: a, maxX: b, speed: n.speed, lamp: n.lamp, tunnel: n.tunnel || n.aim });
 }
 const npcById = id => ACTORS.find(a => a.id === id) || null;
 function placeActors() {
   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
   Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
   // охрана шлюза, рабочие мастерской и насосной, житель столовой — с 0.8.1 в CONFIG.NPCS (без копий здесь)
-  actor('sleeper', 'resB', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [294, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
-  actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
-  actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
+  actor('sleeper', 'resident-m.2', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resident-f.2', 0, 0, { bed: [294, 70] }); actor('sleeper', 'elder.0', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
+  actor('sitter', 'elder.1', 546, U, { facing: 1 }); actor('sitter', 'young.1', 590, U, { facing: -1 });   // столовая
+  actor('sitter', 'resident-m.1', 528, P, { facing: 1 }); actor('sitter', 'stalker.0', 1062, P, { facing: -1 });         // у столика и у бочки
   const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: ярус −2 — спящие в ячейках и свиньи в загоне
-  actor('sleeper', 'resA', 0, 0, { bed: [316, UY - 10] }); actor('sleeper', 'resB', 0, 0, { bed: [386, UY - 28] });
+  actor('sleeper', 'elder.2', 0, 0, { bed: [316, UY - 10] }); actor('sleeper', 'resident-m.0', 0, 0, { bed: [386, UY - 28] });
   actor('pig', 'pig', 990, UY, { minX: 972, maxX: 1040, speed: 7, facing: 1 });
   actor('pig', 'pig', 1062, UY, { minX: 1046, maxX: 1110, speed: 6, facing: -1 });
   actor('pig', 'pig', 1086, UY, { minX: 1086, maxX: 1086, facing: -1 });     // третья стоит у кормушки и вертит головой
   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
-  actor('sitter', 'resC', 940, P, { facing: -1 }); actor('sitter', 'resB', 962, P, { facing: -1 });         // слушатели у трибуны
-  actor('stand', 'resA', 832, P, { facing: 1 });
+  actor('sitter', 'trader.1', 940, P, { facing: -1 }); actor('sitter', 'stalker.2', 962, P, { facing: -1 });         // слушатели у трибуны
+  actor('stand', 'resident-m.2', 832, P, { facing: 1 });   // NPC-001: облики — CONFIG.LOOKS (места прежние)
 }
 /** Лёгкая реакция на свет: житель останавливается, оглядывается и говорит короткую фразу. */
 /** Реакция на блэкаут или возвращение сети: очередь коротких реплик видимых NPC (0.8.1).
@@ -3533,6 +3650,8 @@ const Game = {
         [WORLD.back, WORLD.main, WORLD.fore].forEach(l => g.drawImage(l, 0, SURF_H)); g.drawImage(WORLD.util, 0, SURF_H + H);
         return { png: c.toDataURL(), sh: SURF_H, floors: CONFIG.FLOORS };
       },
+      looks: () => lookReport(),                                        // NPC-001: облики — кадры, границы, отпечатки пикселей
+      lookSheet: () => lookSheet(3).toDataURL(),
       scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
     });
     Player.onStep = (x, f, y) => FX.step(x, f, y);
@@ -3704,6 +3823,17 @@ const Game = {
 };
 
 Game.start();
+/* NPC-001: галерея обликов для проверки на iPhone — только DEV (или ?debug) и только по адресу с ?npc. Игру не меняет. */
+if ((ENV === 'dev' || Debug.on) && /[?&]npc(?:[=&]|$)/.test(location.search)) {
+  const d = document.createElement('div'), c = lookSheet(3), w = Math.min(innerWidth - 16, c.width);
+  d.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(8,10,12,.94);overflow:auto;-webkit-overflow-scrolling:touch;padding:8px';
+  c.style.cssText = `width:${w}px;height:auto;image-rendering:pixelated;display:block;margin:0 auto`;
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = '✕'; b.setAttribute('aria-label', 'Закрыть галерею');
+  b.style.cssText = 'position:fixed;top:8px;right:8px;width:44px;height:44px;font-size:20px;background:#1e2426;color:#e0c48c;border:1px solid #4a5254';
+  b.addEventListener('click', e => { e.stopPropagation(); d.remove(); });
+  d.addEventListener('pointerdown', e => e.stopPropagation());
+  d.append(c, b); document.body.append(d);
+}
 
 /* Офлайн-режим: на обычном хостинге (https) игра кэшируется и потом открывается без интернета.
    С диска (file://) и во встроенных просмотрщиках регистрация не нужна и тихо пропускается. */
