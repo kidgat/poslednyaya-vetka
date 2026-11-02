@@ -379,6 +379,23 @@ const CONFIG = {
     },
     BLANKETS: ['#7a3b34', '#465a6c', '#5a6a4a', '#6a5a7a'],              // одеяла спящих (кадры «лёжа» есть у каждого облика)
   },
+  /* ФАЗА А (ШТАБ-018 / CL-014): отдельные сцены. ST — прежняя станция (её мир, этажи и данные не меняются).
+     S1 «Дворы» и S2 «К Дуплету» — наружные сцены со своим миром и этажом surface (тот же уровень земли, что у улицы станции).
+     Порталы — по краю этажа: стоять у края и удерживать направление за край HOLD с. Точки появления — SAFE px от края,
+     обратный портал заблокирован, пока герой не отойдёт от точки появления на REARM px. Позиция вне станции — свой ключ
+     pv.scene.v1 (DEV — pv.dev.scene.v1); pv.player.v1 вне станции не меняется, кроме «тени» у края улицы станции для отката. */
+  SCENE: { SAVE_KEY: 'pv.scene.v1', HOLD: 0.25, FADE: 0.35, SAFE: 40, REARM: 24, CACHE: 2 },   // фаза А: удержание у края 0,25 с, затемнение 0,35 + 0,35 с, точка появления в 40 px от края, повторный портал — после 24 px, в памяти текущая + предыдущая сцена
+  SCENES: {
+    ST: { name: 'Гагаринская', W: 2000, floors: null,                    // null — этажи станции CONFIG.FLOORS
+      portals: [{ id: 'P1', floor: 'surface', edge: 'left', to: 'S1', spawn: 'fromST' }],
+      spawns: { fromS1: { floor: 'surface', x: 1176, facing: 1 } } },
+    S1: { name: 'Дворы', W: 1800, floors: { surface: { y: -122, minX: 60, maxX: 1740, cam: 0.72 } },
+      portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'ST', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
+      spawns: { fromST: { floor: 'surface', x: 1700, facing: -1 }, fromS2: { floor: 'surface', x: 100, facing: 1 } } },
+    S2: { name: 'К «Дуплету»', W: 1500, floors: { surface: { y: -122, minX: 160, maxX: 1440, cam: 0.72 } },
+      portals: [{ id: 'P2r', floor: 'surface', edge: 'right', to: 'S1', spawn: 'fromS2' }],
+      spawns: { fromS1: { floor: 'surface', x: 1400, facing: -1 } } },
+  },
   REACT: { FIRST: 1.0, GAP: [0.6, 1.5], DUR: [2, 4], MAX_BLACKOUT: 5, MAX_RESTORE: 3, COOLDOWN: 6, MAX_ON: 3 },
   /* Аварийные светильники в помещениях (0.8.1, цепь emergency, гаснут при пустом аккумуляторе) и красные отсветы
      у постов, где охрана стоит перед маяком двери. Существующие маяки (BEACONS, шлюз, посты) не дублируются. */
@@ -1073,6 +1090,71 @@ function validateStationPlan(plan, cfg) {
   return err;
 }
 /* STATION:END */
+/* SCENE:BEGIN — фаза А: реестр сцен, порталы края, точки появления, лёгкое сохранение сцены. Чистые функции (тесты — tests/scene.test.js). */
+function sceneFloors(cfg, id) { const s = cfg.SCENES[id]; return !s ? null : (s.floors || cfg.FLOORS); }
+/** Портал края: герой у края этажа (±0,5 px), направление — за край. Внутренние этажи станции порталов не имеют. */
+function edgePortalAt(cfg, id, floor, x, dir) {
+  const s = cfg.SCENES[id], fl = sceneFloors(cfg, id), F = fl && fl[floor];
+  if (!s || !F || !dir) return null;
+  for (const p of s.portals) {
+    if (p.floor !== floor) continue;
+    if (p.edge === 'left' && dir < 0 && x <= F.minX + 0.5) return p;
+    if (p.edge === 'right' && dir > 0 && x >= F.maxX - 0.5) return p;
+  }
+  return null;
+}
+/** Безопасная точка перед порталом на исходной стороне (прерванный переход): SAFE px от края, лицом к порталу. */
+function portalSafeSpot(cfg, id, portal) {
+  const F = sceneFloors(cfg, id)[portal.floor], c = cfg.SCENE.SAFE;
+  return portal.edge === 'left' ? { scene: id, floor: portal.floor, x: F.minX + c, facing: -1 } : { scene: id, floor: portal.floor, x: F.maxX - c, facing: 1 };
+}
+/** Точка назначения портала. */
+function portalTarget(cfg, portal) { const sp = cfg.SCENES[portal.to].spawns[portal.spawn]; return { scene: portal.to, floor: sp.floor, x: sp.x, facing: sp.facing }; }
+/** Запись pv.scene.v1: { v:1, scene, floor, x, facing, pending: null | { portal, from, to, ticket } } → куда поставить героя или null.
+    При незавершённом переходе — безопасная точка ПЕРЕД порталом на исходной стороне. */
+function parseSceneSave(cfg, raw) {
+  let d; try { d = typeof raw === 'string' ? JSON.parse(raw) : null; } catch (_) { return null; }
+  if (!d || d.v !== 1 || !cfg.SCENES[d.scene]) return null;
+  if (d.pending) {
+    const s = cfg.SCENES[d.pending.from], p = s && s.portals.find(q => q.id === d.pending.portal);
+    if (!p || !cfg.SCENES[p.to]) return null;
+    return { ...portalSafeSpot(cfg, d.pending.from, p), pending: true };
+  }
+  const fl = sceneFloors(cfg, d.scene), F = fl[d.floor];
+  if (!F || typeof d.x !== 'number' || !Number.isFinite(d.x) || d.x < F.minX || d.x > F.maxX) return null;
+  return { scene: d.scene, floor: d.floor, x: Math.round(d.x * 10) / 10, facing: d.facing === -1 ? -1 : 1, pending: false };
+}
+/** Проверки реестра сцен: точки появления в границах и не ближе SAFE − 0,5 к краю-порталу; у портала есть обратный путь;
+    из каждой сцены достижима ST; порталы станции — только на этаже surface. */
+function validateScenes(cfg) {
+  const err = [], ids = Object.keys(cfg.SCENES);
+  for (const id of ids) {
+    const s = cfg.SCENES[id], fl = sceneFloors(cfg, id);
+    if (!(s.W > 0)) err.push(`сцена ${id}: нет ширины`);
+    for (const [k, sp] of Object.entries(s.spawns)) {
+      const F = fl[sp.floor];
+      if (!F || sp.x < F.minX || sp.x > F.maxX) { err.push(`сцена ${id}: точка ${k} вне этажа`); continue; }
+      for (const p of s.portals) {
+        const gap = p.edge === 'left' ? sp.x - F.minX : F.maxX - sp.x;
+        if (p.floor === sp.floor && gap < cfg.SCENE.SAFE - 0.5) err.push(`сцена ${id}: точка ${k} слишком близко к порталу ${p.id}`);
+      }
+    }
+    for (const p of s.portals) {
+      const d = cfg.SCENES[p.to];
+      if (!d || !d.spawns[p.spawn]) { err.push(`портал ${p.id}: нет точки ${p.to}.${p.spawn}`); continue; }
+      if (!fl[p.floor]) err.push(`портал ${p.id}: нет этажа ${p.floor}`);
+      if (id === 'ST' && p.floor !== 'surface') err.push(`портал ${p.id}: со станции — только с наружной дорожки`);
+      if (!d.portals.some(q => q.to === id)) err.push(`портал ${p.id}: нет обратного пути из ${p.to}`);
+    }
+  }
+  for (const id of ids) {                                               // путь домой
+    const seen = new Set([id]), q = [id];
+    while (q.length) for (const p of cfg.SCENES[q.shift()].portals) if (!seen.has(p.to)) { seen.add(p.to); q.push(p.to); }
+    if (!seen.has('ST')) err.push(`сцена ${id}: нет пути на станцию`);
+  }
+  return err;
+}
+/* SCENE:END */
 const Power = createPower(CONFIG.POWER);
 const Scavenge = createScavenge(CONFIG.SCAVENGE);
 const Reactions = createReactions(CONFIG.REACT);
@@ -2210,6 +2292,117 @@ function buildSurface() {
   WORLD.sky = sky; WORLD.ruins = ruins; WORLD.surface = surf;
 }
 
+/* =========================== OUTDOOR SCENES (фаза А) =======================
+   S1 «Дворы» и S2 «К Дуплету»: свой слой улицы шириной сцены и высотой SURF_H (тот же уровень земли GROUND_Y,
+   что у улицы станции), небо и дальние руины — общие слои станции (параллакс). Здания — фон без коллизий и без входов. */
+function paintStreet(gm, w) {
+  paintRegion(gm, 0, surfRow(GROUND_Y), w, -GROUND_Y, (x, row, o) => {          // тот же грунт и асфальт, что у улицы станции
+    const y = row - SURF_H, n = (hash(x, y + 777) - 0.5) * 10;
+    if (y === GROUND_Y) return setC(o, 104, 100, 90, n);
+    const dy = y - GROUND_Y;
+    if (dy < 11) return setC(o, 56, 55, 52, n + (hash(x >> 1, y) > 0.95 ? -16 : 0));
+    if (dy < 17) return setC(o, 62, 52, 42, n);
+    const st = Math.sin(y * 0.4 + Math.sin(x * 0.02) * 2) * 4, stone = hash(x >> 2, y >> 2) > 0.9 ? 10 : 0, k = Math.max(0.35, 0.9 - (dy - 17) / 120);
+    return setC(o, (48 + stone) * k, (40 + stone) * k, (34 + stone) * k, n * 0.6 + st);
+  });
+}
+/** Панельный дом: этажи по 18 px, окна парами, часть заколочена или выбита; подъезд с козырьком (закрыт — фон). */
+function drawBlock(R2, x0, w, floors, seed, tone) {
+  const h = floors * 18 + 8, top = GROUND_Y - h, base = rgb(tone);
+  R2(x0, top, w, h, base); R2(x0, top, w, 2, rgb(tone, 1.2)); R2(x0 - 2, top - 3, w + 4, 3, rgb(tone, 0.8));   // стена, парапет
+  for (let x = x0 + 30; x < x0 + w; x += 30) R2(x, top + 2, 1, h - 2, rgb(tone, 0.86));                     // швы панелей
+  for (let f = 0; f < floors; f++) for (let x = x0 + 8; x < x0 + w - 12; x += 15) {
+    const wy = top + 6 + f * 18, r = hash(x + seed, f), c = r > 0.86 ? '#2a1e14' : r > 0.7 ? '#5a4a36' : r > 0.12 ? '#1a1e22' : '#3a4a52';
+    R2(x, wy, 8, 9, c); R2(x, wy + 9, 8, 1, rgb(tone, 0.7));
+    if (r > 0.7 && r <= 0.86) for (let k = 0; k < 3; k++) R2(x, wy + 1 + k * 3, 8, 1, '#3e3226');               // доски на окне
+  }
+  for (let f = 1; f < floors; f += 2) { const bx = x0 + 16 + ((hash(seed, f) * (w - 60)) | 0); R2(bx, top + f * 18 + 14, 22, 2, rgb(tone, 0.75)); R2(bx, top + f * 18 + 10, 1, 4, rgb(tone, 0.7)); R2(bx + 21, top + f * 18 + 10, 1, 4, rgb(tone, 0.7)); }   // балконы
+  const dx = x0 + (w >> 1) - 7;                                                                               // подъезд
+  R2(dx - 4, GROUND_Y - 24, 22, 2, rgb(tone, 0.7)); R2(dx, GROUND_Y - 22, 14, 22, '#14181a'); R2(dx, GROUND_Y - 22, 14, 1, '#2a3032');
+  for (let x = x0; x < x0 + w; x++) if (hash(x, seed + 9) > 0.92) R2(x, top + 2 + ((hash(seed, x) * (h - 10)) | 0), 1, 3 + ((hash(x, 3) * 8) | 0), 'rgba(20,18,16,.35)');   // потёки
+}
+function buildOutdoor(id) {
+  const t0 = performance.now(), sc = CONFIG.SCENES[id], w = sc.W;
+  const surf = makeCanvas(w, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
+  const R2 = (x, y, ww, hh, c) => R(gm, x, surfRow(y), ww, hh, c);
+  paintStreet(gm, w);
+  for (let x = 0; x < w; x += 1) if (hash(x + w, 31) > 0.86) R2(x, GROUND_Y - 1 - ((hash(x, 32) * 3) | 0), 1, 2 + ((hash(x, 33) * 2) | 0), '#5a5636');   // сухая трава
+  const tree = (tx, d) => { L(gm, tx, surfRow(GROUND_Y), tx + d * 2, surfRow(GROUND_Y - 44), '#2a2420', 3); L(gm, tx + d * 2, surfRow(GROUND_Y - 30), tx + d * 14, surfRow(GROUND_Y - 46), '#2a2420', 2); L(gm, tx + d, surfRow(GROUND_Y - 20), tx - d * 10, surfRow(GROUND_Y - 34), '#2a2420', 2); };
+  if (id === 'S1') {
+    for (let x = w - 70; x < w; x++) {                                    // продолжение завала с улицы станции — Глеб перебирается через него
+      const hh = Math.max(0, Math.round(34 - Math.abs(x - (w - 10)) * 0.55 + (hash(x, 7) - 0.5) * 8));
+      for (let y = 0; y < hh; y++) R2(x, GROUND_Y - y, 1, 1, rgb([70, 66, 60], 0.55 + hash(x, y) * 0.5 - y / 180));
+    }
+    drawBlock(R2, 1500, 240, 5, 11, [92, 88, 80]);                        // пятиэтажка № 1
+    tree(1470, -1);
+    // спортплощадка: сетка-забор, ворота, турник, скамья
+    for (let x = 1140; x <= 1440; x += 30) R2(x, GROUND_Y - 30, 2, 30, '#3a3c3c');
+    for (let x = 1140; x < 1440; x++) for (let y = 2; y < 30; y += 6) if (((x + y) % 6) < 1) R2(x, GROUND_Y - 30 + y, 1, 1, 'rgba(120,124,120,.7)');
+    R2(1140, GROUND_Y - 31, 300, 1, '#4a4c4a');
+    R2(1180, GROUND_Y - 18, 2, 18, '#6a5a4a'); R2(1180, GROUND_Y - 18, 26, 2, '#6a5a4a'); R2(1205, GROUND_Y - 18, 2, 18, '#6a5a4a');   // ворота (ржавые)
+    R2(1300, GROUND_Y - 26, 2, 26, '#4a4c4c'); R2(1326, GROUND_Y - 26, 2, 26, '#4a4c4c'); R2(1300, GROUND_Y - 26, 28, 1, '#5e6060');      // турник
+    R2(1380, GROUND_Y - 7, 30, 2, '#5a4632'); R2(1382, GROUND_Y - 5, 2, 5, '#3a2e22'); R2(1406, GROUND_Y - 5, 2, 5, '#3a2e22');          // скамья
+    drawBlock(R2, 840, 240, 5, 23, [86, 84, 78]);                         // пятиэтажка № 2
+    tree(800, 1);
+    // «Универсам-3»: низкий одноэтажный корпус, ленточная витрина (заколочена), вывеска; вход x ≈ 520 — только рисунок (фаза А)
+    const ux = 280, uw = 480, uh = 44, ut = GROUND_Y - uh;
+    R2(ux, ut, uw, uh, '#6e6a62'); R2(ux, ut, uw, 2, '#86827a'); R2(ux - 4, ut - 6, uw + 8, 6, '#5a5650'); R2(ux - 4, ut - 6, uw + 8, 1, '#7a766e');
+    for (let x = ux + 10; x < ux + uw - 10; x += 40) { if (Math.abs(x + 20 - 520) < 30) continue; R2(x, ut + 12, 34, 22, '#1c2024'); R2(x, ut + 12, 34, 1, '#3a4248');
+      for (let k = 0; k < 4; k++) if (hash(x, k) > 0.35) R2(x + 1, ut + 14 + k * 5, 32, 2, '#4e3e2c'); }                                    // доски на витринах
+    R2(508, GROUND_Y - 26, 24, 26, '#16191b'); R2(519, GROUND_Y - 26, 1, 26, '#2a2e30'); R2(504, GROUND_Y - 29, 32, 3, '#5a5650');     // двери входа
+    R2(ux + 140, ut - 20, 200, 13, '#2a2e2c'); R2(ux + 140, ut - 20, 200, 1, '#4a4e4c');
+    drawText(gm, 'УНИВЕРСАМ', ux + 240 - (textWidth('УНИВЕРСАМ') >> 1), surfRow(ut - 17), '#c8b88a', 'rgba(0,0,0,.5)');
+    for (let k = 0; k < 5; k++) R2(ux + 30 + k * 90, GROUND_Y - 4, 10, 4, '#4a4440');                     // мусор у фасада
+  } else {
+    drawBlock(R2, 1080, 300, 5, 37, [90, 86, 80]);                        // пятиэтажка № 3
+    tree(1050, -1); tree(1420, 1);
+    // дорога: бордюры, разметка, брошенная машина (фон)
+    R2(760, GROUND_Y - 1, 240, 1, '#3e3e3c'); R2(758, GROUND_Y - 3, 3, 3, '#8a8680'); R2(999, GROUND_Y - 3, 3, 3, '#8a8680');
+    for (let x = 772; x < 990; x += 22) R2(x, GROUND_Y + 3, 12, 1, '#a8a49a');
+    const cx = 830; R2(cx, GROUND_Y - 13, 50, 9, '#3e4a52'); R2(cx + 8, GROUND_Y - 21, 30, 8, '#34404a'); R2(cx + 11, GROUND_Y - 19, 10, 5, '#16181a'); R2(cx + 24, GROUND_Y - 19, 10, 5, '#16181a');
+    disc(gm, cx + 9, surfRow(GROUND_Y - 3), 4, '#1a1a1a'); disc(gm, cx + 41, surfRow(GROUND_Y - 3), 4, '#1a1a1a');
+    // восьмиэтажка с «ДУПЛЕТОМ» на первом этаже; вход x ≈ 420 — только рисунок (фаза А)
+    drawBlock(R2, 140, 540, 8, 53, [84, 82, 80]);
+    R2(330, GROUND_Y - 30, 180, 30, '#4a443c'); R2(330, GROUND_Y - 30, 180, 2, '#6a6258');                // первый этаж — магазин
+    R2(345, GROUND_Y - 24, 50, 18, '#1a1e22'); R2(445, GROUND_Y - 24, 50, 18, '#1a1e22');                  // витрины с решётками
+    for (const vx of [345, 445]) for (let k = 0; k < 50; k += 5) R2(vx + k, GROUND_Y - 24, 1, 18, '#3a3a38');
+    R2(408, GROUND_Y - 26, 24, 26, '#14171a'); R2(408, GROUND_Y - 26, 24, 1, '#2e3234');                    // дверь
+    R2(360, GROUND_Y - 42, 120, 11, '#1e2224'); R2(360, GROUND_Y - 42, 120, 1, '#5a3a2a');
+    drawText(gm, 'ДУПЛЕТ', 420 - (textWidth('ДУПЛЕТ') >> 1), surfRow(GROUND_Y - 40), '#d8a860', 'rgba(0,0,0,.5)');
+    for (let x = 0; x < 140; x++) if (hash(x, 77) > 0.5) R2(x, GROUND_Y - 8 - ((hash(x, 78) * 10) | 0), 1, 8 + ((hash(x, 78) * 10) | 0), 'rgba(40,36,30,.6)');   // кусты у края
+  }
+  return { surface: surf, lights: [], emissive: [], buildMs: performance.now() - t0, bytes: w * SURF_H * 4 };
+}
+/** Сцены: ST — станция (её WORLD строится один раз и не выгружается: это дом, там NPC и цепи питания).
+    Наружные строятся по требованию; в памяти — только текущая и предыдущая сцена (CONFIG.SCENE.CACHE = 2),
+    остальные наружные освобождаются (холст обнуляется). */
+const Scene = {
+  id: 'ST', prev: null, cache: new Map(), builds: 0, disposed: 0, buildLog: [],
+  def() { return CONFIG.SCENES[this.id]; },
+  floors() { return sceneFloors(CONFIG, this.id); },
+  floor(f) { return this.floors()[f]; },
+  W() { return this.def().W; },
+  world() { return this.id === 'ST' ? WORLD : this.cache.get(this.id); },
+  enter(id) {
+    if (id === this.id) return;
+    if (id !== 'ST' && !this.cache.has(id)) {
+      const w = buildOutdoor(id); this.cache.set(id, w); this.builds++;
+      this.buildLog.push({ id, ms: Math.round(w.buildMs * 10) / 10 }); if (this.buildLog.length > 20) this.buildLog.shift();
+    }
+    this.prev = this.id; this.id = id;
+    const keep = [this.id, this.prev].slice(0, CONFIG.SCENE.CACHE);
+    for (const [k, w] of [...this.cache]) if (!keep.includes(k)) {      // не текущая и не предыдущая — освободить
+      if (w.surface) { w.surface.width = 0; w.surface.height = 0; } this.cache.delete(k); this.disposed++;
+    }
+  },
+  /** Байты пикселей холстов: станция (WORLD, постоянная) и кэш наружных сцен. */
+  bytes() {
+    let st = 0; for (const v of Object.values(WORLD)) if (v && v.width && v.getContext) st += v.width * v.height * 4;
+    let out = 0; for (const w of this.cache.values()) out += w.surface ? w.surface.width * w.surface.height * 4 : 0;
+    return { station: st, outdoor: out, cached: [...this.cache.keys()] };
+  },
+};
+
 function buildWorld() {
   const main = makeCanvas(W, H), gm = main.getContext('2d', { willReadFrequently: true });
   paintRegion(gm, 0, 0, W, H, mainTexel);
@@ -2745,11 +2938,11 @@ const Player = {
   /** 1.1А: поставить героя на этаж и x (старт, загрузка сохранения) — обычная ходьба, без прохода и ворот. */
   place(floor, x, facing = 1) {
     this.floor = floor; this.state = 'walk'; this.path = null; this.gate = null; this.pass = null; this.alpha = 1;
-    this.x = this.prevX = x; this.y = this.prevY = CONFIG.FLOORS[floor].y; this.facing = facing; this.vx = 0; this.walkDist = 0;
+    this.x = this.prevX = x; this.y = this.prevY = Scene.floor(floor).y; this.facing = facing; this.vx = 0; this.walkDist = 0;
   },
   /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
   interaction() {
-    if (this.state !== 'walk') return null;
+    if (this.state !== 'walk' || Scene.id !== 'ST') return null;      // фаза А: снаружи станции действий нет (гараж, тайник, ворота — только на ST)
     const inside = (x, [a, b]) => x >= a && x <= b;
     for (const q of CONFIG.PASSAGES)                                      // 1.0.1: служебные проходы
       for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
@@ -2771,6 +2964,7 @@ const Player = {
   },
   update(dt, dir, action) {
     this.prevX = this.x; this.prevY = this.y;
+    if (this.state === 'scene') { this.vx = 0; return; }               // фаза А: смена сцены — ввод игнорируется
     if (this.state === 'gate') { this.updateGate(dt); return; }
     if (this.state === 'passage') { this.updatePassage(dt); return; }   // 1.0.1: ввод во время прохода игнорируется
     if (action) {
@@ -2784,7 +2978,7 @@ const Player = {
   },
   /** Разгон, торможение, разворот и границы текущего этажа. Анимация привязана к пройденному пути — ноги не скользят. */
   updateWalk(dt, dir) {
-    const P = CONFIG.PLAYER, F = CONFIG.FLOORS[this.floor];
+    const P = CONFIG.PLAYER, F = Scene.floor(this.floor);
     if (dir !== 0) {
       const a = Math.sign(this.vx) === -dir && this.vx !== 0 ? P.TURN : P.ACCEL;
       this.vx = clamp(this.vx + dir * a * dt, -P.MAX_SPEED, P.MAX_SPEED);
@@ -2857,6 +3051,7 @@ const Player = {
     return side === 'vestibule' ? 1 : 0;                                // 0.9: створки — в зале вестибюля
   },
   sprite() {
+    if (this.state === 'scene') return SPRITES.idle[0];
     if (this.state === 'gate') return this.gate.phase === 'travel' ? null : this.gate.phase === 'exit' ? SPRITES.idle[0] : SPRITES.back;
     if (this.state === 'passage') {                                        // 1.0.1: спиной — при входе, лицом — при выходе
       const s = this.pass;
@@ -2893,11 +3088,11 @@ const Camera = {
     this.x = this.clampX(damp(this.x, this.clampX(player.x + this.look - this.viewW / 2), this.vel, C.SMOOTH_TIME, dt));
     this.y = damp(this.y, this.targetY(player), this.velY, C.SMOOTH_Y, dt);
   },
-  clampX(x) { return clamp(x, 0, Math.max(0, W - this.viewW)); },
+  clampX(x) { return clamp(x, 0, Math.max(0, Scene.W() - this.viewW)); },   // фаза А: ширина активной сцены
   /** 0.9: цель по y — у каждого этажа своя (FLOORS[f].cam — доля высоты кадра для ступней; нет — низ станции).
       1.0.1: при служебном проходе этаж меняется, пока героя не видно, — камера плавно догоняет новую цель. */
   floorY(f) {
-    const maxY = H - this.viewH, F = CONFIG.FLOORS[f];
+    const maxY = H - this.viewH, F = Scene.floor(f);
     if (Zoom.factor() > 1) return clamp(F.y - this.viewH * CONFIG.ZOOM.FEET, -SURF_H, WORLD_BOTTOM - this.viewH);   // 1.1А-UX1: кадр меньше — у каждого этажа ступни на FEET высоты
     if (F.bottom) return Math.max(-SURF_H, WORLD_BOTTOM - this.viewH);    // 1.0: ярус −2 — низ кадра = низ мира
     return F.cam ? clamp(F.y - this.viewH * F.cam, -SURF_H, maxY) : maxY;   // старые этажи — как в 0.9
@@ -3035,6 +3230,7 @@ const Render = {
   /** Перевод мировой координаты в координату буфера для слоя с параллаксом p. */
   sx(x, p, camX, frac) { return Math.round(x - camX * p + frac); },
   frame(alpha, t) {
+    if (Scene.id !== 'ST') return this.frameOutdoor(alpha, t);           // фаза А: наружные сцены — свой короткий кадр
     const g = this.g, camX = Camera.prevX + (Camera.x - Camera.prevX) * alpha, camY = Camera.prevY + (Camera.y - Camera.prevY) * alpha;
     const camI = Math.floor(camX), frac = camX - camI, camYI = Math.floor(camY), fracY = camY - camYI;
     const yo = this.yoff = -camYI, vw = this.viewW + 1, vh = this.viewH;
@@ -3108,7 +3304,62 @@ const Render = {
       g.fillStyle = `rgba(0,0,0,${(0.4 * Math.sin(Math.PI * Math.min(1, Player.pass.t / CONFIG.PASSAGE.TRANSIT))).toFixed(3)})`; g.fillRect(0, 0, vw, vh);
     }
     g.drawImage(this.vignette, 0, 0);
+    this.drawFade(g, vw, vh);
     // 8. На экран: целый масштаб, сдвиг на дробные части камеры по X и Y.
+    const s = this.scale;
+    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
+  },
+  /** Фаза А: затемнение перехода между сценами (только во время перехода). */
+  drawFade(g, vw, vh) {
+    const a = Game.fadeAlpha();
+    if (a > 0.001) { g.fillStyle = `rgba(0,0,0,${a.toFixed(3)})`; g.fillRect(0, 0, vw, vh); }
+  },
+  /** Фаза А: кадр наружной сцены (S1, S2): небо и дальние руины станции (параллакс), улица сцены, герой, естественный свет
+      поверхности (без цепей станции), личный фонарь, виньетка, затемнение. Свет, NPC и искры станции сюда не попадают. */
+  frameOutdoor(alpha, t) {
+    const g = this.g, sw = Scene.world(), camX = Camera.prevX + (Camera.x - Camera.prevX) * alpha, camY = Camera.prevY + (Camera.y - Camera.prevY) * alpha;
+    const camI = Math.floor(camX), frac = camX - camI, camYI = Math.floor(camY), fracY = camY - camYI;
+    const yo = this.yoff = -camYI, vw = this.viewW + 1, vh = this.viewH;
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.fillStyle = '#2a221c'; g.fillRect(0, 0, vw, vh);                  // ниже слоя улицы — грунт (высокие экраны)
+    g.drawImage(WORLD.sky, this.sx(0, CONFIG.PARALLAX.SKY, camX, frac), yo - SURF_H);
+    g.drawImage(WORLD.ruins, this.sx(0, CONFIG.PARALLAX.RUINS, camX, frac), yo - SURF_H);
+    g.drawImage(sw.surface, -camI, yo - SURF_H);
+    g.fillStyle = 'rgba(150,140,120,.5)';
+    for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
+    g.globalAlpha = 1;
+    g.fillStyle = 'rgba(200,194,180,.8)'; for (const a of FX.ash) g.fillRect(Math.round(a.x - camI), Math.round(a.y) + yo, 1, 1);
+    this.occ.length = 0;
+    const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
+    const fy = Math.round(Player.prevY + (Player.y - Player.prevY) * alpha) + yo;
+    g.fillStyle = 'rgba(0,0,0,.42)'; g.fillRect(px - 8, fy, 17, 1); g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(px - 6, fy + 1, 13, 1);
+    const spr = Player.sprite();
+    this.archDY = 0; this.playerOcc = null;
+    if (spr) { g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, Player.facing, 13); g.globalAlpha = 1; }
+    const mk = Game.mark;
+    if (mk && mk.floor === Player.floor) {
+      const mx = Math.round(mk.x) - camI, my = Scene.floor(mk.floor).y + yo, a = mk.fading ? Math.max(0, mk.t / CONFIG.TOUCH.MARK) : 1;
+      g.globalAlpha = 0.85 * a; g.fillStyle = '#e8b86a';
+      g.fillRect(mx - 3, my, 2, 1); g.fillRect(mx + 2, my, 2, 1); g.fillRect(mx - 1, my - 1, 3, 1); g.fillRect(mx - 1, my + 1, 3, 1);
+      g.globalAlpha = 1;
+    }
+    const gl = this.gl, VP = Visual.preset(), S = VP.surface;            // свет: пыльные сумерки поверхности, режим яркости игрока
+    gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
+    gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, vh);
+    gl.globalCompositeOperation = 'lighter';
+    let n = 0;
+    if (Player.flashlight().lit) {                                     // личный фонарь — та же текстура, без стен (улица)
+      const F = CONFIG.FLASHLIGHT, x = px + Player.facing * F.HAND[0], y = fy - F.HAND[1], k = F.RANGE / 120;
+      gl.save(); gl.globalAlpha = F.SPOT_ALPHA; gl.drawImage(this.lampDisc(F.SPOT, [205, 222, 255]), x - F.SPOT, y + 4 - F.SPOT);
+      gl.globalAlpha = F.ALPHA; gl.translate(x, y); gl.scale(Player.facing * k, k); gl.drawImage(this.beamTex, -2, -18); gl.restore(); n += 2;
+    }
+    gl.save(); gl.globalAlpha = 0.5; gl.drawImage(this.lampDisc(50, [160, 150, 128]), px - 50, fy - 23 - 50); gl.restore(); n++;
+    this.drawnLights = n; this.litLamps = 0;
+    g.globalCompositeOperation = 'multiply'; g.drawImage(this.light, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.drawImage(this.vignette, 0, 0);
+    this.drawFade(g, vw, vh);
     const s = this.scale;
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
@@ -3614,10 +3865,12 @@ const Game = {
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     this.buildMs = Math.round(performance.now() - t0);
-    Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
+    Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); this.loadScene(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
     GenPanel.init(); InfoCard.init(); Visual.init(); Zoom.init(); Flashlight.init();
     this.stationErrors = validateStationPlan(buildStationPlan(CONFIG, ROOMS), CONFIG);
     if (this.stationErrors.length) console.warn('Реестр станции:', this.stationErrors);
+    this.sceneErrors = validateScenes(CONFIG);
+    if (this.sceneErrors.length) console.warn('Реестр сцен:', this.sceneErrors);
     addEventListener('pagehide', () => { this.savePower(); this.saveScavenge(); this.savePlayer(); });
     document.addEventListener('visibilitychange', () => { if (document.hidden) { this.savePower(); this.saveScavenge(); this.savePlayer(); } });
     Input.onEscape = () => { GenPanel.hide(); InfoCard.hide(); Visual.hide(); };
@@ -3627,7 +3880,15 @@ const Game = {
       snapshot: () => ({ ...Power.snapshot(), circuits: { ...Power.circuits }, tick: { ...Power.tick } }),
       advance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Power.step(CONFIG.STEP); },
       station: () => ({ plan: buildStationPlan(CONFIG, ROOMS), errors: [...this.stationErrors] }),
-      place: (floor, x, facing = 1) => { Player.place(floor, x, facing); Camera.snap(Player); return true; },   // 1.1А-UX1: для проверок камеры на этажах
+      place: (floor, x, facing = 1) => { if (!Scene.floor(floor) || Game.trans) return false; Player.place(floor, x, facing); Camera.snap(Player); return true; },
+      scene: () => ({ id: Scene.id, prev: Scene.prev, builds: Scene.builds, disposed: Scene.disposed, buildLog: Scene.buildLog.slice(), bytes: Scene.bytes(),
+        trans: Game.trans ? { portal: Game.trans.portal.id, from: Game.trans.from, to: Game.trans.to, ticket: Game.trans.ticket, phase: Game.trans.phase } : null,
+        tickets: Game.ticket, applied: Game.applied, armed: Game.armed, hold: Game.holdT, fade: Game.fadeAlpha(), errors: [...this.sceneErrors],
+        x: Player.x, floor: Player.floor, facing: Player.facing, state: Player.state, W: Scene.W() }),
+      scenePlace: (id, floor, x, facing = 1) => {                       // фаза А, только ?debug: поставить героя в сцену (без перехода) для проверок
+        if (Game.trans || !CONFIG.SCENES[id] || !sceneFloors(CONFIG, id)[floor]) return false;
+        Scene.enter(id); Player.place(floor, x, facing); Game.armed = true; Game.holdT = 0; Camera.snap(Player); Game.updateZone(); return true; },
+      sceneRecord: () => { try { return localStorage.getItem(saveKey(CONFIG.SCENE.SAVE_KEY)); } catch (_) { return null; } },   // 1.1А-UX1: для проверок камеры на этажах
       zoom: () => ({ idx: Zoom.idx, factor: Zoom.factor(), scale: Render.scale, base: Render.baseScale, viewW: Render.viewW, viewH: Render.viewH, camX: Camera.x, camY: Camera.y }),
       flashlight: () => ({ ...Player.flashlight(), drawn: Render.drawnLights }),
       touch: () => ({ mark: Game.mark ? { ...Game.mark } : null, target: Player.target, lastTap: Game.lastTap || null, gestures: Input.gestures.size, held: Input.held.length, vx: Player.vx, x: Player.x, scale: Render.scale, camX: Camera.x, camY: Camera.y }),
@@ -3658,7 +3919,7 @@ const Game = {
     const act = this.els.act;
     act.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); act.classList.add('press'); Input.queue('use'); });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => act.addEventListener(t, () => act.classList.remove('press')));
-    Input.init(document.getElementById('touch'), () => { Player.reset(); Camera.snap(Player); });
+    Input.init(document.getElementById('touch'), () => { if (Scene.id !== 'ST' || this.trans) return; Player.reset(); Camera.snap(Player); });   // R — только на станции
     Input.onTap = (x, y) => this.tapAt(x, y);
     Input.onFirstInput = () => this.hideTitle();
     this.els.title.addEventListener('pointerdown', e => { e.preventDefault(); this.hideTitle(); });
@@ -3693,6 +3954,7 @@ const Game = {
   update(dt) {
     this.t += dt;
     let dir = Input.dir();
+    const manualDir = dir;                                               // фаза А: портал края — только по удержанию направления, не автоходом
     const action = Input.takeAction(), it = Player.interaction();
     // 1.1А-UX2: движение к точке. Ручная ходьба, проход/ворота, открытие окна генератора или карточки — отменяют цель.
     const opened = (GenPanel.open && !this.wasGen) || (InfoCard.open && !this.wasCard);
@@ -3722,16 +3984,96 @@ const Game = {
       const a = npcById(InfoCard.item.npc);
       if (a) { a.talkT = 0.3; a.moving = false; if (a.kind !== 'sitter') a.facing = Player.x >= a.x ? 1 : -1; if (a.kind === 'walker') a.wait = Math.max(a.wait, 0.3); }
     }
+    this.updateScene(dt, manualDir);
     Scavenge.step(dt);
     this.updatePower(dt);
     Camera.update(dt, Player);
     FX.update(dt, this.t, Camera.x, Render.viewW);
-    updateActors(dt); updateLamps(dt);
+    if (Scene.id === 'ST') { updateActors(dt); updateLamps(dt); }        // фаза А: жители и лампы станции живут только на станции (не пересоздаются)
     const go = Player.gateOpenTarget();                                 // створки шлюза догоняют нужное положение
     WORLD.gate.open = clamp(WORLD.gate.open + (go > WORLD.gate.open ? 1 : -1) * dt * 1.8, 0, 1);
     if (dir && !this.moved) { this.moved = true; setTimeout(() => this.els.hint.classList.add('gone'), 1500); }   // подсказка уходит после первого шага
     this.updateZone();
     this.updateAction();
+  },
+  /* ---------------- Фаза А: переходы между сценами и их сохранение ----------------
+     Портал края: герой упёрся в край этажа и держит направление за край HOLD с (шаг логики, не таймер) → билет перехода
+     (ticket), затемнение FADE → смена сцены ровно один раз для билета → проявление FADE. До смены записывается безопасная точка
+     ИСТОЧНИКА с pending, после — точка НАЗНАЧЕНИЯ без pending. Обратный портал взводится, когда герой отошёл на REARM px. */
+  trans: null, ticket: 0, applied: 0, armed: true, holdT: 0, arrival: null,
+  fadeAlpha() {
+    const tr = this.trans; if (!tr) return 0;
+    const k = Math.min(1, tr.t / CONFIG.SCENE.FADE);
+    return tr.phase === 'out' ? k : 1 - k;
+  },
+  updateScene(dt, dir) {
+    const C = CONFIG.SCENE, tr = this.trans;
+    if (tr) {
+      tr.t += dt;
+      if (tr.phase === 'out' && tr.t >= C.FADE) this.applyTransition(tr);
+      else if (tr.phase === 'in' && tr.t >= C.FADE) { this.trans = null; Player.state = 'walk'; Player.vx = 0; }
+      return;
+    }
+    if (Player.state !== 'walk') { this.holdT = 0; return; }
+    if (!this.armed && this.arrival && (Math.abs(Player.x - this.arrival.x) >= C.REARM || Player.floor !== this.arrival.floor)) this.armed = true;
+    const p = this.armed ? edgePortalAt(CONFIG, Scene.id, Player.floor, Player.x, dir) : null;
+    this.holdT = p ? this.holdT + dt : 0;
+    if (p && this.holdT >= C.HOLD) this.startTransition(p);
+  },
+  startTransition(portal) {
+    if (this.trans) return;                                              // один переход за раз: повторное касание и удержание его не дублируют
+    const from = Scene.id, safe = portalSafeSpot(CONFIG, from, portal);
+    this.trans = { portal, from, to: portal.to, ticket: ++this.ticket, phase: 'out', t: 0 };
+    this.holdT = 0; Player.state = 'scene'; Player.vx = 0; Player.target = null; this.mark = null; Input.clear();
+    if (from === 'ST') this.writePlayerV1(safe);                         // станция: в pv.player.v1 — точка перед порталом (валидна для 1.2.0)
+    this.writeScene({ scene: from, floor: safe.floor, x: safe.x, facing: safe.facing, pending: { portal: portal.id, from, to: portal.to, ticket: this.trans.ticket } });
+  },
+  applyTransition(tr) {
+    if (this.applied === tr.ticket) return;                              // билет применяется один раз
+    this.applied = tr.ticket;
+    const dst = portalTarget(CONFIG, tr.portal);
+    Scene.enter(dst.scene);
+    Player.place(dst.floor, dst.x, dst.facing); Player.state = 'scene';
+    FX.puffs.length = 0;
+    Camera.snap(Player);
+    this.arrival = { floor: dst.floor, x: dst.x }; this.armed = false;
+    this.commitScenePos(dst);
+    tr.phase = 'in'; tr.t = 0;
+    this.updateZone();
+  },
+  /** Записать положение после смены сцены (атомарно для сцены; pv.player.v1 всегда остаётся валидным для 1.2.0). */
+  commitScenePos(pos) {
+    if (pos.scene === 'ST') this.writePlayerV1(pos);
+    else this.writePlayerV1(this.v1Fallback());
+    this.writeScene({ scene: pos.scene, floor: pos.floor, x: pos.x, facing: pos.facing, pending: null });
+  },
+  /** Положение для старого движка, пока герой вне станции: перед порталом P1 на улице станции. */
+  v1Fallback() { const p = CONFIG.SCENES.ST.portals[0]; return CONFIG.SCENES.ST.spawns[CONFIG.SCENES[p.to].portals.find(q => q.to === 'ST').spawn]; },
+  writePlayerV1(pos) {
+    const rec = JSON.stringify({ v: 1, floor: pos.floor, x: Math.round(pos.x * 10) / 10, facing: pos.facing === -1 ? -1 : 1 });
+    if (rec === this.lastPlayerRec) return;
+    try { localStorage.setItem(saveKey(CONFIG.PLAYER.SAVE_KEY), rec); this.lastPlayerRec = rec; } catch (_) { /* хранилище недоступно */ }
+  },
+  /** pv.scene.v1 (через saveKey: в DEV — pv.dev.scene.v1). Поле v1 — запись pv.player.v1 на момент сохранения: если старая версия игры
+      потом изменила pv.player.v1, сцена из этой записи не восстанавливается (главнее положение старой версии). */
+  writeScene(o) {
+    const rec = JSON.stringify({ v: 1, scene: o.scene, floor: o.floor, x: Math.round(o.x * 10) / 10, facing: o.facing === -1 ? -1 : 1, pending: o.pending || null, v1: this.lastPlayerRec || null });
+    if (rec === this.lastSceneRec) return;
+    try { localStorage.setItem(saveKey(CONFIG.SCENE.SAVE_KEY), rec); this.lastSceneRec = rec; } catch (_) { /* хранилище недоступно */ }
+  },
+  loadScene() {
+    let raw = null; try { raw = localStorage.getItem(saveKey(CONFIG.SCENE.SAVE_KEY)); } catch (_) { return; }
+    if (!raw) return;
+    const r = parseSceneSave(CONFIG, raw);
+    let v1 = null, d = null; try { v1 = localStorage.getItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); d = JSON.parse(raw); } catch (_) { /* нет доступа */ }
+    if (!r) { try { localStorage.removeItem(saveKey(CONFIG.SCENE.SAVE_KEY)); } catch (_) { /* нет доступа */ } return; }   // испорчена — только эта запись; pv.player.v1 не трогаем
+    this.lastPlayerRec = v1;
+    if (d && d.v1 !== undefined && d.v1 !== v1) { this.writeScene({ scene: 'ST', floor: Player.floor, x: Player.x, facing: Player.facing }); return; }   // pv.player.v1 менялся без нас — верим ему
+    if (r.scene === 'ST' && !r.pending) return;                           // на станции главный — pv.player.v1
+    Scene.enter(r.scene);
+    Player.place(r.floor, r.x, r.facing);
+    this.armed = true;
+    this.commitScenePos(r);                                               // прерванный переход закрыт: безопасная точка источника без pending
   },
   /** Энергосистема: шаг модели, плавный видимый уровень, реакции жителей, строка в HUD, периодическое сохранение. */
   updatePower(dt) {
@@ -3765,7 +4107,7 @@ const Game = {
     if (Player.state !== 'walk' || !Render.canvas) return;
     const r = Render.canvas.getBoundingClientRect();
     const w = screenToWorld({ left: r.left, top: r.top, cssW: r.width, cssH: r.height, devW: Render.canvas.width, devH: Render.canvas.height, scale: Render.scale, camX: Camera.x, camY: Camera.y }, cx, cy);
-    const x = tapTarget(CONFIG, Player.floor, w.x, w.y);
+    const x = tapTarget({ FLOORS: Scene.floors(), TOUCH: CONFIG.TOUCH }, Player.floor, w.x, w.y);   // фаза А: этаж активной сцены
     this.lastTap = { wx: w.x, wy: w.y, x };
     if (x === null) return;
     if (Math.abs(x - Player.x) < CONFIG.TOUCH.MIN_DIST) { Player.target = null; this.mark = null; return; }   // у самого героя — без лишнего шага
@@ -3774,6 +4116,8 @@ const Game = {
   /** 1.1А: положение героя (pv.player.v1 через saveKey). Только в обычной ходьбе: во время прохода и ворот — прежняя запись. */
   savePlayer() {
     if (Player.state !== 'walk') return;
+    if (this.trans) return;                                              // фаза А: во время смены сцены — прежняя запись
+    if (Scene.id !== 'ST') { this.writeScene({ scene: Scene.id, floor: Player.floor, x: Player.x, facing: Player.facing }); return; }   // фаза А: вне станции pv.player.v1 не меняется
     const rec = JSON.stringify({ v: 1, floor: Player.floor, x: Math.round(Player.x * 10) / 10, facing: Player.facing });
     if (rec === this.lastPlayerRec) return;                               // не писать то же самое
     try { localStorage.setItem(saveKey(CONFIG.PLAYER.SAVE_KEY), rec); this.lastPlayerRec = rec; } catch (_) { /* хранилище недоступно */ }
@@ -3811,7 +4155,8 @@ const Game = {
   /** Подпись HUD: на платформе — зона, наверху — комната, в пути — «Лестница». */
   updateZone() {
     let z;
-    if (Player.state === 'gate') z = 'Шлюз';
+    if (Scene.id !== 'ST') z = Scene.def().name;                          // фаза А: наружная сцена
+    else if (Player.state === 'gate') z = 'Шлюз';
     else if (Player.state === 'passage') z = 'Служебная лестница';
     else if (Player.floor === 'surface') z = 'Поверхность · павильон';
     else if (ROOM_FLOORS.includes(Player.floor)) {
