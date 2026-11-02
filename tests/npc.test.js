@@ -42,5 +42,5 @@ ok('NPC09 все 8 архетипов есть на станции; медики
 ok('NPC10 детали силуэта рисуются только при заданных опциях (прежние спрайты не меняются) — вызовы в кадрах стоя и сидя', /headExtras\(g, o, PAL, b\); bodyExtras\(g, o, PAL, b, false\);/.test(src)
   && /headExtras\(g, o, PAL, 6 \+ b\); bodyExtras\(g, o, PAL, b, true\);/.test(src) && /if \(o\.coat\)/.test(src)
   && cut('function headExtras(', '\nfunction bodyExtras(').split('\n').slice(1, -1).every(l => /^\s*(if \(o\.|\}|\/\/)/.test(l) || !l.trim()));
-ok('NPC11 галерея обликов — только DEV или ?debug и только с ?npc', src.includes("if ((ENV === 'dev' || Debug.on) && /[?&]npc(?:[=&]|$)/.test(location.search)) {"));
+ok('NPC11 галерея обликов — только DEV и только с ?npc (в PROD нет даже с ?debug)', src.includes("if (ENV === 'dev' && /[?&]npc(?:[=&]|$)/.test(location.search)) {") && !src.includes("(ENV === 'dev' || Debug.on) && /[?&]npc"));
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

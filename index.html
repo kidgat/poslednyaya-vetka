@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#06080a">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Последняя ветка 1.2-dev</title>
+<title>Последняя ветка 1.2.0</title>
 <style>
 :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -128,7 +128,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 <div id="touch"></div>
 <div id="hud">
   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
-  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.2-dev</button></div>
+  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.2.0</button></div>
 </div>
 <div id="hint">Коснись точки на полу или удерживай левую/правую половину экрана</div>
 <div id="act" role="button" aria-label="Действие"></div>
@@ -155,7 +155,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
   <div>
     <small>САМАРА · 2055</small>
     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
-    <p>Станция «Гагаринская» · прототип 1.2-dev «Сердце станции»<br>
+    <p>Станция «Гагаринская» · прототип 1.2.0 «Сердце станции: водоузел и жители»<br>
     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
   </div>
@@ -164,7 +164,7 @@ body{position:fixed;inset:0;touch-action:none;-webkit-user-select:none;user-sele
 
 <script>
 /* ==========================================================================
-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.2-dev «Сердце станции»
+   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.2.0 «Сердце станции: водоузел и жители»
    Один файл, Canvas 2D, без зависимостей.
    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
@@ -190,7 +190,7 @@ const saveKey = key => envSaveKey(ENV, key);
 
 /* =============================== CONFIG ================================== */
 const CONFIG = {
-  VERSION: '1.2-dev',
+  VERSION: '1.2.0',
   BASE_H: 270,              // высота сцены в игровых пикселях
   WORLD_W: 2000,            // ширина уровня
   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
@@ -3823,8 +3823,8 @@ const Game = {
 };
 
 Game.start();
-/* NPC-001: галерея обликов для проверки на iPhone — только DEV (или ?debug) и только по адресу с ?npc. Игру не меняет. */
-if ((ENV === 'dev' || Debug.on) && /[?&]npc(?:[=&]|$)/.test(location.search)) {
+/* NPC-001: галерея обликов для проверки на iPhone — только DEV и только по адресу с ?npc. Игру не меняет. */
+if (ENV === 'dev' && /[?&]npc(?:[=&]|$)/.test(location.search)) {   // релиз 1.2.0: только DEV — в PROD галереи нет даже с ?debug
   const d = document.createElement('div'), c = lookSheet(3), w = Math.min(innerWidth - 16, c.width);
   d.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(8,10,12,.94);overflow:auto;-webkit-overflow-scrolling:touch;padding:8px';
   c.style.cssText = `width:${w}px;height:auto;image-rendering:pixelated;display:block;margin:0 auto`;

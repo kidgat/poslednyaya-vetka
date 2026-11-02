@@ -1,0 +1,634 @@
+--- archive/v1.1.0.html	2026-11-02 16:47:44.446570593 +0400
++++ index.html	2026-11-02 16:47:39.640046465 +0400
+@@ -10,7 +10,7 @@
+ <meta name="theme-color" content="#06080a">
+ <link rel="manifest" href="manifest.webmanifest">
+ <link rel="apple-touch-icon" href="icon-180.png">
+-<title>Последняя ветка 1.1.0</title>
++<title>Последняя ветка 1.2.0</title>
+ <style>
+ :root{--ink:#e9e2cf;--gold:#e8b86a;--muted:#a9b2ad;--panel:rgba(7,10,13,.66);--line:rgba(232,184,106,.30);color-scheme:dark}
+ *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+@@ -128,7 +128,7 @@
+ <div id="touch"></div>
+ <div id="hud">
+   <div class="station"><b>ГАГАРИНСКАЯ</b><span id="zone">Центральная платформа</span><span id="power" class="pw" hidden></span><span id="carry" class="pw cy" hidden></span></div>
+-  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.1.0</button></div>
++  <div class="hud-r"><button id="zoomOut" class="hb" type="button" aria-label="Уменьшить изображение"><i>−</i></button><button id="zoomIn" class="hb" type="button" aria-label="Увеличить изображение"><i>+</i></button><button id="opt" type="button" aria-label="Яркость сцены" aria-expanded="false"><i>⚙</i></button><button id="ver" type="button" aria-label="Версия сборки, нажмите для отладочной информации">v1.2.0</button></div>
+ </div>
+ <div id="hint">Коснись точки на полу или удерживай левую/правую половину экрана</div>
+ <div id="act" role="button" aria-label="Действие"></div>
+@@ -155,7 +155,7 @@
+   <div>
+     <small>САМАРА · 2055</small>
+     <h1>ПОСЛЕДНЯЯ ВЕТКА</h1>
+-    <p>Станция «Гагаринская» · прототип 1.1.0 «Сердце станции: дом героя»<br>
++    <p>Станция «Гагаринская» · прототип 1.2.0 «Сердце станции: водоузел и жители»<br>
+     <span class="note">Художественная модель станции — не схема реального метрополитена</span></p>
+     <div class="tap" id="tapText">Коснитесь экрана, чтобы начать</div>
+   </div>
+@@ -164,7 +164,7 @@
+ 
+ <script>
+ /* ==========================================================================
+-   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.1.0 «Сердце станции: дом героя»
++   ПОСЛЕДНЯЯ ВЕТКА — прототип 1.2.0 «Сердце станции: водоузел и жители»
+    Один файл, Canvas 2D, без зависимостей.
+    Разделы: CONFIG → UTIL → FONT → WORLD (пререндер слоёв) → PLAYER_SPRITE →
+             INPUT → PLAYER → CAMERA → FX (частицы, свет) → RENDER → GAME (цикл)
+@@ -190,14 +190,14 @@
+ 
+ /* =============================== CONFIG ================================== */
+ const CONFIG = {
+-  VERSION: '1.1.0',
++  VERSION: '1.2.0',
+   BASE_H: 270,              // высота сцены в игровых пикселях
+   WORLD_W: 2000,            // ширина уровня
+   // Этажи: y — линия ступней; minX/maxX — проходимый участок (торцы, стены, завал).
+   FLOORS: {
+     platform: { y: 219, minX: 176, maxX: 1850 },  // у торцов стоит охрана
+-    utility:  { y: 368, minX: 310, maxX: 1850, bottom: true },   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
+-    upper:    { y: 98,  minX: 25,  maxX: 1856 },  // 1.1А: комната героя → жилой блок → столовая → лестничная клетка (служебная арка) → мастерская → … → насосная
++    utility:  { y: 368, minX: 15, maxX: 1975, bottom: true },   // SAN-001 R2: «САНБЛОК» от края мира (x 0–290); граница 15 = стена 4 + 11, как у других торцевых комнат (было 310)   // ST-001: до 1975 — дренажная и насосная (мир до x 1990)   // 1.0: хозяйственно-жилой ярус −2 под путями; камера — по низу мира
++    upper:    { y: 98,  minX: 25,  maxX: 1975 },   // комната героя → … → шлюз → «НАЧАЛЬНИК СТАНЦИИ» (ST-001: 1730–1990, граница 1975)
+     vestibule: { y: -14, minX: 1188, maxX: 1852, cam: 0.40 },   // 0.9: вестибюль +1 — карантин, экипировка, КПП, зал, караульная
+     surface:  { y: -122, minX: 1136, maxX: 1980, cam: 0.72 },   // улица (0.9: земля поднята с −61, под ней вестибюль)
+   },
+@@ -292,44 +292,93 @@
+   /* Собеседники и охрана с фонарями (0.8): один источник истины для расстановки, разговоров и проверки реестра.
+      walk — участок, где ходит NPC; lamp — что он зажигает при блэкауте; tunnel — куда светит охрана поста. */
+   NPCS: {
+-    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1,
++    'guard-west':  { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.0',   x: 158,  facing: -1, lamp: 'beam', tunnel: -1,
+       onBlackout: ['ДЕРЖИТЕ ПОСТ!', 'СМОТРИ В ТОННЕЛЬ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
+-    'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
+-    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1,
++    'guard-west2': { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.1',   x: 118,  facing: 1,  lamp: 'beam', tunnel: -1 },
++    'guard-east':  { floor: 'platform', kind: 'guard',    set: 'guard', look: 'guard.2',   x: 1864, facing: 1,  lamp: 'beam', tunnel: 1,
+       onBlackout: ['СМОТРИ В ТОННЕЛЬ!', 'ДЕРЖИТЕ ПОСТ!', 'НЕ ПОДХОДИ К ДВЕРИ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
+-    'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard',   x: 1884, facing: -1, lamp: 'lantern' },
+-    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', x: 400, walk: [240, 630], speed: 20, lamp: 'candle',
++    'guard-east2': { floor: 'platform', kind: 'sitguard', set: 'guard', look: 'guard.0',   x: 1884, facing: -1, lamp: 'lantern' },
++    'resident-platform': { floor: 'platform', kind: 'walker', set: 'resC', look: 'young.0', x: 400, walk: [240, 630], speed: 20, lamp: 'candle',
+       onBlackout: ['ЭТО НАДОЛГО?', 'СВЕТ ПРОПАЛ!', 'ПОШЛИ К БОЧКЕ!'], onRestore: ['О, ЗАРАБОТАЛО!', 'ПРОНЕСЛО...'] },
+-    cook:          { floor: 'upper', kind: 'idle',   set: 'resA',    x: 648, facing: 1, lamp: 'candle',
++    cook:          { floor: 'upper', kind: 'idle',   set: 'resA', look: 'resident-f.1',    x: 648, facing: 1, lamp: 'candle',
+       onBlackout: ['ГДЕ СПИЧКИ?', 'ЧАЙ ЕЩЁ ГОРЯЧИЙ!', 'СВЕЧУ ПРИНЕСИТЕ!'], onRestore: ['ВОТ И СВЕТ!', 'ТЕПЕРЬ ВИДНО КОТЁЛ'] },
+-    diner:         { floor: 'upper', kind: 'sitter', set: 'resA',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
++    diner:         { floor: 'upper', kind: 'sitter', set: 'resA', look: 'resident-m.0',    x: 532, facing: 1,                    // житель за столом в столовой (0.8.1: из placeActors)
+       onBlackout: ['ОПЯТЬ ТЕМНО...', 'ГДЕ ВСЕ?', 'У КОГО ФОНАРЬ?'], onRestore: ['НУ НАКОНЕЦ-ТО', 'ДОЕДАЕМ!'] },
+-    resident:      { floor: 'upper', kind: 'sitter', set: 'resC',    x: 442, facing: -1, lamp: 'candle',
++    resident:      { floor: 'upper', kind: 'sitter', set: 'resC', look: 'resident-f.0',    x: 442, facing: -1, lamp: 'candle',
+       onBlackout: ['ДЕТИ, КО МНЕ!', 'НЕ БОЙТЕСЬ, Я ТУТ', 'ГДЕ СВЕЧА?'], onRestore: ['СПИТЕ, ВСЁ ХОРОШО', 'ВОТ И СВЕТ'] },
+     medic:         { floor: 'upper', kind: 'walker', set: 'medic',   x: 1200, walk: [1172, 1232], speed: 16,
+       onBlackout: ['СВЕЧУ НА СТОЛ!', 'КОЙКИ НЕ ТРОГАТЬ!', 'СПОКОЙНО, Я ЗДЕСЬ!'], onRestore: ['МОЖНО ГАСИТЬ СВЕЧУ', 'ОТЛИЧНО, РАБОТАЕМ'] },
+-    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
++    mechanic:      { floor: 'upper', kind: 'walker', set: 'worker2', look: 'tech.1', x: 1400, walk: [1340, 1460], speed: 24, lamp: 'headlamp',
+       onBlackout: ['СЕТЬ УПАЛА!', 'ПРОВЕРЮ МОТОР!', 'НЕ ТРОГАЙТЕ ЩИТОК!'], onRestore: ['ВОССТАНОВИЛИ СЕТЬ!', 'ДВИГАТЕЛЬ ПОШЁЛ!'] },
+-    'worker-workshop': { floor: 'upper', kind: 'walker', set: 'worker', x: 1000, walk: [900, 1100], speed: 22, lamp: 'beam',   // 0.8.1: из placeActors
++    'worker-workshop': { floor: 'upper', kind: 'walker', set: 'worker', look: 'tech.2', x: 1000, walk: [900, 1100], speed: 22, lamp: 'beam',   // 0.8.1: из placeActors
+       onBlackout: ['НЕ ВИЖУ ИНСТРУМЕНТ!', 'ДАЙТЕ СВЕТ!', 'ОПЯТЬ ГЕНЕРАТОР?'], onRestore: ['РАБОТАЕМ ДАЛЬШЕ', 'ДРУГОЕ ДЕЛО!'] },
+-    'worker-pumps':    { floor: 'upper', kind: 'walker', set: 'worker', x: 1800, walk: [1748, 1852], speed: 18, lamp: 'beam',  // 0.8.1: из placeActors
++    'worker-pumps':    { floor: 'utility', kind: 'walker', set: 'worker', look: 'tech.0', x: 1880, walk: [1810, 1950], speed: 18, lamp: 'beam',   // ST-001: техник насосной — теперь на −2  // 0.8.1: из placeActors
+       onBlackout: ['НАСОСЫ ВСТАЛИ?', 'ГДЕ МОЙ ФОНАРЬ?', 'ПРОВЕРЮ ДРЕНАЖ!'], onRestore: ['НАСОСЫ СНОВА В СЕТИ!', 'ПРОВЕРЮ ДАВЛЕНИЕ'] },
+-    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на служебную арку в вестибюль
++    'guard-airlock-west': { floor: 'upper', kind: 'guard', set: 'guard', look: 'guard.1', x: 1600, facing: 1, lamp: 'beam', aim: 1,           // нижний пост: светит на служебную арку в вестибюль
+       onBlackout: ['ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!', 'ВОРОТА ЗАКРЫТЬ!'], onRestore: ['ФОНАРИ УБРАТЬ', 'ПОСТ В НОРМЕ'] },
+-    'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
++    'mushroom-grower': { floor: 'utility', kind: 'walker', set: 'worker2', look: 'young.2', x: 640, walk: [590, 690], speed: 12, lamp: 'headlamp',   // 1.0: грибница
+       onBlackout: ['ГРИБАМ ВСЁ РАВНО', 'ГДЕ ФОНАРЬ?', 'НЕ ТОПЧИТЕ ГРЯДКИ!'], onRestore: ['ВОТ, ДРУГОЕ ДЕЛО', 'СВЕТ ЕСТЬ'] },
+-    'storekeeper': { floor: 'utility', kind: 'idle', set: 'resB', x: 1262, facing: -1, lamp: 'lantern',                              // 1.0: склад
++    'storekeeper': { floor: 'utility', kind: 'idle', set: 'resB', look: 'trader.0', x: 1262, facing: -1, lamp: 'lantern',                              // 1.0: склад
+       onBlackout: ['СКЛАД НЕ ТРОГАТЬ!', 'ВСЁ ПЕРЕСЧИТАНО!', 'ФОНАРЬ НА ПОЛКЕ'], onRestore: ['СВЕТ! ПЕРЕСЧИТАЮ', 'НУ, СЛАВА БОГУ'] },
+-    'drain-tech':  { floor: 'utility', kind: 'walker', set: 'worker', x: 1760, walk: [1700, 1820], speed: 16, lamp: 'headlamp',     // 1.0: дренажная
++    'drain-tech':  { floor: 'utility', kind: 'walker', set: 'worker', look: 'tech.1', x: 1730, walk: [1714, 1756], speed: 16, lamp: 'headlamp',   // ST-001 C: участок 1714–1756 — разговор (±12) не задевает осмотры насоса и приямка     // 1.0: дренажная
+       onBlackout: ['НАСОСЫ ВСТАЛИ!', 'ВОДА ПОДНИМЕТСЯ!', 'ПРОВЕРЮ ЗАДВИЖКУ!'], onRestore: ['НАСОСЫ ПОШЛИ', 'УРОВЕНЬ ПАДАЕТ'] },
+-    'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
++    'guard-kpp':   { floor: 'vestibule', kind: 'guard', set: 'guard', look: 'guard.2', x: 1480, facing: 1, lamp: 'beam', aim: 1,           // 0.9: бывший guard-airlock-east (x 1670), перенесён на КПП
+       onBlackout: ['ВОРОТА ЗАКРЫТЬ!', 'ШЛЮЗ ПОД КОНТРОЛЕМ!', 'ФОНАРИ ВКЛЮЧИТЬ!'], onRestore: ['ПОСТ В НОРМЕ', 'ФОНАРИ УБРАТЬ'] },
+     'quarantine-medic': { floor: 'vestibule', kind: 'idle', set: 'medic', x: 1260, facing: -1, lamp: 'lantern',               // 0.9: санитар карантина
+       onBlackout: ['КАРАНТИН НЕ ПОКИДАТЬ!', 'ФОНАРЬ СЮДА!', 'ВСЕМ СТОЯТЬ НА МЕСТЕ!'], onRestore: ['ПРОДОЛЖАЕМ ОСМОТР', 'ВСЁ, СВЕТ ЕСТЬ'] },
+-    'guard-rest':  { floor: 'vestibule', kind: 'sitguard', set: 'guard', x: 1810, facing: -1, lamp: 'lantern',               // 0.9: караульный в караульной
++    'guard-rest':  { floor: 'vestibule', kind: 'sitguard', set: 'guard', look: 'guard.1', x: 1810, facing: -1, lamp: 'lantern',               // 0.9: караульный в караульной
+       onBlackout: ['ТРЕВОГА! ВСТАВАЙ!', 'ГДЕ МОЙ ФОНАРЬ?', 'ВСЕ ПО МЕСТАМ!'], onRestore: ['ОТБОЙ ТРЕВОГИ', 'МОЖНО ДОПИТЬ ЧАЙ'] },
+   },
+   /* Короткие реакции на блэкаут и возвращение сети: очередь с разносом во времени (0.8.1). */
++  /* NPC-001: облики жителей — 8 архетипов × 3 варианта. Поведение задаёт kind в NPCS (ходит / стоит / сидит / пост); облик — только
++     палитра (поверх палитры героя) и детали силуэта для генератора спрайтов. Логика поведения не дублируется ради внешности.
++     Все варианты — [ПРЕДЛОЖЕНИЕ] Claude (нейтральные технические, до спецификации Grok GK-010 и решения автора). Размер — 26×42, как у Глеба. */
++  LOOKS: {
++    STATUS: 'proposal',
++    ARCHETYPES: {
++      'resident-m': { label: 'Мужчина-житель', variants: [
++        { pal: { jacket: '#5e5850', jacketHi: '#746c62', jacketSh: '#46423c', zip: '#46423c', scarf: '#7a6a5a', scarfSh: '#5a4e42', hair: '#3a2e26' }, opts: { cap: 'beanie', capC: '#4a4a52' } },
++        { pal: { jacket: '#5a5e48', jacketHi: '#6e735a', jacketSh: '#444736', zip: '#444736', scarf: '#8a7a5a', scarfSh: '#6a5c44', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { bag: '#6a5038' } },
++        { pal: { jacket: '#3e4656', jacketHi: '#525c6e', jacketSh: '#2e3440', zip: '#2e3440', scarf: '#6a6a6e', scarfSh: '#4e4e52', hair: '#4a3628' }, opts: { coat: true, beard: '#3a2a20' } },
++      ] },
++      'resident-f': { label: 'Женщина-жительница', variants: [
++        { pal: { jacket: '#6e3e46', jacketHi: '#844e56', jacketSh: '#522e34', zip: '#522e34', scarf: '#c8b898', scarfSh: '#9a8c72', hair: '#5a3a2a', hairHi: '#74503a', skin: '#d6a688' }, opts: { hairStyle: 'long' } },
++        { pal: { jacket: '#5a5a5e', jacketHi: '#6e6e74', jacketSh: '#444448', zip: '#444448', scarf: '#8a5a4a', scarfSh: '#6a4436', hair: '#2a2220', skin: '#c49474' }, opts: { hairStyle: 'bun', apron: '#b8b0a0' } },
++        { pal: { jacket: '#4e5e4e', jacketHi: '#627262', jacketSh: '#3a463a', zip: '#3a463a', scarf: '#9a7a5a', scarfSh: '#7a5e44', hair: '#7a5a3a', skin: '#d8aa8a' }, opts: { coat: true, hood: '#8a6a5a' } },
++      ] },
++      elder: { label: 'Пожилой житель', variants: [
++        { pal: { jacket: '#5a524a', jacketHi: '#6e665c', jacketSh: '#443e38', zip: '#443e38', scarf: '#6a6458', scarfSh: '#4e4a42', hair: '#b8b4ac', hairHi: '#d0ccc4', skin: '#c08e72' }, opts: { hairStyle: 'bald', beard: '#b8b4ac', coat: true } },
++        { pal: { jacket: '#4e5a5e', jacketHi: '#626e72', jacketSh: '#3a4448', zip: '#3a4448', scarf: '#7a6a52', scarfSh: '#5a4e3c', hair: '#a8a49c', hairHi: '#c4c0b8', skin: '#b88a6e' }, opts: { cap: 'cap', capC: '#4a4438' } },
++        { pal: { jacket: '#5e4e5a', jacketHi: '#726270', jacketSh: '#463a44', zip: '#463a44', scarf: '#8a8a7a', scarfSh: '#6a6a5c', hair: '#c8c4bc', hairHi: '#dcd8d0', skin: '#d0a084' }, opts: { hairStyle: 'long', hood: '#6a5a6a', coat: true } },
++      ] },
++      young: { label: 'Молодой житель', variants: [
++        { pal: { jacket: '#8a4a34', jacketHi: '#a05c44', jacketSh: '#6a3826', zip: '#6a3826', scarf: '#4a5a6a', scarfSh: '#36424e', hair: '#2a2018' }, opts: { cap: 'beanie', capC: '#8a7a3a' } },
++        { pal: { jacket: '#4a6a5a', jacketHi: '#5e806e', jacketSh: '#36503e', zip: '#36503e', scarf: '#4a6a5a', scarfSh: '#36503e', hair: '#3a2a20', skin: '#c89676' }, opts: { hood: '#4a6a5a' } },
++        { pal: { jacket: '#3a5a7a', jacketHi: '#4e6e8e', jacketSh: '#2a4258', zip: '#2a4258', scarf: '#a08a5a', scarfSh: '#7a6a44', hair: '#8a6a4a', hairHi: '#a88a62', skin: '#dcae90' }, opts: { bag: '#7a6a4a', hairStyle: 'long' } },
++      ] },
++      tech: { label: 'Техник', variants: [
++        { pal: { jacket: '#8a6a3a', jacketHi: '#a3824e', jacketSh: '#6a5030', zip: '#5a4228', scarf: '#4a5a6a', scarfSh: '#36424e', pants: '#4a4030', pantsSh: '#3a3226', hair: '#3a2a20' }, opts: { cap: 'helmet', capC: '#c8a03c' } },
++        { pal: { jacket: '#3e5a6a', jacketHi: '#527484', jacketSh: '#2e4450', zip: '#9aa4a8', scarf: '#8a6a3a', scarfSh: '#6a5030', pants: '#3e5a6a', pantsSh: '#2e4450', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { vest: '#c8a83a', cap: 'beanie', capC: '#3a3e44' } },
++        { pal: { jacket: '#5a5e60', jacketHi: '#6e7274', jacketSh: '#44484a', zip: '#44484a', scarf: '#6a5a4a', scarfSh: '#4e4236', pants: '#3a3e44', pantsSh: '#2c2f34', hair: '#4a3a2e' }, opts: { apron: '#5a4632', goggles: true } },
++      ] },
++      guard: { label: 'Охранник', variants: [
++        { pal: { jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' }, opts: { gun: true, cap: 'helmet', capC: '#3e4636' } },
++        { pal: { jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { gun: true, vest: '#3a4034', cap: 'cap', capC: '#2e3430' } },
++        { pal: { jacket: '#4a5240', jacketHi: '#5e6852', jacketSh: '#363c2e', zip: '#2a2e24', scarf: '#33373c', scarfSh: '#26292d', pants: '#2f3338', pantsSh: '#24272b', hair: '#3a2e26', skin: '#c49474' }, opts: { gun: true, cap: 'beanie', capC: '#2a2e2a', beard: '#3a2e26' } },
++      ] },
++      trader: { label: 'Торговец / снабженец', variants: [
++        { pal: { jacket: '#6a5a3a', jacketHi: '#7e6c4a', jacketSh: '#4e422a', zip: '#4e422a', scarf: '#5a6a5a', scarfSh: '#424e42', hair: '#1e1a18', skin: '#a87a5c', skinSh: '#7c5640' }, opts: { apron: '#8a7a5a', cap: 'cap', capC: '#5a4a3a' } },
++        { pal: { jacket: '#5a4a5a', jacketHi: '#6e5e6e', jacketSh: '#443844', zip: '#443844', scarf: '#a08a5a', scarfSh: '#7a6a44', hair: '#4a3a2e' }, opts: { coat: true, bag: '#8a6a3a', beard: '#4a3a2e' } },
++        { pal: { jacket: '#9a8a6a', jacketHi: '#ae9e7e', jacketSh: '#7a6c52', zip: '#7a6c52', scarf: '#6a4a3a', scarfSh: '#4e362a', hair: '#2a2220' }, opts: { vest: '#4a3a2a', cap: 'beanie', capC: '#6a4a3a' } },
++      ] },
++      stalker: { label: 'Сталкер / ходок', variants: [
++        { pal: { jacket: '#4a5040', jacketHi: '#5e6652', jacketSh: '#363c2e', zip: '#363c2e', scarf: '#3e4436', scarfSh: '#2e3228', hair: '#2a2420' }, opts: { pack: true, hood: '#3e4436', goggles: true } },
++        { pal: { jacket: '#5a5448', jacketHi: '#6e685a', jacketSh: '#44403a', zip: '#44403a', scarf: '#7a3a30', scarfSh: '#5a2a24', hair: '#3a2a20' }, opts: { pack: true, coat: true, cap: 'helmet', capC: '#4a4a40' } },
++        { pal: { jacket: '#5a4a3a', jacketHi: '#6e5c4a', jacketSh: '#44382c', zip: '#44382c', scarf: '#5a6a6a', scarfSh: '#424e4e', hair: '#4a3628' }, opts: { pack: true, cap: 'beanie', capC: '#3a3a34', beard: '#4a3628', bag: '#6a5a3a' } },
++      ] },
++    },
++    BLANKETS: ['#7a3b34', '#465a6c', '#5a6a4a', '#6a5a7a'],              // одеяла спящих (кадры «лёжа» есть у каждого облика)
++  },
+   REACT: { FIRST: 1.0, GAP: [0.6, 1.5], DUR: [2, 4], MAX_BLACKOUT: 5, MAX_RESTORE: 3, COOLDOWN: 6, MAX_ON: 3 },
+   /* Аварийные светильники в помещениях (0.8.1, цепь emergency, гаснут при пустом аккумуляторе) и красные отсветы
+      у постов, где охрана стоит перед маяком двери. Существующие маяки (BEACONS, шлюз, посты) не дублируются. */
+@@ -337,9 +386,10 @@
+     { id: 'em-workshop', room: 'workshop', x: 886,  y: 40 },   // у входа со стороны лестницы
+     { id: 'em-medical',  room: 'medical',  x: 1172, y: 40 },   // над входом в медпункт
+     { id: 'em-power',    room: 'power',    x: 1508, y: 44 },   // над щитом у пульта
+-    { id: 'em-pumps',    room: 'water',    x: 1744, y: 40 },   // над входом в насосную
++    { id: 'em-pumps',    room: 'water',    x: 1796, y: 310 },  // ST-001: насосная на −2 — над входом из дренажной
+     { id: 'em-quarantine', room: 'quarantine', x: 1318, y: -72 }, // 0.9: у выхода из карантина
+     { id: 'em-kpp',      room: 'checkpoint', x: 1468, y: -72 },  // 0.9: над постом КПП
++    { id: 'em-sanitary', room: 'sanitary',    x: 272, y: 310 },     // SAN-001: у проёма в жилые ячейки
+     { id: 'em-pods',     room: 'living-pods', x: 504, y: 310 },     // 1.0: у выхода из жилых ячеек
+     { id: 'em-utilstair', room: 'utility-stairwell', x: 1396, y: 310 }, // 1.0: у подножия лестницы на платформу
+     { id: 'em-drainage', room: 'drainage',   x: 1648, y: 310 },    // 1.0: над входом в дренажную
+@@ -389,6 +439,59 @@
+         '«За запасные батарейки готовы отдать половину ужина».',
+         '«До смены ещё далеко. Хочешь поговорить — говори тихо».',
+         '«Обе двери держим закрытыми. Лишняя осторожность никому не мешала».'] },
++    // ST-001 C: осмотры насосной (−2) и кабинета «НАЧАЛЬНИК СТАНЦИИ» (0). Только реплики, без предметов и сюжета.
++    // Участки не пересекаются с проходами, дверными проёмами, генератором, лутом и полными зонами разговора NPC (тест ST16–ST20).
++    { id: 'inspect-pump-unit', space: 'water', type: 'inspect', floor: 'utility', trigger: [1828, 1850], label: '◎ Осмотреть агрегат',
++      title: 'НАСОСНАЯ · ОСНОВНОЙ АГРЕГАТ', lines: [
++        '«Основной агрегат. Корпус тёплый, внутри что-то гудит неровно».',
++        '«Он гонит воду со всей станции. Встанет он — встанем и мы».',
++      ] },
++    { id: 'inspect-pump-pipe', space: 'water', type: 'inspect', floor: 'utility', trigger: [1896, 1916], label: '◎ Осмотреть трубопровод',
++      title: 'НАСОСНАЯ · ТРУБОПРОВОД', lines: [
++        '«Магистраль и вентиль второго агрегата. На стыках следы старых течей».',
++        '«Без техника вентиль не трогаю — здесь у каждого маховика свой порядок».',
++      ] },
++    { id: 'inspect-pump-panel', space: 'water', type: 'inspect', floor: 'utility', trigger: [1952, 1972], label: '◎ Осмотреть щит',
++      title: 'НАСОСНАЯ · ЩИТ АВТОМАТИКИ', lines: [
++        '«Щит автоматики. Стрелка манометра подрагивает, но держится».',
++        '«Синяя шкала — уровень воды в магистрали. Техники сверяют его каждую смену».',
++      ] },
++    { id: 'inspect-drain-pump', space: 'drainage', type: 'inspect', floor: 'utility', trigger: [1650, 1670], label: '◎ Осмотреть насос',
++      title: 'ДРЕНАЖНАЯ · НАСОС С ЗАДВИЖКОЙ', lines: [
++        '«Дренажный насос гонит воду из приямков в магистраль».',
++        '«Красный маховик — задвижка. Её открывает только техник».',
++      ] },
++    { id: 'inspect-drain-sump', space: 'drainage', type: 'inspect', floor: 'utility', trigger: [1680, 1698], label: '◎ Осмотреть приямок',
++      title: 'ДРЕНАЖНАЯ · ПРИЯМОК', lines: [
++        '«Под решёткой стоит тёмная вода. Пахнет ржавчиной и сыростью».',
++        '«Над приямком — лампа уровня воды. Техники не спускают с неё глаз».',
++      ] },
++    { id: 'inspect-hq-desk', space: 'hq', type: 'inspect', floor: 'upper', trigger: [1748, 1784], label: '◎ Осмотреть стол',
++      title: 'НАЧАЛЬНИК СТАНЦИИ · СТОЛ', lines: [
++        '«Сводки, журналы смен, телефон до постов. Отсюда управляют всей станцией».',
++        '«На стене план «Гагаринской» — все ярусы и переходы».',
++      ] },
++    { id: 'inspect-hq-bed', space: 'hq', type: 'inspect', floor: 'upper', trigger: [1840, 1884], label: '◎ Осмотреть спальное место',
++      title: 'НАЧАЛЬНИК СТАНЦИИ · СПАЛЬНОЕ МЕСТО', lines: [
++        '«Начальник живёт там же, где работает. Кровать заправлена по-армейски».',
++        '«Над кроватью фотография. Чужие вещи трогать не стану».',
++      ] },
++    { id: 'inspect-hq-armory', space: 'hq', type: 'inspect', floor: 'upper', trigger: [1940, 1970], label: '◎ Осмотреть оружейку',
++      title: 'ОРУЖЕЙКА · ЗАПЕРТО', lines: [
++        '«Решётка и тяжёлый навесной замок. Без разрешения начальника сюда не попасть».',
++        '«Оружие станции хранят под замком. И правильно».',
++      ] },
++    // CL-006 / ШТАБ-008: осмотры ферментационной и свинарника (−2). Первые реплики утверждены автором, вторые — предложение ШТАБ-008 (на приёмке). Не менять.
++    { id: 'inspect-ferment-vat', space: 'tea-ferment', type: 'inspect', floor: 'utility', trigger: [818, 844], label: '◎ Осмотреть ёмкости',
++      title: 'ФЕРМЕНТАЦИЯ · ЁМКОСТИ НАСТОЯ', lines: [
++        '«Пахнет кислым хлебом, грибами и чем-то ещё. Говорят, из этого получается чай. Настоящий я уже и не помню».',
++        '«В больших баках настой выдерживают несколько дней. На станции шутят, что хороший чай здесь ценится почти как патроны».',
++      ] },
++    { id: 'inspect-pigsty', space: 'pigsty', type: 'inspect', floor: 'utility', trigger: [1078, 1104], label: '◎ Осмотреть свинарник',
++      title: 'СВИНАРНИК', lines: [
++        '«Смотрит на меня так, будто это я у неё еду выпрашиваю. Хотя, если подумать, недалеко от истины».',
++        '«У этих хрюшек хотя бы питание по расписанию. А я иногда даже про ужин забываю».',
++      ] },
+     { id: 'talk-airlock-west', type: 'talk', floor: 'upper', npc: 'guard-airlock-west', radius: 12, label: '◎ Поговорить с охраной', title: 'ОХРАНА ШЛЮЗА · ВНУТРЕННИЙ ПОДХОД', lines: [
+         '«Сегодня наверху видели мутантов возле домов. Без нужды не суйся».',
+         '«Фильтр проверил? Даже целая маска без фильтра ничего не стоит».',
+@@ -482,7 +585,6 @@
+       { id: 'utility',   name: 'Хозяйственно-жилой ярус', level: -2, status: 'active',  legacyFloor: 'utility' },   // 1.0
+     ],
+     plannedRooms: [
+-      { id: 'hq',          floor: 'upper',     name: 'Штаб начальника',  type: 'command',  circuit: 'critical' },
+       { id: 'armory',      floor: 'upper',     name: 'Оружейная',        type: 'security', circuit: 'technical' },
+       { id: 'ventilation', floor: 'upper',     name: 'Вентиляция',       type: 'air',      circuit: 'technical' },
+     ],
+@@ -850,6 +952,11 @@
+   const n = cfg.NPCS[i.npc]; if (!n) return [0, -1];
+   const [a, b] = n.walk || [n.x, n.x]; return [a - i.radius, b + i.radius];
+ }
++/** NPC-001: облик «архетип.номер» (например tech.1) есть в CONFIG.LOOKS. */
++function lookExists(cfg, look) {
++  const m = /^([a-z-]+)\.(\d)$/.exec(look || ''), A = m && cfg.LOOKS && cfg.LOOKS.ARCHETYPES[m[1]];
++  return !!(A && A.variants[+m[2]]);
++}
+ function buildStationPlan(cfg, rooms) {
+   const st = cfg.STATION, act = 'active';
+   const plan = {
+@@ -937,6 +1044,7 @@
+       && (!Array.isArray(n[key]) || !n[key].length || n[key].some(t => typeof t !== 'string' || !t.trim() || t.length > 22))) err.push(`NPC ${id}: плохие ${key}`);
+     if (n.walk && !(n.walk[0] <= n.x && n.x <= n.walk[1])) err.push(`NPC ${id}: старт вне участка ходьбы`);
+     if (n.lamp && !['beam', 'lantern', 'candle', 'headlamp'].includes(n.lamp)) err.push(`NPC ${id}: неизвестный свет ${n.lamp}`);
++    if (n.look !== undefined && !lookExists(cfg, n.look)) err.push(`NPC ${id}: неизвестный облик ${n.look}`);   // NPC-001
+   }
+   for (const e of cfg.EMERGENCY_LAMPS || []) {                               // аварийный свет — внутри своей комнаты
+     const r = plan.rooms.find(x => x.id === e.room && x.status === 'active');
+@@ -1134,7 +1242,7 @@
+   { id: 'medical',    x: 1160, w: 150, label: 'МЕДПУНКТ',   type: 'medbay',   tint: [78, 92, 94],  light: [220, 236, 236], circuit: 'critical' },
+   { id: 'power',      x: 1320, w: 220, label: 'ЭНЕРГОБЛОК', type: 'power',    tint: [60, 68, 82],  light: [200, 222, 240], circuit: 'technical' },
+   { id: 'airlock-room', x: 1550, w: 170, label: 'ШЛЮЗ', plate: null, type: 'lock', tint: [58, 62, 66],  light: [214, 226, 236], circuit: 'technical' },  // 1.0: табличка «ШЛЮЗ» — у гермоворот в зале вестибюля
+-  { id: 'water',      x: 1730, w: 140, label: 'НАСОСНАЯ',   type: 'pumps',    tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical' },
++  { id: 'hq',         x: 1730, w: 260, label: 'НАЧАЛЬНИК СТАНЦИИ', type: 'chief', tint: [86, 80, 66], light: [255, 206, 150], circuit: 'critical' },   // ST-001: бывшая насосная; работа / сон / оружейка за решёткой
+   // 0.9: вестибюль +1. Рисуются тем же кодом, что комнаты яруса, со сдвигом по y (FLOORS.vestibule.y − FLOORS.upper.y).
+   { id: 'quarantine',     floor: 'vestibule', x: 1180, w: 150, label: 'КАРАНТИН',    type: 'quarantine', tint: [80, 94, 92],  light: [214, 234, 230], circuit: 'critical' },
+   { id: 'equipment',      floor: 'vestibule', x: 1340, w: 110, label: 'ЭКИПИРОВКА',  type: 'equipment',  tint: [70, 76, 70],  light: [226, 222, 200], circuit: 'technical' },
+@@ -1143,13 +1251,15 @@
+       tint: [70, 74, 78],  light: [222, 226, 228], circuit: 'technical' },
+   { id: 'guardroom',      floor: 'vestibule', x: 1760, w: 100, label: 'КАРАУЛЬНАЯ',  type: 'guardroom',  tint: [88, 76, 62],  light: [255, 200, 140], circuit: 'living' },
+   // 1.0: ярус −2 — тот же код комнат со сдвигом на +270 по y (под путями). id совпадают с прежними planned-записями генплана.
++  { id: 'sanitary',     floor: 'utility', x: 0,    w: 290, label: 'САНБЛОК',      type: 'sanblock',  tint: [70, 78, 76],  light: [220, 214, 190], circuit: 'living',    future: [] },   // SAN-001 R2: от западного края мира; умывальная, прачечная, сушилка
+   { id: 'living-pods',  floor: 'utility', x: 300,  w: 220, label: 'ЖИЛЫЕ ЯЧЕЙКИ', type: 'cells',     tint: [86, 72, 58],  light: [255, 190, 120], circuit: 'living',    future: [] },
+   { id: 'mushrooms',    floor: 'utility', x: 530,  w: 200, label: 'ГРИБНИЦА',     type: 'mushrooms', tint: [58, 64, 56],  light: [196, 214, 180], circuit: 'technical', future: [] },
+   { id: 'tea-ferment',  floor: 'utility', x: 740,  w: 180, label: 'ФЕРМЕНТАЦИЯ',  type: 'ferment',   tint: [92, 74, 56],  light: [255, 200, 140], circuit: 'technical', future: [] },
+   { id: 'pigsty',       floor: 'utility', x: 930,  w: 210, label: 'СВИНАРНИК',    type: 'piggery',   tint: [84, 74, 60],  light: [255, 206, 150], circuit: 'living',    future: [] },
+   { id: 'storeroom',    floor: 'utility', x: 1150, w: 220, label: 'СКЛАД',        type: 'storage',   tint: [70, 72, 70],  light: [230, 226, 206], circuit: 'technical', future: ['station-stock'] },
+   { id: 'utility-stairwell', floor: 'utility', x: 1380, w: 240, label: 'ЛЕСТНИЦА', plate: null, type: 'utilstairs', tint: [66, 68, 68], light: [255, 206, 150], circuit: 'technical', future: [] },
+-  { id: 'drainage',     floor: 'utility', x: 1630, w: 230, label: 'ДРЕНАЖНАЯ',    type: 'drainage',  tint: [56, 66, 70],  light: [200, 220, 230], circuit: 'technical', future: ['drain-service'] },
++  { id: 'drainage',     floor: 'utility', x: 1630, w: 140, label: 'ДРЕНАЖНАЯ',    type: 'drainage',  tint: [56, 66, 70],  light: [200, 220, 230], circuit: 'technical', future: ['drain-service'] },
++  { id: 'water',        floor: 'utility', x: 1780, w: 210, label: 'НАСОСНАЯ',     type: 'pumps',     tint: [56, 68, 74],  light: [190, 214, 228], circuit: 'technical', future: [] },   // ST-001: с яруса 0 на −2, id прежний
+ ];
+ /** Этаж и сдвиг комнаты: комнаты вестибюля рисуются по шаблону яруса, сдвинутые на dy. */
+ const roomFloor = r => r.floor || 'upper';
+@@ -1320,6 +1430,50 @@
+   /** Шлюз: гермоворота в задней стене (створки рисуются в кадре — они открываются), оружейная стойка. */
+   /* ---- 1.0: ярус −2 (координаты шаблона комнаты яруса: пол 96, потолок 19) ---- */
+   /** Жилые ячейки: двухъярусные нары за занавесками, ящики, личные вещи, самодельная лампа. */
++  /** SAN-001 R2: «САНБЛОК» от западного края мира (x 0–290). Слева направо: умывальная, прачечная, сушилка; западная стена со стояком и бойлером. */
++  sanblock(g, r) {
++    const x = r.x;                                                          // внутренняя часть стены — r.x + 4 … r.x + 286 (w 290)
++    R(g, x + 4, 33, r.w - 8, 4, '#5a4a3c'); R(g, x + 4, 33, r.w - 8, 1, '#8a6a4a'); R(g, x + 4, 36, r.w - 8, 1, '#2e2620');   // ржавая магистраль под потолком
++    for (const hx of [x + 40, x + 104, x + 168, x + 232]) R(g, hx, 31, 3, 7, '#3a3632');                                     // хомуты
++    // Западная стена: стояк от магистрали до пола, вентиль, потёки
++    R(g, x + 6, 37, 4, 59, '#5a4a3c'); R(g, x + 6, 37, 1, 59, '#7a6a52'); R(g, x + 4, 52, 8, 3, '#3e3430'); disc(g, x + 8, 47, 3, '#8a3a30'); disc(g, x + 8, 47, 1, '#3a2a24');
++    for (let y = 60; y < 96; y += 3) if (hash(y, 3) > 0.4) R(g, x + 11, y, 1, 2, '#3e4a48');
++    // А. Умывальная (r.x + 14 … 100): кафель, бойлер, четыре раковины, два зеркала, полка с мылом, мокрый пол
++    for (let ty = 48; ty < 84; ty += 6) for (let tx = x + 16; tx < x + 98; tx += 6)
++      R(g, tx, ty, 5, 5, hash(tx, ty) > 0.9 ? '#55605e' : (hash(tx + 1, ty) > 0.5 ? '#8e9a96' : '#86928e'));
++    R(g, x + 16, 84, 82, 1, '#4a5452');
++    R(g, x + 16, 40, 14, 6, '#3e4644'); R(g, x + 17, 39, 12, 1, '#5e6664'); R(g, x + 22, 46, 1, 2, '#3a3e3c');                  // бойлер над раковинами
++    for (let k = 0; k < 4; k++) {
++      const sx = x + 20 + k * 19;
++      R(g, sx + 6, 52, 1, 8, '#6a6e6c'); R(g, sx + 4, 59, 5, 2, '#8a8e8c'); R(g, sx + 6, 61, 1, 2, '#9aa0a0');                  // кран
++      R(g, sx, 64, 14, 5, '#c8ccc4'); R(g, sx, 64, 14, 1, '#e0e2da'); R(g, sx + 2, 65, 10, 2, '#7a8684');                       // раковина
++      R(g, sx + 6, 69, 2, 27, '#5a5e5c'); R(g, sx + 4, 76, 6, 3, '#4a4e4c');                                                    // слив и сифон
++      if (k === 1 || k === 2) { R(g, sx, 40, 14, 10, '#3a3e3c'); R(g, sx + 1, 41, 12, 8, '#7a8a8e'); R(g, sx + 2, 42, 4, 2, '#a8b8bc'); }   // мутные зеркала
++    }
++    R(g, x + 92, 56, 6, 1, '#5a4632'); R(g, x + 93, 54, 3, 2, '#c8b88a');                                                       // полка с мылом
++    R(g, x + 18, 94, 76, 2, '#2e3a3e'); R(g, x + 34, 94, 20, 1, '#5a7480'); R(g, x + 66, 95, 12, 1, '#5a7480');                 // мокрый пол
++    R(g, x + 102, 44, 3, 52, '#4a4e4c'); R(g, x + 102, 44, 1, 52, '#6a6e6c');                                                   // перегородка-стойка
++    // Б. Прачечная (r.x + 110 … 192): бак на подставке, корыто со стиральной доской, таз, ведро, мешок с бельём
++    const bx = x + 112;
++    R(g, bx, 40, 26, 34, '#5e6a66'); R(g, bx, 40, 26, 2, '#7e8a86'); R(g, bx + 2, 50, 22, 1, '#46504c'); R(g, bx + 2, 62, 22, 1, '#46504c');
++    for (let k = 0; k < 3; k++) R(g, bx + 5 + k * 7, 44, 2, 2, '#8a5a3a');                                                   // ржавые заклёпки
++    R(g, bx + 3, 74, 2, 22, '#3a3632'); R(g, bx + 21, 74, 2, 22, '#3a3632'); R(g, bx + 26, 66, 5, 2, '#6a6e6c'); R(g, bx + 29, 66, 2, 4, '#6a6e6c');   // ножки, кран бака
++    const tx = x + 146;
++    R(g, tx, 76, 36, 10, '#6a6e6a'); R(g, tx, 76, 36, 1, '#9a9e98'); R(g, tx + 2, 78, 32, 3, '#4a6a74');                       // корыто с водой
++    R(g, tx + 3, 86, 2, 10, '#3a3632'); R(g, tx + 31, 86, 2, 10, '#3a3632');
++    R(g, tx + 23, 64, 9, 16, '#7a6248'); for (let k = 0; k < 5; k++) R(g, tx + 24, 66 + k * 3, 7, 1, '#5a4632');                 // стиральная доска
++    R(g, tx + 6, 90, 15, 5, '#5a6a72'); R(g, tx + 7, 89, 13, 1, '#7a8a92');                                                     // таз на полу
++    R(g, x + 184, 86, 7, 10, '#5a5e5c'); R(g, x + 184, 86, 7, 1, '#7a7e7c');                                                   // ведро
++    R(g, x + 140, 88, 5, 8, '#7a7060'); R(g, x + 139, 87, 7, 2, '#8a8070');                                                     // мешок с бельём
++    // В. Сушилка (r.x + 196 … 284): тёплая труба, две верёвки с бельём, деревянная решётка
++    R(g, x + 196, 88, 88, 4, '#7a4a3a'); R(g, x + 196, 88, 88, 1, '#9a6a52');                                                   // тёплая труба отопления
++    for (const ry of [44, 58]) { L(g, x + 198, ry, x + 282, ry, '#2a2622'); R(g, x + 197, ry - 1, 2, 3, '#4a4440'); R(g, x + 281, ry - 1, 2, 3, '#4a4440'); }
++    const cloth = [[201, 44, 9, 12, '#8a8070'], [213, 44, 7, 9, '#6a7a8a'], [223, 44, 11, 14, '#9a6a5a'], [237, 44, 8, 10, '#7a8a6a'], [248, 44, 12, 11, '#a89a80'], [263, 44, 8, 8, '#5a6a7a'],
++      [204, 58, 10, 10, '#6a5a4a'], [218, 58, 7, 13, '#8a7a9a'], [229, 58, 12, 9, '#b8ae94'], [244, 58, 10, 12, '#7a5a4a'], [258, 58, 12, 10, '#6a7a6a']];
++    for (const [cx, cy, cw, ch, c] of cloth) { R(g, x + cx, cy + 1, cw, ch, c); R(g, x + cx, cy + 1, cw, 1, '#d8d0c0'); R(g, x + cx + 2, cy, 1, 2, '#3a3632'); }
++    R(g, x + 232, 74, 32, 2, '#6a5034'); R(g, x + 232, 81, 32, 2, '#6a5034'); R(g, x + 234, 72, 2, 16, '#5a4630'); R(g, x + 260, 72, 2, 16, '#5a4630');   // сушильная решётка
++    R(g, x + 238, 70, 9, 4, '#8a8070'); R(g, x + 249, 77, 8, 4, '#6a7a8a');                                                     // носки и полотенце
++  },
+   cells(g, r) {
+     for (let i = 0; i < 2; i++) {
+       const bx = r.x + 12 + i * 70;
+@@ -1412,26 +1566,23 @@
+     R(g, r.x + 8, 26, r.w - 16, 3, '#4a4e50'); R(g, r.x + 8, 26, r.w - 16, 1, '#6a6e70');
+     for (let x = r.x + 20; x < r.x + r.w; x += 46) R(g, x, 29, 2, 4, '#3a3e40');
+     drawText(g, '◀ ЖИЛЬЕ', r.x + 8, 62, '#c8b88a', 'rgba(0,0,0,.45)');
+-    drawText(g, 'ДРЕНАЖ ▶', r.x + r.w - 50, 62, '#c8b88a', 'rgba(0,0,0,.45)');
++    drawText(g, 'ВОДОУЗЕЛ ▶', r.x + r.w - 9 - textWidth('ВОДОУЗЕЛ ▶'), 44, '#c8b88a', 'rgba(0,0,0,.45)');   // ST-001: комплекс «Дренажная» + «Насосная»; выше шкафчиков (длиннее прежней надписи)
+     R(g, r.x + 26, 86, 44, 3, '#6a5038'); R(g, r.x + 26, 86, 44, 1, '#8a6a48'); R(g, r.x + 29, 89, 2, 7, '#3e2e20'); R(g, r.x + 65, 89, 2, 7, '#3e2e20');   // лавка
+     for (let k = 0; k < 2; k++) { const lx = r.x + 150 + k * 16; R(g, lx, 52, 14, 44, '#55625f'); R(g, lx, 52, 14, 1, '#7a8784'); R(g, lx + 2, 58, 4, 1, '#2e3432'); R(g, lx + 2, 61, 4, 1, '#2e3432'); }   // шкафчики
+   },
+   /** Дренажная: насосы, большие трубы, шкафы, задвижки, решётка, лужи, тревожная лампа. */
+-  drainage(g, r) {
++  drainage(g, r) {                                                         // ST-001: компактнее (140), насосы ушли в соседнюю насосную
+     R(g, r.x + 6, 30, r.w - 12, 8, '#4a5a5e'); R(g, r.x + 6, 30, r.w - 12, 2, '#6a7a7e'); R(g, r.x + 6, 37, r.w - 12, 1, '#2a3236');   // магистраль
+     for (let x = r.x + 30; x < r.x + r.w - 20; x += 54) { R(g, x, 28, 6, 12, '#3a464a'); }
+-    for (let k = 0; k < 2; k++) {                                            // насосы
+-      const px = r.x + 24 + k * 70;
+-      R(g, px, 70, 40, 26, '#3e5a64'); R(g, px, 70, 40, 2, '#5e7a84'); disc(g, px + 12, 83, 8, '#2e4a54'); disc(g, px + 12, 83, 4, '#6a8a94');
+-      R(g, px + 30, 38, 6, 32, '#4a5a5e'); R(g, px + 28, 50, 10, 4, '#3a4a4e');
+-      disc(g, px + 33, 58, 4, '#8a3a30'); R(g, px + 31, 57, 5, 1, '#c85a4a');      // задвижка
+-    }
+-    R(g, r.x + r.w - 40, 44, 26, 40, '#4a5258'); R(g, r.x + r.w - 40, 44, 26, 1, '#6a7278'); R(g, r.x + r.w - 27, 45, 1, 39, '#2e3438');   // шкаф
+-    for (let k = 0; k < 3; k++) addEmissive(r.x + r.w - 36 + k * 6, 50, 2, 1, k === 2 ? [255, 90, 60] : [110, 230, 120], null, 'main', 'blink');
+-    R(g, r.x + 160, 92, 26, 4, '#1a1e20'); for (let x = r.x + 161; x < r.x + 186; x += 3) R(g, x, 92, 1, 4, '#4a5254');   // решётка
+-    R(g, r.x + 8, 94, 40, 2, '#2e4048'); R(g, r.x + 110, 94, 34, 2, '#2e4048'); R(g, r.x + 112, 94, 10, 1, '#5a7480');   // лужи
+-    // тревожная лампа уровня воды: мигает, цепь technical
+-    R(g, r.x + 150, 40, 8, 6, '#3a3e40'); const l = addLight(r.x + 154, 46, 40, [255, 120, 50], 'pulse', 0.5); addEmissive(r.x + 151, 41, 6, 4, [255, 150, 70], l);
++    const px = r.x + 16;                                                    // дренажный насос с задвижкой
++    R(g, px, 70, 40, 26, '#3e5a64'); R(g, px, 70, 40, 2, '#5e7a84'); disc(g, px + 12, 83, 8, '#2e4a54'); disc(g, px + 12, 83, 4, '#6a8a94');
++    R(g, px + 30, 38, 6, 32, '#4a5a5e'); R(g, px + 28, 50, 10, 4, '#3a4a4e');
++    disc(g, px + 33, 58, 4, '#8a3a30'); R(g, px + 31, 57, 5, 1, '#c85a4a');
++    R(g, r.x + r.w - 36, 44, 26, 40, '#4a5258'); R(g, r.x + r.w - 36, 44, 26, 1, '#6a7278'); R(g, r.x + r.w - 23, 45, 1, 39, '#2e3438');   // шкаф
++    for (let k = 0; k < 3; k++) addEmissive(r.x + r.w - 32 + k * 6, 50, 2, 1, k === 2 ? [255, 90, 60] : [110, 230, 120], null, 'main', 'blink');
++    R(g, r.x + 48, 92, 26, 4, '#1a1e20'); for (let x = r.x + 49; x < r.x + 74; x += 3) R(g, x, 92, 1, 4, '#4a5254');   // решётка приямка (ST-001 C: левее, у осмотра «приямок»)
++    R(g, r.x + 8, 94, 30, 2, '#2e4048'); R(g, r.x + 60, 94, 34, 2, '#2e4048'); R(g, r.x + 62, 94, 10, 1, '#5a7480');   // лужи
++    R(g, r.x + 56, 40, 8, 6, '#3a3e40'); const l = addLight(r.x + 60, 46, 40, [255, 120, 50], 'pulse', 0.5); addEmissive(r.x + 57, 41, 6, 4, [255, 150, 70], l);   // лампа уровня воды (над приямком)
+   },
+   /** 0.9: шлюз яруса 0 — нижний пост у прохода в вестибюль (1.0.1: служебная арка). Гермоворота — наверху, в зале «ШЛЮЗ». */
+   lock(g, r) {
+@@ -1490,13 +1641,50 @@
+     R(g, r.x + 52, 74, 12, 4, '#d8d0b8'); R(g, r.x + 66, 73, 4, 5, '#8a6a3a');   // журнал и кружка
+   },
+ 
++  /** ST-001: «НАЧАЛЬНИК СТАНЦИИ» (260): рабочая зона слева, спальная в середине, оружейка-ниша за решёткой справа (запертая дверь).
++      Решётка — в плоскости задней стены, Глеб проходит перед ней; доступа внутрь нет. Базовая графика этапа B. */
++  chief(g, r) {
++    const x = r.x;
++    // A. Рабочая: план станции на стене, шкаф документов, стол с бумагами, телефон, лампа, стул
++    R(g, x + 12, 30, 44, 26, '#3a3a32'); R(g, x + 13, 31, 42, 24, '#c8bfa0');
++    for (let k = 0; k < 5; k++) R(g, x + 16, 34 + k * 4, 36, 1, '#6a6450');                        // ярусы на плане
++    R(g, x + 22, 33, 1, 18, '#6a6450'); R(g, x + 40, 33, 1, 18, '#6a6450'); R(g, x + 30, 42, 3, 3, '#a83a2a');   // переходы и отметка
++    R(g, x + 62, 46, 22, 50, '#4e5a56'); R(g, x + 62, 46, 22, 1, '#6e7a76'); for (let k = 0; k < 3; k++) { R(g, x + 64, 52 + k * 14, 18, 1, '#2e3634'); R(g, x + 72, 55 + k * 14, 3, 1, '#a8a8a0'); }   // шкаф документов
++    R(g, x + 10, 76, 48, 3, '#6a4e34'); R(g, x + 10, 76, 48, 1, '#8c6c4a'); R(g, x + 12, 79, 2, 17, '#3e2e20'); R(g, x + 54, 79, 2, 17, '#3e2e20'); R(g, x + 38, 79, 16, 9, '#5a4230');
++    R(g, x + 14, 73, 12, 3, '#d8d0bc'); R(g, x + 16, 72, 10, 1, '#c8bfa8'); R(g, x + 28, 73, 7, 3, '#2a2e2c'); R(g, x + 29, 72, 5, 1, '#3a3e3c');   // бумаги, телефон
++    R(g, x + 47, 62, 1, 14, '#3a3834'); R(g, x + 43, 61, 7, 3, '#5a5a52');                          // настольная лампа
++    const dl = addLight(x + 46, 65, 24, [255, 200, 130], 'steady', 0.45); addEmissive(x + 44, 64, 5, 1, [255, 226, 170], dl);
++    R(g, x + 26, 84, 10, 2, '#4a3a2a'); R(g, x + 26, 72, 2, 12, '#4a3a2a'); R(g, x + 27, 86, 1, 10, '#3a2a1a'); R(g, x + 34, 86, 1, 10, '#3a2a1a');   // стул
++    // B. Спальная: кровать, тумба, личные вещи
++    R(g, x + 100, 76, 2, 20, '#4a4844'); R(g, x + 160, 80, 2, 16, '#4a4844'); R(g, x + 102, 86, 58, 2, '#3e3c38');
++    R(g, x + 102, 81, 58, 5, '#7a6e58'); R(g, x + 120, 79, 40, 6, '#4a5242'); R(g, x + 104, 78, 13, 4, '#c8bfa4');   // матрас, одеяло, подушка
++    R(g, x + 166, 80, 14, 16, '#5a4632'); R(g, x + 166, 80, 14, 1, '#7a6248'); R(g, x + 170, 76, 5, 4, '#8a8a84');   // тумба и кружка
++    R(g, x + 112, 40, 12, 14, '#b8a98a'); R(g, x + 113, 41, 10, 9, '#6a6a5a');                       // фото на стене
++    // C. Оружейка: ниша в задней стене, стойки за решёткой, решётчатая дверь на замке
++    const ax = x + 196, aw = 56;
++    R(g, ax, 30, aw, 66, '#1c1f20'); R(g, ax, 30, aw, 2, '#4a4e50'); R(g, ax, 94, aw, 2, '#2a2c2c');   // глубина ниши
++    for (let k = 0; k < 3; k++) { const sx = ax + 6 + k * 16; R(g, sx, 44, 10, 46, '#2e3436'); R(g, sx + 2, 48, 2, 36, '#4a3a2a'); R(g, sx + 6, 52, 1, 30, '#3a3e40'); }   // стойки с силуэтами
++    R(g, ax + 2, 84, 20, 10, '#3e4a3a'); R(g, ax + 2, 84, 20, 1, '#5a6a52');                       // ящик экипировки
++    for (let bx = ax; bx <= ax + aw; bx += 4) R(g, bx, 30, 1, 66, '#7a8084');                         // прутья решётки
++    for (const by of [30, 52, 74, 95]) R(g, ax, by, aw + 1, 1, '#8a9094');                            // поперечины
++    const dx = ax + 34;                                                                              // дверь в решётке
++    R(g, dx, 40, 18, 1, '#9aa0a4'); R(g, dx, 40, 1, 56, '#9aa0a4'); R(g, dx + 18, 40, 1, 56, '#9aa0a4');
++    R(g, dx + 13, 64, 5, 5, '#b8923a'); R(g, dx + 14, 61, 3, 3, '#7a7e80'); R(g, dx + 15, 66, 1, 2, '#3a2a1a');   // навесной замок
++    R(g, ax - 2, 28, aw + 5, 2, '#5a6062');                                                          // рама
++  },
++  /** ST-001: насосная на −2 (210): магистраль, два насосных агрегата, вентили, шкаф автоматики, манометр. Базовая графика этапа B. */
+   pumps(g, r) {
++    const px = r.x + 104;                                                   // второй агрегат с вентилем — насосная стала просторнее
++    R(g, px, 72, 46, 24, '#47595f'); R(g, px, 72, 46, 1, '#6a7e84'); R(g, px + 46, 76, 18, 20, '#3a4448');
++    R(g, px + 20, 57, 6, 15, '#566c74'); disc(g, px + 23, 64, 5, '#8a3a30'); disc(g, px + 23, 64, 2, '#3a4a50');
+     R(g, r.x + 4, 48, r.w - 8, 9, '#566c74'); R(g, r.x + 4, 48, r.w - 8, 2, '#7a929a'); R(g, r.x + 4, 56, r.w - 8, 1, '#34444a');
+     R(g, r.x + 20, 48, 9, 48, '#566c74'); R(g, r.x + 20, 48, 2, 48, '#7a929a'); R(g, r.x + 18, 60, 13, 3, '#3e5058'); R(g, r.x + 18, 82, 13, 3, '#3e5058');
+     R(g, r.x + 36, 72, 46, 24, '#47595f'); R(g, r.x + 36, 72, 46, 1, '#6a7e84'); R(g, r.x + 82, 76, 18, 20, '#3a4448');
+     disc(g, r.x + 60, 64, 7, '#8a3a30'); disc(g, r.x + 60, 64, 5, '#3a4a50'); disc(g, r.x + 60, 64, 1, '#8a3a30');
+     R(g, r.x + r.w - 36, 36, 30, 60, '#3f5258'); R(g, r.x + r.w - 36, 36, 30, 1, '#5e747a');
+     R(g, r.x + r.w - 25, 46, 6, 40, '#1e282c'); addEmissive(r.x + r.w - 24, 62, 4, 23, [80, 150, 180], null, 'main', 'water');
++    const gx = r.x + r.w - 30;                                              // ST-001 C: манометр — на щите автоматики (там же осмотр «щит»)
++    disc(g, gx, 44, 5, '#d8d0bc'); disc(g, gx, 44, 4, '#2a2e30'); R(g, gx, 41, 1, 3, '#c85a4a'); R(g, gx - 1, 49, 3, 2, '#2e3a3e');
+   },
+ };
+ 
+@@ -1919,7 +2107,7 @@
+   return setC(o, 24, 26, 29, n * 0.8 + Math.sin(y * 0.45 + Math.sin(x * 0.021) * 2.2) * 3 + wet);
+ }
+ /** Проёмы между комнатами яруса −2 (в координатах шаблона комнаты). */
+-const UTIL_DOORWAYS = [[516, 534], [726, 744], [916, 934], [1136, 1154], [1366, 1384], [1616, 1634]];
++const UTIL_DOORWAYS = [[286, 304], [516, 534], [726, 744], [916, 934], [1136, 1154], [1366, 1384], [1616, 1634], [1766, 1784]];   // ST-001: дренажная ↔ насосная
+ function buildUtility() {
+   const c = makeCanvas(W, UTIL.y1 - UTIL.y0), g = c.getContext('2d', { willReadFrequently: true });
+   g.translate(0, -UTIL.y0);                                              // мировые координаты
+@@ -2065,6 +2253,25 @@
+   belt: '#2e2a26', buckle: '#b39a62', pack: '#4f574a', packHi: '#626b5a', packSh: '#3a4136', roll: '#7e725a', rollSh: '#5f5644',
+   pants: '#39404c', pantsSh: '#2a2f39', boot: '#1f2024', bootHi: '#3a3a40', glove: '#8a7a64', outline: '#0b0d10',
+ };
++/** NPC-001: детали силуэта жителей. Рисуются только при заданных опциях — прежние спрайты (Глеб, охрана, жители) не меняются.
++    dy — сдвиг головы (сидя +6). Лицо смотрит вправо: лоб x 11–17, глаз x 16, затылок x 10–11. */
++function headExtras(g, o, PAL, y) {
++  if (o.hairStyle === 'long') { R(g, 9, 4 + y, 3, 9, PAL.hair); R(g, 10, 13 + y, 2, 1, PAL.hair); R(g, 10, 2 + y, 1, 3, PAL.hairHi); }   // волосы до плеч
++  if (o.hairStyle === 'bun') { R(g, 7, 2 + y, 4, 4, PAL.hair); R(g, 7, 2 + y, 4, 1, PAL.hairHi); }                        // пучок на затылке
++  if (o.hairStyle === 'bald') { R(g, 12, 2 + y, 6, 3, PAL.skin); R(g, 13, 2 + y, 3, 1, PAL.skinSh); R(g, 17, 4 + y, 1, 1, PAL.skin); }   // лысина, виски остаются
++  if (o.beard) { R(g, 13, 9 + y, 5, 3, o.beard); R(g, 14, 12 + y, 4, 1, o.beard); R(g, 16, 10 + y, 1, 1, PAL.skinSh); }   // борода, рот
++  if (o.hood) { R(g, 9, 1 + y, 9, 3, o.hood); R(g, 9, 4 + y, 3, 9, o.hood); R(g, 17, 2 + y, 1, 2, o.hood); R(g, 9, 1 + y, 9, 1, 'rgba(255,255,255,.18)'); }   // капюшон / платок
++  if (o.cap === 'beanie') { R(g, 10, 1 + y, 8, 3, o.capC); R(g, 10, 3 + y, 8, 1, 'rgba(0,0,0,.25)'); R(g, 13, 0 + y, 2, 1, o.capC); }   // вязаная шапка с помпоном
++  if (o.cap === 'cap') { R(g, 10, 1 + y, 8, 3, o.capC); R(g, 17, 3 + y, 4, 1, o.capC); R(g, 10, 1 + y, 8, 1, 'rgba(255,255,255,.18)'); }   // кепка с козырьком
++  if (o.cap === 'helmet') { R(g, 9, 1 + y, 10, 4, o.capC); R(g, 9, 1 + y, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + y, 10, 1, 'rgba(0,0,0,.35)'); R(g, 18, 4 + y, 2, 1, o.capC); }   // каска
++  if (o.goggles) { R(g, 11, 4 + y, 8, 1, '#2a2e30'); R(g, 15, 3 + y, 3, 2, '#2a2e30'); R(g, 16, 3 + y, 1, 1, '#8aaab0'); }   // очки на лбу
++}
++function bodyExtras(g, o, PAL, b, sit) {
++  const t = sit ? 20 + b : 14 + b, h = sit ? 11 - b : 11;
++  if (o.vest) { R(g, 10, t + 1, 7, h - 2, o.vest); R(g, 10, t + 1, 7, 1, 'rgba(255,255,255,.18)'); if (/^#c/.test(o.vest)) R(g, 10, t + 6, 7, 1, '#e8e0b0'); }   // жилет (жёлтый — со светоотражающей полосой)
++  if (o.apron) { R(g, 13, t + 3, 6, sit ? h - 1 : 14, o.apron); R(g, 13, t + 3, 1, sit ? h - 1 : 14, 'rgba(0,0,0,.18)'); L(g, 14, t, 17, t + 3, o.apron); }   // фартук
++  if (o.bag && !sit) { L(g, 11, t + 1, 16, t + 10, '#3a3028', 1); R(g, 15, t + 10, 5, 5, o.bag); R(g, 15, t + 10, 5, 1, 'rgba(255,255,255,.18)'); }   // сумка через плечо
++}
+ function drawPersonFrame(o, PAL = HERO_PAL) {
+   const c = makeCanvas(SPRITE_W, SPRITE_H), g = c.getContext('2d', { willReadFrequently: true }), b = o.bob;
+   const leg = (hx, fx, lift, col, colSh) => {
+@@ -2094,6 +2301,8 @@
+   if (o.blink) R(g, 16, 7 + b, 2, 1, PAL.skinSh); else { R(g, 16, 7 + b, 1, 1, PAL.eye); R(g, 16, 6 + b, 2, 1, PAL.hair); }
+   R(g, 17, 10 + b, 1, 1, PAL.skinSh);
+   if (o.hat) { R(g, 9, 1 + b, 10, 4, o.hat); R(g, 9, 1 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 5 + b, 10, 1, 'rgba(0,0,0,.35)'); }
++  headExtras(g, o, PAL, b); bodyExtras(g, o, PAL, b, false);            // NPC-001: только при заданных опциях
++  if (o.coat) { R(g, 9, 27 + b, 9, 4, PAL.jacket); R(g, 17, 27 + b, 1, 4, PAL.jacketSh); R(g, 9, 30 + b, 9, 1, PAL.jacketSh); }   // длинная куртка / пальто поверх бёдер
+   arm(o.armFront, PAL.jacket);                                          // ближняя рука
+   if (o.gun) { L(g, 8, 27 + b, 21, 14 + b, '#222426', 2); R(g, 6, 26 + b, 4, 3, '#4a3a2a'); R(g, 15, 21 + b, 2, 4, '#222426'); R(g, 20, 13 + b, 2, 1, '#55595c'); }
+   outline(g);
+@@ -2180,6 +2389,7 @@
+   if (o.blink) R(g, 16, 13 + b, 2, 1, PAL.skinSh); else { R(g, 16, 13 + b, 1, 1, PAL.eye); R(g, 16, 12 + b, 2, 1, PAL.hair); }
+   R(g, 17, 16 + b, 1, 1, PAL.skinSh);
+   if (o.hat) { R(g, 9, 7 + b, 10, 4, o.hat); R(g, 9, 7 + b, 10, 1, 'rgba(255,255,255,.2)'); R(g, 10, 11 + b, 10, 1, 'rgba(0,0,0,.35)'); }
++  headExtras(g, o, PAL, 6 + b); bodyExtras(g, o, PAL, b, true);         // NPC-001: только при заданных опциях
+   L(g, 13, 22 + b, 16, 27, PAL.jacket, 3); L(g, 16, 27, 19, 30, PAL.jacket, 3); R(g, 18, 30, 3, 2, PAL.glove);   // ближняя рука на колене
+   if (o.gun) { R(g, 6, 29, 17, 2, '#222426'); R(g, 4, 29, 3, 3, '#4a3a2a'); }
+   outline(g);
+@@ -2194,8 +2404,8 @@
+   return { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 };
+ }
+ /** Спящий: кадр стоя с закрытыми глазами, повёрнутый на 90° (голова слева), под одеялом. rise — дыхание одеяла. */
+-function makeLying(PAL, rise, blanket) {
+-  const src = drawPersonFrame({ legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
++function makeLying(PAL, rise, blanket, look = {}) {                    // look — детали облика NPC-001 (голова); прежние спящие — без них
++  const src = drawPersonFrame({ ...look, legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0, bob: 0, blink: true, noPack: true }, PAL);
+   const c = makeCanvas(SPRITE_H, SPRITE_W), g = c.getContext('2d', { willReadFrequently: true });
+   g.imageSmoothingEnabled = false; g.translate(0, SPRITE_W); g.rotate(-Math.PI / 2); g.drawImage(src, 0, 0); g.setTransform(1, 0, 0, 1, 0, 0);
+   const bb = alphaBox(c), bx = bb.x + Math.round(bb.w * 0.34);
+@@ -2236,6 +2446,44 @@
+   return c;
+ }
+ /** Набор кадров одного персонажа: ходьба, дыхание, моргание; по запросу — сидя и лёжа. */
++/** NPC-001: наборы кадров всех обликов CONFIG.LOOKS — ключ «архетип.номер». Тот же генератор personSet, что у Глеба и прежних жителей. */
++/** NPC-001: лист галереи — по строке на архетип: 3 облика × (стоит, шаг, сидит, лежит). Подпись — «[ПРЕДЛОЖЕНИЕ]». */
++function lookSheet(k = 3) {
++  const A = Object.entries(CONFIG.LOOKS.ARCHETYPES), cw = 26 * 3 + 42 + 14, rh = 66, lw = 120;
++  const c = makeCanvas((lw + cw * 3) * k, (A.length * rh + 22) * k), g = c.getContext('2d');
++  g.imageSmoothingEnabled = false; g.scale(k, k); g.fillStyle = '#14181a'; g.fillRect(0, 0, c.width, c.height);
++  g.fillStyle = '#e0c48c'; g.font = '9px monospace'; g.fillText('NPC-001 · 8 архетипов × 3 облика · [ПРЕДЛОЖЕНИЕ] — до решения автора', 6, 12);
++  A.forEach(([id, a], r) => {
++    const y = 22 + r * rh; g.fillStyle = '#c8c0a8'; g.fillText(a.label, 6, y + 28); g.fillStyle = '#7a8284'; g.fillText(id, 6, y + 40);
++    a.variants.forEach((v, i) => {
++      const s = SETS[id + '.' + i], x = lw + i * cw; g.fillStyle = '#1e2426'; g.fillRect(x, y, cw - 6, rh - 6);
++      g.drawImage(s.idle[0], x + 2, y + 4); g.drawImage(s.walk[2], x + 28, y + 4); g.drawImage(s.sit[0], x + 54, y + 4);
++      g.drawImage(s.lie[0].c, x + 80, y + 18); g.fillStyle = '#7a8284'; g.fillText(id + '.' + i, x + 2, y + 56);
++    });
++  });
++  return c;
++}
++/** NPC-001: отчёт по обликам для проверок (?debug): кадры, общая граница непрозрачных пикселей, отпечаток пикселей набора. */
++function lookReport() {
++  const fp = cs => { let h = 0x811c9dc5; for (const c of cs) { const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 0; i < d.length; i += 3) { h ^= d[i]; h = Math.imul(h, 0x01000193) >>> 0; } } return h.toString(16); };
++  const out = {};
++  for (const [id, s] of Object.entries(SETS)) {
++    if (!s.walk || !s.idle || id === 'pig' || id === 'mutant') continue;
++    const frames = [...s.walk, ...s.idle, s.blink, ...(s.sit || []), ...(s.lie || []).map(l => l.c)].filter(Boolean);
++    const st = [...s.walk, ...s.idle, s.blink, ...(s.sit || [])].filter(Boolean).map(alphaBox);
++    out[id] = { frames: frames.length, sit: (s.sit || []).length, lie: (s.lie || []).length, w: frames[0].width, h: frames[0].height,
++      box: { x0: Math.min(...st.map(b => b.x)), y0: Math.min(...st.map(b => b.y)), x1: Math.max(...st.map(b => b.x + b.w)), y1: Math.max(...st.map(b => b.y + b.h)) }, fp: fp(frames) };
++  }
++  out.hero = { fp: fp([...SPRITES.walk, ...SPRITES.idle, SPRITES.blink, SPRITES.back, ...SPRITES.backWalk, ...SPRITES.frontWalk]) };
++  return out;
++}
++function buildLookSets() {
++  const L = CONFIG.LOOKS; let k = 0;
++  for (const [id, A] of Object.entries(L.ARCHETYPES)) A.variants.forEach((v, i) => {
++    const { pack, ...rest } = v.opts;
++    SETS[id + '.' + i] = personSet({ ...HERO_PAL, ...v.pal }, { ...rest, look: true, noPack: !pack, sit: true, blanket: L.BLANKETS[k++ % L.BLANKETS.length] });
++  });
++}
+ function personSet(pal, o = {}) {
+   const set = { walk: [], idle: [], blink: null, sit: [], lie: [] };
+   for (let i = 0; i < 8; i++) {                                          // 8 кадров ходьбы
+@@ -2247,7 +2495,8 @@
+   set.idle.push(drawPersonFrame({ ...stand, bob: 0, blink: false }, pal), drawPersonFrame({ ...stand, bob: 1, blink: false }, pal));
+   set.blink = drawPersonFrame({ ...stand, bob: 0, blink: true }, pal);
+   if (o.sit) set.sit.push(drawSitFrame(pal, 0, o), drawSitFrame(pal, 1, o));
+-  if (o.blanket) set.lie.push(makeLying(pal, 0, o.blanket), makeLying(pal, 1, o.blanket));
++  if (o.blanket) { const look = o.look ? { hairStyle: o.hairStyle, beard: o.beard, hood: o.hood, cap: o.cap, capC: o.capC } : {};   // NPC-001
++    set.lie.push(makeLying(pal, 0, o.blanket, look), makeLying(pal, 1, o.blanket, look)); }
+   return set;
+ }
+ const SETS = {};
+@@ -2264,6 +2513,7 @@
+   SETS.resB    = personSet(RES_B_PAL,   { noPack: true, sit: true, blanket: '#465a6c' });
+   SETS.resC    = personSet(RES_C_PAL,   { noPack: true, sit: true });
+   SETS.mutant  = { walk: [0, 1, 2, 3, 4, 5].map(drawMutantFrame) };
++  buildLookSets();                                                        // NPC-001: 8 архетипов × 3 облика
+   SETS.pig     = { walk: [0, 1, 2, 3].map(i => drawPigFrame(i, 0)), idle: [drawPigFrame(0, 0), drawPigFrame(0, 1)] };   // 1.0
+ }
+ 
+@@ -2282,26 +2532,26 @@
+ /** Персонаж из CONFIG.NPCS (охрана постов, собеседники, жители со свечами). */
+ function npcActor(id) {
+   const n = CONFIG.NPCS[id], [a, b] = n.walk || [n.x, n.x];
+-  return actor(n.kind, n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, floor: n.floor, facing: n.facing, minX: a, maxX: b, speed: n.speed, lamp: n.lamp, tunnel: n.tunnel || n.aim });
++  return actor(n.kind, n.look || n.set, n.x, CONFIG.FLOORS[n.floor].y, { id, floor: n.floor, facing: n.facing, minX: a, maxX: b, speed: n.speed, lamp: n.lamp, tunnel: n.tunnel || n.aim });
+ }
+ const npcById = id => ACTORS.find(a => a.id === id) || null;
+ function placeActors() {
+   const P = CONFIG.FLOORS.platform.y, U = CONFIG.FLOORS.upper.y, S = CONFIG.FLOORS.surface.y;
+   Object.keys(CONFIG.NPCS).forEach(npcActor);                                                              // охрана постов, собеседники
+   // охрана шлюза, рабочие мастерской и насосной, житель столовой — с 0.8.1 в CONFIG.NPCS (без копий здесь)
+-  actor('sleeper', 'resB', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resA', 0, 0, { bed: [294, 70] }); actor('sleeper', 'resB', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
+-  actor('sitter', 'resB', 546, U, { facing: 1 }); actor('sitter', 'resC', 590, U, { facing: -1 });   // столовая
+-  actor('sitter', 'resB', 528, P, { facing: 1 }); actor('sitter', 'resA', 1062, P, { facing: -1 });         // у столика и у бочки
++  actor('sleeper', 'resident-m.2', 0, 0, { bed: [218, 88] }); actor('sleeper', 'resident-f.2', 0, 0, { bed: [294, 70] }); actor('sleeper', 'elder.0', 0, 0, { bed: [370, 88] });   // 1.1А: нары сдвинуты с жилым блоком (+60)
++  actor('sitter', 'elder.1', 546, U, { facing: 1 }); actor('sitter', 'young.1', 590, U, { facing: -1 });   // столовая
++  actor('sitter', 'resident-m.1', 528, P, { facing: 1 }); actor('sitter', 'stalker.0', 1062, P, { facing: -1 });         // у столика и у бочки
+   const UY = CONFIG.FLOORS.utility.y;                                     // 1.0: ярус −2 — спящие в ячейках и свиньи в загоне
+-  actor('sleeper', 'resA', 0, 0, { bed: [316, UY - 10] }); actor('sleeper', 'resB', 0, 0, { bed: [386, UY - 28] });
++  actor('sleeper', 'elder.2', 0, 0, { bed: [316, UY - 10] }); actor('sleeper', 'resident-m.0', 0, 0, { bed: [386, UY - 28] });
+   actor('pig', 'pig', 990, UY, { minX: 972, maxX: 1040, speed: 7, facing: 1 });
+   actor('pig', 'pig', 1062, UY, { minX: 1046, maxX: 1110, speed: 6, facing: -1 });
+   actor('pig', 'pig', 1086, UY, { minX: 1086, maxX: 1086, facing: -1 });     // третья стоит у кормушки и вертит головой
+   actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
+   actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
+   actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+-  actor('sitter', 'resC', 940, P, { facing: -1 }); actor('sitter', 'resB', 962, P, { facing: -1 });         // слушатели у трибуны
+-  actor('stand', 'resA', 832, P, { facing: 1 });
++  actor('sitter', 'trader.1', 940, P, { facing: -1 }); actor('sitter', 'stalker.2', 962, P, { facing: -1 });         // слушатели у трибуны
++  actor('stand', 'resident-m.2', 832, P, { facing: 1 });   // NPC-001: облики — CONFIG.LOOKS (места прежние)
+ }
+ /** Лёгкая реакция на свет: житель останавливается, оглядывается и говорит короткую фразу. */
+ /** Реакция на блэкаут или возвращение сети: очередь коротких реплик видимых NPC (0.8.1).
+@@ -3400,6 +3650,8 @@
+         [WORLD.back, WORLD.main, WORLD.fore].forEach(l => g.drawImage(l, 0, SURF_H)); g.drawImage(WORLD.util, 0, SURF_H + H);
+         return { png: c.toDataURL(), sh: SURF_H, floors: CONFIG.FLOORS };
+       },
++      looks: () => lookReport(),                                        // NPC-001: облики — кадры, границы, отпечатки пикселей
++      lookSheet: () => lookSheet(3).toDataURL(),
+       scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
+     });
+     Player.onStep = (x, f, y) => FX.step(x, f, y);
+@@ -3571,11 +3823,30 @@
+ };
+ 
+ Game.start();
++/* NPC-001: галерея обликов для проверки на iPhone — только DEV и только по адресу с ?npc. Игру не меняет. */
++if (ENV === 'dev' && /[?&]npc(?:[=&]|$)/.test(location.search)) {   // релиз 1.2.0: только DEV — в PROD галереи нет даже с ?debug
++  const d = document.createElement('div'), c = lookSheet(3), w = Math.min(innerWidth - 16, c.width);
++  d.style.cssText = 'position:fixed;inset:0;z-index:50;background:rgba(8,10,12,.94);overflow:auto;-webkit-overflow-scrolling:touch;padding:8px';
++  c.style.cssText = `width:${w}px;height:auto;image-rendering:pixelated;display:block;margin:0 auto`;
++  const b = document.createElement('button'); b.type = 'button'; b.textContent = '✕'; b.setAttribute('aria-label', 'Закрыть галерею');
++  b.style.cssText = 'position:fixed;top:8px;right:8px;width:44px;height:44px;font-size:20px;background:#1e2426;color:#e0c48c;border:1px solid #4a5254';
++  b.addEventListener('click', e => { e.stopPropagation(); d.remove(); });
++  d.addEventListener('pointerdown', e => e.stopPropagation());
++  d.append(c, b); document.body.append(d);
++}
+ 
+ /* Офлайн-режим: на обычном хостинге (https) игра кэшируется и потом открывается без интернета.
+    С диска (file://) и во встроенных просмотрщиках регистрация не нужна и тихо пропускается. */
++/** Метка сборки для DEV (SAN-001): 7 знаков FNV-1a от кода ЗАПУЩЕННОЙ страницы (встроенные скрипты).
++    Меняется при любом изменении кода, одинакова у одинакового кода; по ней видно, что iPhone открыл не устаревшую копию из кэша.
++    Это не git SHA: соответствие «метка → коммит» указывается в отчёте. Сохранения и кэш не трогает; в PROD не показывается. */
++function buildId() {
++  let h = 0x811c9dc5;
++  for (const sc of document.scripts) if (!sc.src) { const t = sc.textContent; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } }
++  return h.toString(16).padStart(8, '0').slice(0, 7);
++}
+ if (ENV === 'dev') {                                                 // DEV: метка, своё имя на экране «Домой», свой манифест
+-  const v = document.getElementById('ver'); v.textContent = 'v' + CONFIG.VERSION + ' DEV'; v.classList.add('dev');
++  const v = document.getElementById('ver'); v.textContent = 'v' + CONFIG.VERSION + ' DEV · ' + buildId(); v.classList.add('dev');   // SAN-001: метка сборки
+   document.title = 'Последняя ветка DEV ' + CONFIG.VERSION;
+   const t = document.querySelector('meta[name="apple-mobile-web-app-title"]'); if (t) t.content = 'ПВ DEV';
+   const m = document.querySelector('link[rel="manifest"]'); if (m) m.href = 'manifest-dev.webmanifest';
