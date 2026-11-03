@@ -14,7 +14,7 @@ const portal = (id, pid) => SC[id].portals.find(p => p.id === pid);
 // Реестр и граф
 ok('SC01 реестр: ровно ST, S1, S2; validateScenes без ошибок', JSON.stringify(Object.keys(SC)) === '["ST","S1","S2"]' && S.validateScenes(CONFIG).length === 0, S.validateScenes(CONFIG).join('; '));
 ok('SC02 ST использует этажи станции без изменений (тот же объект CONFIG.FLOORS)', S.sceneFloors(CONFIG, 'ST') === F && SC.ST.W === 2000);
-ok('SC03 геометрия S1: W 1800, дорожка 60–1740 на уровне земли станции', SC.S1.W === 1800 && SC.S1.floors.surface.minX === 60 && SC.S1.floors.surface.maxX === 1740 && SC.S1.floors.surface.y === F.surface.y);
+ok('SC03 геометрия S1 (ШТАБ-022): W 3600, дорожка 60–3540 на уровне земли станции, версия геометрии 2, слоистая', SC.S1.W === 3600 && SC.S1.floors.surface.minX === 60 && SC.S1.floors.surface.maxX === 3540 && SC.S1.floors.surface.y === F.surface.y && SC.S1.geo === 2 && SC.S1.layered === true);
 ok('SC04 геометрия S2: W 1500, дорожка 160–1440 на уровне земли станции', SC.S2.W === 1500 && SC.S2.floors.surface.minX === 160 && SC.S2.floors.surface.maxX === 1440 && SC.S2.floors.surface.y === F.surface.y);
 ok('SC05 наружные сцены — только этаж surface (нет интерьеров и тоннелей)', ['S1', 'S2'].every(id => JSON.stringify(Object.keys(SC[id].floors)) === '["surface"]'));
 ok('SC06 у ST один портал — P1 с левого края НАРУЖНОЙ дорожки', SC.ST.portals.length === 1 && SC.ST.portals[0].id === 'P1' && SC.ST.portals[0].floor === 'surface' && SC.ST.portals[0].edge === 'left');
@@ -24,7 +24,7 @@ ok('SC08 из S1 и S2 есть путь домой на ST; из ST дости�
 ok('SC09 портал → обратный портал → исходная точка появления (P1⇄P1r, P2⇄P2r)', (() => {
   const a = S.portalTarget(CONFIG, portal('ST', 'P1')), b = S.portalTarget(CONFIG, portal('S1', 'P1r'));
   const c = S.portalTarget(CONFIG, portal('S1', 'P2')), d = S.portalTarget(CONFIG, portal('S2', 'P2r'));
-  return a.scene === 'S1' && a.x === 1700 && a.facing === -1 && b.scene === 'ST' && b.x === 1176 && b.facing === 1 && b.floor === 'surface'
+  return a.scene === 'S1' && a.x === 3500 && a.facing === -1 && b.scene === 'ST' && b.x === 1176 && b.facing === 1 && b.floor === 'surface'
     && c.scene === 'S2' && c.x === 1400 && c.facing === -1 && d.scene === 'S1' && d.x === 100 && d.facing === 1;
 })());
 
@@ -34,7 +34,7 @@ ok('SC10 P1: край улицы станции x 1136 + направление 
 ok('SC11 P1 не срабатывает: не у края, направление вправо, без направления', !S.edgePortalAt(CONFIG, 'ST', 'surface', L + 1, -1) && !S.edgePortalAt(CONFIG, 'ST', 'surface', L, 1) && !S.edgePortalAt(CONFIG, 'ST', 'surface', L, 0));
 ok('SC12 внутренние этажи станции (вестибюль, ярусы, платформа) у своих краёв порталов не дают', Object.entries(F).filter(([f]) => f !== 'surface').every(([f, Fl]) => !S.edgePortalAt(CONFIG, 'ST', f, Fl.minX, -1) && !S.edgePortalAt(CONFIG, 'ST', f, Fl.maxX, 1)));
 ok('SC13 правый край улицы станции (павильон) — не портал', !S.edgePortalAt(CONFIG, 'ST', 'surface', F.surface.maxX, 1));
-ok('SC14 S1: справа P1r (→ ST), слева P2 (→ S2); S2: справа P2r (→ S1), слева ничего', S.edgePortalAt(CONFIG, 'S1', 'surface', 1740, 1)?.to === 'ST' && S.edgePortalAt(CONFIG, 'S1', 'surface', 60, -1)?.to === 'S2'
+ok('SC14 S1: справа P1r (→ ST), слева P2 (→ S2); S2: справа P2r (→ S1), слева ничего', S.edgePortalAt(CONFIG, 'S1', 'surface', 3540, 1)?.to === 'ST' && S.edgePortalAt(CONFIG, 'S1', 'surface', 60, -1)?.to === 'S2'
   && S.edgePortalAt(CONFIG, 'S2', 'surface', 1440, 1)?.to === 'S1' && !S.edgePortalAt(CONFIG, 'S2', 'surface', 160, -1));
 ok('SC15 неизвестная сцена или этаж → null (без исключения)', S.edgePortalAt(CONFIG, 'XX', 'surface', 0, -1) === null && S.edgePortalAt(CONFIG, 'S1', 'platform', 60, -1) === null);
 ok('SC16 точки появления не на портале: от края не ближе SAFE, обратный портал взводится только после REARM', Object.entries(SC).every(([id, s]) => Object.values(s.spawns).every(sp => {
@@ -55,11 +55,11 @@ ok('SC18 60 кругов ST→S1→S2→S1→ST: те же точки появл
 // pv.scene.v1
 const P = o => S.parseSceneSave(CONFIG, JSON.stringify(o));
 ok('SC20 ключ: PROD pv.scene.v1, DEV pv.dev.scene.v1', envSaveKey('prod', C.SAVE_KEY) === 'pv.scene.v1' && envSaveKey('dev', C.SAVE_KEY) === 'pv.dev.scene.v1');
-ok('SC21 обычная запись S1/S2 восстанавливается как есть', (() => { const a = P({ v: 1, scene: 'S1', floor: 'surface', x: 900.04, facing: -1, pending: null }), b = P({ v: 1, scene: 'S2', floor: 'surface', x: 500, facing: 1 });
+ok('SC21 обычная запись S1/S2 восстанавливается как есть', (() => { const a = P({ v: 1, scene: 'S1', g: 2, floor: 'surface', x: 900.04, facing: -1, pending: null }), b = P({ v: 1, scene: 'S2', floor: 'surface', x: 500, facing: 1 });
   return a && a.scene === 'S1' && a.x === 900 && a.facing === -1 && !a.pending && b && b.scene === 'S2' && b.x === 500; })());
 ok('SC22 прерванный переход → безопасная точка ПЕРЕД порталом на стороне источника (не скрытая сцена)', (() => {
   const a = P({ v: 1, scene: 'ST', floor: 'surface', x: 1176, facing: -1, pending: { portal: 'P1', from: 'ST', to: 'S1', ticket: 3 } });
-  const b = P({ v: 1, scene: 'S1', floor: 'surface', x: 100, facing: -1, pending: { portal: 'P2', from: 'S1', to: 'S2', ticket: 9 } });
+  const b = P({ v: 1, scene: 'S1', g: 2, floor: 'surface', x: 100, facing: -1, pending: { portal: 'P2', from: 'S1', to: 'S2', ticket: 9 } });
   const c = P({ v: 1, scene: 'S2', floor: 'surface', x: 1400, facing: 1, pending: { portal: 'P2r', from: 'S2', to: 'S1', ticket: 1 } });
   return a.scene === 'ST' && a.x === L + C.SAFE && a.facing === -1 && a.pending && b.scene === 'S1' && b.x === 60 + C.SAFE && c.scene === 'S2' && c.x === 1440 - C.SAFE && c.facing === 1;
 })());
@@ -87,4 +87,18 @@ ok('SC34 R (в центр) — только на станции', /if \(Scene\.i
 ok('SC35 касание точки — по этажам активной сцены; камера — по ширине активной сцены', /tapTarget\(\{ FLOORS: Scene\.floors\(\), TOUCH: CONFIG\.TOUCH \}/.test(src) && /clampX\(x\) \{ return clamp\(x, 0, Math\.max\(0, Scene\.W\(\) - this\.viewW\)\); \}/.test(src));
 ok('SC36 нет новых кнопок интерфейса и надписей «заперто» в наружных сценах', (() => { const b = src.slice(src.indexOf('function buildOutdoor'), src.indexOf('const Scene = {')); return b.length > 1000 && !/заперто|button|addEventListener/i.test(b); })());
 ok('SC37 испорченная запись сцены удаляется только своим ключом', /localStorage\.removeItem\(saveKey\(CONFIG\.SCENE\.SAVE_KEY\)\)/.test(src) && !/loadScene\(\) \{[\s\S]{0,1200}removeItem\(saveKey\(CONFIG\.PLAYER/.test(src));
+
+// ШТАБ-022: миграция геометрии S1 и реальная архитектурная шкала
+ok('SC26 запись S1 старой геометрии (без g или g ≠ 2) не восстанавливается → дальше работает pv.player.v1 (улица ST x 1176)', P({ v: 1, scene: 'S1', floor: 'surface', x: 900, facing: 1 }) === null && P({ v: 1, scene: 'S1', g: 1, floor: 'surface', x: 900 }) === null
+  && P({ v: 1, scene: 'S1', floor: 'surface', x: 100, pending: { portal: 'P2', from: 'S1', to: 'S2', ticket: 1 } }) === null && P({ v: 1, scene: 'S2', floor: 'surface', x: 500 }) !== null);
+const ST2 = CONFIG.STREET, M = ST2.HERO / 1.75;
+ok('SC40 шкала: Глеб 40 px = 1,75 м; дверь 46–49 px (2,0–2,1 м) и выше Глеба', ST2.HERO === 40 && ST2.DOOR_H >= 46 && ST2.DOOR_H <= 49 && ST2.DOOR_H > ST2.HERO, `дверь ${ST2.DOOR_H} = ${(ST2.DOOR_H / M).toFixed(2)} м`);
+ok('SC41 шаг этажа 62–69 px (2,7–3,0 м); окно 27–34 px по высоте', ST2.PITCH >= 62 && ST2.PITCH <= 69 && ST2.WIN_H >= 27 && ST2.WIN_H <= 34, `этаж ${(ST2.PITCH / M).toFixed(2)} м, окно ${(ST2.WIN_H / M).toFixed(2)} м`);
+ok('SC42 правило автора: низ окна 1-го этажа (цоколь + подоконник) выше макушки Глеба', ST2.PLINTH + ST2.SILL > ST2.HERO, `подоконник ${ST2.PLINTH + ST2.SILL} px = ${((ST2.PLINTH + ST2.SILL) / M).toFixed(2)} м над дорожкой`);
+ok('SC43 пятиэтажка с цоколем и парапетом — 320–380 px; окно с подоконником и перемычкой помещается в этаж', (() => { const h = ST2.PLINTH + ST2.FLOORS * ST2.PITCH + ST2.PARAPET; return ST2.FLOORS === 5 && h >= 320 && h <= 380 && ST2.SILL + ST2.WIN_H < ST2.PITCH - 6; })(), `${ST2.PLINTH + ST2.FLOORS * ST2.PITCH + ST2.PARAPET} px`);
+ok('SC44 слои улицы выше дома и ниже дорожки: TOP ≥ 380 px над землёй (крыша уходит за кадр, неба хватает)', -ST2.TOP - (-F.surface.y) >= 380);
+ok('SC45 раскладка S1: дом №1 (4 подъезда) и спортплощадка внутри сцены, не перекрываются; завал у правого края', (() => { const L = SC.S1.layout, h1 = [L.house1[0], L.house1[0] + L.house1[1] * ST2.SECTION], h2 = [L.house2[0], L.house2[0] + L.house2[1] * ST2.SECTION];
+  return L.house1[1] === 4 && h1[1] <= L.edgeR[0] && L.sport[1] <= h1[0] && h2[1] <= L.sport[0] && L.edgeR[1] <= SC.S1.W && h2[0] >= 0; })());
+ok('SC46 камера улицы: отдельная ветка только для слоистых сцен, ступни на 0,78–0,80; станция — прежний путь', SC.S1.floors.surface.cam >= 0.78 && SC.S1.floors.surface.cam <= 0.8 && /if \(Scene\.def\(\)\.layered\) \{ const F = Scene\.floor\(f\); return clamp\(F\.y - this\.viewH \* F\.cam, CONFIG\.STREET\.TOP, -this\.viewH\); \}/.test(src) && !SC.ST.layered && !SC.S2.layered);
+ok('SC47 улица рисуется процедурно в самой странице (внешних файлов нет — офлайн-кэш sw.js не меняется)', (() => { const b = src.slice(src.indexOf('/* STREET:BEGIN'), src.indexOf('/* STREET:END */')); return b.length > 5000 && !/new Image|fetch\(|\.png|\.jpe?g|\.webp/.test(b); })());
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);
