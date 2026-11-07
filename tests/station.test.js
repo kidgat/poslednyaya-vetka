@@ -1,7 +1,7 @@
 /* Тесты реестра «Гагаринской 3.0» и осмотров постов (без браузера): node tests/station.test.js
    CONFIG, ROOMS и блок STATION:BEGIN/END вынимаются из index.html; проверяются и рабочие данные, и «сломанные» копии. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const cut = (from, to) => { const i = src.indexOf(from); if (i < 0) throw new Error('нет ' + from); return src.slice(i, src.indexOf(to, i) + to.length); };
 const CONFIG = Function(`${cut('const CONFIG = {', '\n};')} return CONFIG;`)();
 const ROOMS = Function(`${cut('const ROOMS = [', '\n];')} return ROOMS;`)();
