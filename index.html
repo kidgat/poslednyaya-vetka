@@ -3408,6 +3408,79 @@ function drawFrontFrame(PAL = HERO_PAL, step = 0) {
   return c;
 }
 const SPRITES = { walk: [], idle: [], blink: null, back: null, backWalk: [], frontWalk: [] };
+/* ART-TECH-001 — ИССЛЕДОВАТЕЛЬСКИЙ прототип детализированного Глеба (рабочий кандидат 52×84, НЕ утверждён). Только DEV / ?debug и только с ?hd.
+   Тот же рост в мире (42 мировых px): исходная сетка вдвое мельче, рисуется поверх кадра в экранном разрешении.
+   Детали нарисованы в сетке 52×84 (не растяжение 26×42): швы, карманы, зубцы молнии, лямки с пряжками, завязки скатки,
+   пальцы перчаток, шнурки, подошвы, заплата на колене, вязка шарфа, пряди, бровь, нос, ухо. Мимики нет. */
+const HD_W = 52, HD_H = 84;
+function drawHeroHD(o, PAL = HERO_PAL) {
+  const c = makeCanvas(HD_W, HD_H), g = c.getContext('2d', { willReadFrequently: true }), b = o.bob * 2;
+  const P = (x, y, w, h, col) => R(g, x, y, w, h, col);
+  const dk = (hex, k = 0.78) => { const n = parseInt(hex.slice(1), 16); return `rgb(${(n >> 16 & 255) * k | 0},${(n >> 8 & 255) * k | 0},${(n & 255) * k | 0})`; };
+  const leg = (hx, fx, lift, col, colSh, near) => {
+    const hy = 54 + b, fy = 76 - lift * 2, kx = Math.round((hx + fx) / 2 + 2 + (lift ? 2 : 0)), ky = Math.round((hy + fy) / 2);
+    L(g, hx, hy, kx, ky, col, 6); L(g, kx, ky, fx, fy, col, 6);
+    L(g, hx + 2, hy + 1, kx + 2, ky, colSh, 1); L(g, kx + 2, ky, fx + 2, fy, colSh, 1);                 // боковой шов штанины
+    if (near) { P(kx - 2, ky - 2, 5, 4, dk(col, 0.85)); P(kx - 2, ky - 2, 5, 1, colSh); P(kx - 1, ky, 1, 1, '#b8a888'); P(kx + 2, ky, 1, 1, '#b8a888'); }   // заплата на колене со стежками
+    P(fx - 3, fy - 3, 8, 3, colSh);                                                                      // подгиб над ботинком
+    P(fx - 3, fy + 2, 11, 5, PAL.boot); P(fx - 3, fy + 2, 11, 1, PAL.bootHi); P(fx - 3, fy + 6, 12, 1, '#0e0f12');   // ботинок, подошва
+    P(fx + 1, fy + 3, 1, 1, '#8a8478'); P(fx + 3, fy + 3, 1, 1, '#8a8478'); P(fx + 5, fy + 4, 2, 1, PAL.bootHi);       // шнурки, носок
+  };
+  const arm = (hx, col, near) => {
+    const sx = 26, sy = 32 + b, ex = 26 + hx, ey = 42 + b, wx = 26 + hx * 2, wy = 50 + b;
+    L(g, sx, sy, ex, ey, col, 6); L(g, ex, ey, wx, wy, col, 6);
+    if (near) { L(g, sx + 2, sy, ex + 2, ey, dk(col, 1.15), 1); P(ex - 2, ey - 1, 5, 1, dk(col, 0.8)); }   // блик и складка на локте
+    P(wx - 3, wy + 1, 7, 2, dk(col, 0.7));                                                              // манжета
+    P(wx - 3, wy + 2, 6, 4, PAL.glove); P(wx - 3, wy + 5, 6, 1, dk(PAL.glove, 0.75)); P(wx - 1, wy + 2, 1, 4, dk(PAL.glove, 0.8)); P(wx + 1, wy + 2, 1, 4, dk(PAL.glove, 0.8));   // перчатка, пальцы
+  };
+  arm(o.armBack, PAL.jacketSh, false);
+  leg(24, 24 + o.legBack.f * 2, o.legBack.lift, PAL.pantsSh, dk(PAL.pantsSh, 0.8), false);
+  // рюкзак со скаткой
+  P(6, 22 + b, 16, 8, PAL.roll); P(6, 22 + b, 2, 8, PAL.rollSh); P(20, 22 + b, 2, 8, PAL.rollSh); P(6, 22 + b, 16, 1, '#a89c7e');
+  for (let k = 0; k < 3; k++) P(8 + k * 5, 23 + b, 1, 6, dk(PAL.roll, 0.82));                       // витки скатки
+  P(10, 21 + b, 2, 10, '#3a3028'); P(17, 21 + b, 2, 10, '#3a3028');                                   // ремни скатки
+  P(8, 30 + b, 12, 24, PAL.pack); P(8, 30 + b, 12, 5, PAL.packHi); P(18, 30 + b, 2, 24, PAL.packSh); P(8, 52 + b, 12, 2, PAL.packSh);
+  P(9, 38 + b, 9, 7, dk(PAL.pack, 0.88)); P(9, 38 + b, 9, 1, PAL.packHi); P(13, 41 + b, 2, 2, '#9a8a5a');   // накладной карман с пряжкой
+  // куртка
+  P(18, 28 + b, 18, 28, PAL.jacket); P(18, 28 + b, 18, 3, PAL.jacketHi); P(34, 32 + b, 2, 22, PAL.jacketSh);
+  P(18, 31 + b, 1, 23, dk(PAL.jacket, 0.9)); for (let y = 34; y < 52; y += 6) P(19, y + b, 6, 1, dk(PAL.jacket, 0.88));   // складки спины
+  P(30, 32 + b, 2, 18, PAL.zip); for (let y = 33; y < 50; y += 2) P(31, y + b, 1, 1, dk(PAL.zip, 0.6));   // молния с зубцами
+  P(24, 42 + b, 6, 5, PAL.jacketSh); P(24, 42 + b, 6, 1, dk(PAL.jacket, 0.7)); P(26, 43 + b, 2, 1, PAL.zip);   // карман с клапаном и кнопкой
+  P(18, 50 + b, 18, 4, PAL.belt); P(30, 50 + b, 4, 4, PAL.buckle); P(31, 51 + b, 2, 2, dk(PAL.buckle, 0.7)); P(22, 50 + b, 1, 4, '#4a443c');   // ремень, пряжка, шлёвка
+  P(18, 54 + b, 18, 2, PAL.jacketSh);
+  P(20, 30 + b, 2, 20, PAL.packSh); P(20, 40 + b, 3, 3, '#7a7058');                                   // лямка рюкзака с пряжкой
+  leg(28, 28 + o.legFront.f * 2, o.legFront.lift, PAL.pants, PAL.pantsSh, true);
+  // шарф: вязка, хвост
+  P(20, 24 + b, 16, 6, PAL.scarf); P(20, 28 + b, 16, 2, PAL.scarfSh); for (let x = 21; x < 36; x += 3) P(x, 25 + b, 1, 3, dk(PAL.scarf, 0.85));
+  P(16 - o.tail * 2, 28 + b, 4, 12, PAL.scarf); P(16 - o.tail * 2, 38 + b, 4, 2, PAL.scarfSh); P(16 - o.tail * 2, 40 + b, 1, 2, PAL.scarf); P(18 - o.tail * 2, 40 + b, 1, 2, PAL.scarf);   // хвост с бахромой
+  // голова
+  P(22, 8 + b, 14, 16, PAL.skin); P(22, 22 + b, 14, 2, PAL.skinSh); P(36, 16 + b, 2, 4, PAL.skin); P(37, 18 + b, 1, 2, PAL.skinSh);   // лицо, нос
+  P(26, 15 + b, 3, 5, PAL.skinSh); P(27, 16 + b, 1, 3, dk(PAL.skin, 0.65));                           // ухо
+  P(20, 4 + b, 16, 6, PAL.hair); P(20, 10 + b, 4, 10, PAL.hair); P(34, 8 + b, 2, 2, PAL.hair);
+  for (let x = 22; x < 34; x += 3) P(x, 4 + b, 1, 3, PAL.hairHi);                                      // пряди
+  P(26, 4 + b, 6, 1, PAL.hairHi); P(21, 10 + b, 1, 8, PAL.hairHi);
+  if (o.blink) P(32, 14 + b, 4, 1, PAL.skinSh); else { P(32, 14 + b, 2, 2, PAL.eye); P(34, 14 + b, 1, 1, '#e8e0d0'); }
+  P(31, 12 + b, 5, 1, PAL.hair);                                                                       // бровь
+  P(34, 20 + b, 2, 1, PAL.skinSh); P(23, 21 + b, 6, 1, dk(PAL.skin, 0.9));                              // рот, линия челюсти
+  arm(o.armFront, PAL.jacket, true);
+  outline(g, HD_W, HD_H);
+  return c;
+}
+const HD = { on: false, map: new Map(), buildMs: 0, frameMs: 0, frames: 0, snap: false, tmp: null };
+/** Прототип: те же позы, что у personSet героя (8 шагов, 2 стоя, моргание) — соответствие обычный кадр → HD-кадр. */
+function buildHeroHD() {
+  const t0 = performance.now(), mk = o => drawHeroHD(o, HERO_PAL);
+  for (let i = 0; i < 8; i++) {
+    const p = (i / 8) * Math.PI * 2, lift = q => (Math.cos(q) > 0.3 ? (Math.cos(q) > 0.8 ? 2 : 1) : 0);
+    HD.map.set(SPRITES.walk[i], mk({ legFront: { f: Math.round(Math.sin(p) * 5), lift: lift(p) }, legBack: { f: Math.round(Math.sin(p + Math.PI) * 5), lift: lift(p + Math.PI) },
+      armFront: Math.round(-Math.sin(p) * 4), armBack: Math.round(Math.sin(p) * 4), bob: Math.abs(Math.sin(p)) > 0.6 ? 1 : 0, tail: 1, blink: false }));
+  }
+  const stand = { legFront: { f: 1, lift: 0 }, legBack: { f: -1, lift: 0 }, armFront: 0, armBack: 1, tail: 0 };
+  HD.map.set(SPRITES.idle[0], mk({ ...stand, bob: 0, blink: false })); HD.map.set(SPRITES.idle[1], mk({ ...stand, bob: 1, blink: false }));
+  HD.map.set(SPRITES.blink, mk({ ...stand, bob: 0, blink: true }));
+  HD.buildMs = performance.now() - t0;
+}
+
 /* Палитры жителей: та же фигура, другая одежда. */
 const GUARD_PAL  = { ...HERO_PAL, jacket: '#4c535c', jacketHi: '#636b75', jacketSh: '#383e45', zip: '#2a2e33', scarf: '#33373c', scarfSh: '#26292d',
   pants: '#2f3338', pantsSh: '#24272b', hair: '#2a2420', skin: '#b88a6c', skinSh: '#8c6450' };
@@ -4132,7 +4205,8 @@ const Render = {
     this.archDY = 0;
     if (spr && inArch) this.drawInArch(g, spr, px, fy, Player.pass, camI, yo);          // 1.0.1: глубина арки — затемнение, подъём, обрезка косяками
     else if (spr) {
-      g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1;
+      this.hdHero = HD.on && HD.map.has(spr) ? { spr: HD.map.get(spr), px, top: fy - 40, facing: pFacing, alpha: Player.alpha } : null;   // ART-TECH-001: рисуется позже, в экранном разрешении
+      if (!this.hdHero) { g.globalAlpha = Player.alpha; blit(g, spr, px, fy - 40, pFacing, 13); g.globalAlpha = 1; }
       this.playerOcc = { spr, cx: px, top: fy - 40, facing: pFacing, half: 13, alpha: Player.alpha };
       this.occ.push(this.playerOcc);
     }
@@ -4165,6 +4239,27 @@ const Render = {
     const s = this.scale;
     this.ctx.imageSmoothingEnabled = false;
     this.ctx.drawImage(this.buf, Math.round(-frac * s), Math.round(-fracY * s), vw * s, vh * s);
+    if (this.hdHero) this.drawHeroHD(this.hdHero, s, frac, fracY);
+  },
+  /** ART-TECH-001: HD-герой поверх кадра в экранных пикселях. Рост тот же (42 мировых px). Освещение — множитель карты света в точке груди
+      (одним цветом: прототип не повторяет градиент луча по фигуре). snap — целый размер экранного пикселя (при 125 % / 175 % герой меньше на 1/5 и 1/7). */
+  drawHeroHD(h, s, frac, fracY) {
+    const t0 = performance.now(), ctx = this.ctx;
+    const k = HD.snap ? Math.max(1, Math.floor(s / 2)) : s / 2;
+    if (!HD.tmp) HD.tmp = makeCanvas(HD_W, HD_H);
+    const tg = HD.tmp.getContext('2d', { willReadFrequently: true });
+    tg.globalCompositeOperation = 'source-over'; tg.clearRect(0, 0, HD_W, HD_H); tg.drawImage(h.spr, 0, 0);
+    const ly = Math.max(0, Math.min(this.viewH - 1, h.top + 20)), lx = Math.max(0, Math.min(this.viewW, h.px));
+    const L = this.gl.getImageData(lx, ly, 1, 1).data;                  // свет в точке груди
+    tg.globalCompositeOperation = 'multiply'; tg.fillStyle = `rgb(${L[0]},${L[1]},${L[2]})`; tg.fillRect(0, 0, HD_W, HD_H);
+    tg.globalCompositeOperation = 'destination-in'; tg.drawImage(h.spr, 0, 0); tg.globalCompositeOperation = 'source-over';
+    const ox = Math.round(-frac * s), oy = Math.round(-fracY * s), w = HD_W * k, hh = HD_H * k;
+    const x = ox + h.px * s - (HD_W / 2) * k, y = oy + (h.top + 42) * s - hh;   // ноги на той же линии пола
+    ctx.imageSmoothingEnabled = false; ctx.globalAlpha = h.alpha;
+    if (h.facing >= 0) ctx.drawImage(HD.tmp, Math.round(x), Math.round(y), w, hh);
+    else { ctx.save(); ctx.translate(Math.round(x) + w, Math.round(y)); ctx.scale(-1, 1); ctx.drawImage(HD.tmp, 0, 0, w, hh); ctx.restore(); }
+    ctx.globalAlpha = 1;
+    HD.frameMs += performance.now() - t0; HD.frames++;
   },
   /** Фаза А: затемнение перехода между сценами (только во время перехода). */
   drawFade(g, vw, vh) {
@@ -4771,6 +4866,7 @@ const Game = {
       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
+    if ((ENV === 'dev' || Debug.on) && /[?&]hd(?:[=&]|$)/.test(location.search)) { buildHeroHD(); HD.on = true; HD.snap = /[?&]hd=snap/.test(location.search); }   // ART-TECH-001: прототип только по ?hd
     this.buildMs = Math.round(performance.now() - t0);
     Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); this.loadScene(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
     GenPanel.init(); InfoCard.init(); Visual.init(); Zoom.init(); Flashlight.init();
@@ -4820,6 +4916,8 @@ const Game = {
       },
       looks: () => lookReport(),                                        // NPC-001: облики — кадры, границы, отпечатки пикселей
       lookSheet: () => lookSheet(3).toDataURL(),
+      hd: () => ({ on: HD.on, snap: HD.snap, frames: HD.map.size, buildMs: HD.buildMs, drawn: HD.frames, avgMs: HD.frames ? HD.frameMs / HD.frames : 0, w: HD_W, h: HD_H, bytes: HD.map.size * HD_W * HD_H * 4 }),
+      hdSheet: () => { const c = makeCanvas(HD_W * 11 + 30 * 11, HD_H + 50), g = c.getContext('2d'); g.fillStyle = '#1e2426'; g.fillRect(0, 0, c.width, c.height); let x = 4; for (const [lo, hi] of HD.map) { g.drawImage(lo, x, 4); g.drawImage(hi, x + 28, 4); x += HD_W + 32; } return c.toDataURL(); },
       scavengeAdvance: sec => { for (let i = Math.round(sec / CONFIG.STEP); i > 0; i--) Scavenge.step(CONFIG.STEP); },
     });
     Player.onStep = (x, f, y) => FX.step(x, f, y);
