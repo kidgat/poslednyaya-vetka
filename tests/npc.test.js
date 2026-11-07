@@ -1,7 +1,7 @@
 /* NPC-001: облики жителей — 8 архетипов × 3 варианта (без браузера): node tests/npc.test.js
    CONFIG и STATION-блок вынимаются из index.html. Размещение NPC сверяется со снимком dev bbb5642 (до NPC-001): облики меняются, места — нет. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const cut = (from, to) => { const i = src.indexOf(from); if (i < 0) throw new Error('нет ' + from); return src.slice(i, src.indexOf(to, i) + to.length); };
 const CONFIG = Function(`${cut('const CONFIG = {', '\n};')} return CONFIG;`)();
 const ROOMS = Function(`${cut('const ROOMS = [', '\n];')} return ROOMS;`)();

@@ -1,7 +1,7 @@
 /* 0.8.1 «Жизнь в темноте»: режимы яркости, очередь реакций NPC, данные NPC и аварийного света (без браузера).
    node tests/life.test.js — модели вынимаются из index.html (SCAVENGE:BEGIN/END), данные — из CONFIG. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a)));
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const { parseVisual, createReactions } = Function(`${cut('/* SCAVENGE:BEGIN */', '/* SCAVENGE:END */')}; return { parseVisual, createReactions };`)();

@@ -1,11 +1,12 @@
 # Этап 0: юнит-тесты на каждый push в dev и на каждый Pull Request в main.
+# TECH-001: плюс Pull Request в dev; первым шагом — сверка index.html со сборкой из src/.
 # Имя проверки «tests» — его нужно отметить обязательным в защите ветки main (см. docs/PROD_DEV.md).
 name: tests
 on:
   push:
     branches: [dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -14,7 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: index.html собран из src/
+        run: node tools/build.mjs --check
       - run: |
-          for t in env station life power scavenge player ux input npc scene save; do
+          for t in env station life power scavenge player ux input npc scene save compat; do
             echo "== $t"; node tests/$t.test.js | tail -1; node tests/$t.test.js > /dev/null || exit 1
           done

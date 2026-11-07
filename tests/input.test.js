@@ -1,6 +1,6 @@
 /* 1.1А-UX2: гибридное управление — распознавание жеста, перевод касания в мировые координаты, цель на этаже, подход без перелёта. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const { classifyGesture, screenToWorld, tapTarget, autoWalkDir } = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { classifyGesture, screenToWorld, tapTarget, autoWalkDir };`)();
 let pass = 0, fail = 0;

@@ -1,6 +1,6 @@
 /* 1.1А-UX1: масштаб (уровни, разбор сохранения, ступени, ключи PROD/DEV) и личный фонарь (состояние, независимость от сети). */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const { parseZoom, zoomStep, parsePlayerSave } = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { parseZoom, zoomStep, parsePlayerSave };`)();
 const { envSaveKey } = Function(`${src.slice(src.indexOf('/* ENV:BEGIN'), src.indexOf('/* ENV:END */'))}; return { envSaveKey };`)();

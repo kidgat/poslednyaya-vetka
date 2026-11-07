@@ -1,7 +1,7 @@
 /* Юнит-тесты чистой модели POWER из index.html (без браузера): node tests/power.test.js
    Модель вынимается между маркерами POWER:BEGIN/END, параметры — из CONFIG.POWER того же файла. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const model = src.slice(src.indexOf('/* POWER:BEGIN */'), src.indexOf('/* POWER:END */'));
 const cfgText = src.slice(src.indexOf('  POWER: {') + 9, src.indexOf("SAVE_KEY: 'pv.power.v1',") + 26) + '}';
 const cfg = Function(`return (${cfgText})`)();
