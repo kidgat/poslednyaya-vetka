@@ -1,7 +1,7 @@
 /* Фаза А (ШТАБ-018 / CL-014): реестр сцен ST, S1, S2 — порталы края, точки появления, граф, запись pv.scene.v1.
    Чистые функции из блока SCENE:BEGIN/END и проверки исходника. Запуск: node tests/scene.test.js */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const S = Function(`${src.slice(src.indexOf('/* SCENE:BEGIN'), src.indexOf('/* SCENE:END */'))}; return { sceneFloors, edgePortalAt, portalSafeSpot, portalTarget, parseSceneSave, validateScenes };`)();
 const { parsePlayerSave } = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { parsePlayerSave };`)();
