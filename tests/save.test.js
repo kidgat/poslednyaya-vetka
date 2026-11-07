@@ -1,7 +1,7 @@
 /* SAVE-001 этап 1: ядро сохранений (без браузера): node tests/save.test.js
    Блок SAVE:BEGIN/END и parsePlayerSave вынимаются из index.html. Хранилище — подделка с внедрением сбоев (quota, порча, потеря записи). */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const cut = (from, to) => { const i = src.indexOf(from); if (i < 0) throw new Error('нет ' + from); return src.slice(i, src.indexOf(to, i) + to.length); };
 const CONFIG = Function(`${cut('const CONFIG = {', '\n};')} return CONFIG;`)();
 const env = Function(`${src.slice(src.indexOf('/* ENV:BEGIN'), src.indexOf('/* ENV:END */'))}; return { detectEnv, envSaveKey };`)();
