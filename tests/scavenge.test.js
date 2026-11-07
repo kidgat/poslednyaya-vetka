@@ -1,7 +1,7 @@
 /* Тесты поиска топлива и цикла реплик (без браузера): node tests/scavenge.test.js
    Модели вынимаются между маркерами SCAVENGE:BEGIN/END и POWER:BEGIN/END, параметры — из CONFIG того же index.html. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const cut = (a, b) => src.slice(src.indexOf(a), src.indexOf(b));
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const { createScavenge, createDialogCursor } = Function(`${cut('/* SCAVENGE:BEGIN */', '/* SCAVENGE:END */')}; return { createScavenge, createDialogCursor };`)();
