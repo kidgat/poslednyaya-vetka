@@ -13,9 +13,20 @@ const FILES = ['./', './index.html', DEV ? './manifest-dev.webmanifest' : './man
 const SCOPE = new URL('./', self.location).pathname;             // папка игры на сервере
 const NET_TIMEOUT = 3000;
 
+/** Ответ после перенаправления хостинга (Cloudflare Pages: /index.html → /, /x.html → /x) пересобирается в обычный.
+    Браузер отвергает «перенаправленный» ответ service worker на переход по странице: без этого ярлык DEV
+    (start_url ./index.html) не открывался без сети, а страницы archive/*.html — даже с сетью. */
+function clean(r) {
+  return r && r.redirected ? new Response(r.body, { status: r.status, statusText: r.statusText, headers: r.headers }) : r;
+}
+
 self.addEventListener('install', e => {
   // cache:'reload' — свежие файлы с сервера, мимо HTTP-кэша браузера (иначе новая версия могла бы закэшировать старую страницу)
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
+  // Все файлы или ничего: при ошибке любого установка не завершается, остаётся прежний кэш (как было с addAll).
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(FILES.map(f => fetch(new Request(f, { cache: 'reload' })).then(r => {
+    if (!r.ok) throw new Error(f + ': ' + r.status);
+    return clean(r);
+  }))).then(rs => Promise.all(rs.map((r, i) => c.put(FILES[i], r))))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -28,7 +39,7 @@ self.addEventListener('activate', e => {
 function fromNetwork(e, cache, timeout) {
   // страница — с проверкой у сервера (no-cache): HTTP-кэш хостинга (у GitHub Pages ~10 мин) не задерживает новую версию
   const req = timeout ? new Request(e.request.url, { cache: 'no-cache', credentials: 'same-origin' }) : e.request;
-  const net = fetch(req).then(r => {
+  const net = fetch(req).then(clean).then(r => {
     if (r.ok) e.waitUntil(cache.put(e.request, r.clone()));
     return r;
   });
@@ -44,9 +55,9 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.open(CACHE).then(async c => {
     if (page) {
       try { return await fromNetwork(e, c, NET_TIMEOUT); }
-      catch (_) { return (await c.match(e.request, { ignoreSearch: true })) || (await c.match('./index.html')) || Response.error(); }
+      catch (_) { return clean((await c.match(e.request, { ignoreSearch: true })) || (await c.match('./index.html'))) || Response.error(); }
     }
-    const cached = await c.match(e.request, { ignoreSearch: true });
+    const cached = clean(await c.match(e.request, { ignoreSearch: true }));
     const update = fromNetwork(e, c, 0).catch(() => cached);
     if (cached) { e.waitUntil(update.then(() => {}, () => {})); return cached; }
     return update;

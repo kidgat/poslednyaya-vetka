@@ -22,6 +22,10 @@ for (const m of NAMES) {
 }
 ok('C03 const CONFIG = { … } целиком в одном модуле (его вынимают все наборы тестов)', mods.filter(([, t]) => t.includes('const CONFIG = {')).length === 1);
 ok('C04 sw.js не кэширует src/ и tools/ (игре нужен только index.html)', !/src\/|tools\//.test(fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8')));
+const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
+ok('C05 sw.js пересобирает ответы после перенаправления хостинга (Cloudflare: /index.html → /) — при установке, из сети и из кэша',
+  /function clean\(r\)/.test(swSrc) && /r\.redirected/.test(swSrc) && /fetch\(req\)\.then\(clean\)/.test(swSrc) && (swSrc.match(/clean\(/g) || []).length >= 4 && !/\.addAll\(/.test(swSrc));
+ok('C06 ярлык DEV стартует с ./ (без перенаправления /index.html → / на Cloudflare)', JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest-dev.webmanifest'), 'utf8')).start_url === './');
 
 // ---- 2. Сохранения ----
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
