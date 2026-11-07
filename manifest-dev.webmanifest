@@ -2,7 +2,7 @@
   "name": "Последняя ветка DEV",
   "short_name": "ПВ DEV",
   "lang": "ru",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "fullscreen",
   "orientation": "landscape",
