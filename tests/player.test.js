@@ -1,6 +1,6 @@
 /* 1.1А: сохранение положения героя — разбор pv.player.v1 (parsePlayerSave из блока SCAVENGE:BEGIN/END) и ключ PROD/DEV. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const { parsePlayerSave } = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { parsePlayerSave };`)();
 const { envSaveKey } = Function(`${src.slice(src.indexOf('/* ENV:BEGIN'), src.indexOf('/* ENV:END */'))}; return { envSaveKey };`)();
