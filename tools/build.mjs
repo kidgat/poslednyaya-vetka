@@ -1,6 +1,7 @@
 // Сборка index.html из исходников src/ (TECH-001).
 //   node tools/build.mjs          — собрать и записать index.html
 //   node tools/build.mjs --check  — только сверить: index.html должен совпадать со сборкой (для CI и перед коммитом)
+//   node tools/build.mjs --print  — вывести сборку в stdout, ничего не записывая (так её читают тесты)
 // Без зависимостей. Модули склеиваются строго в порядке MODULES и вставляются в src/shell.html
 // на место строки-метки. Внутри общей обёртки (() => { 'use strict'; … })() из shell.html,
 // поэтому все модули видят друг друга так же, как разделы прежнего единого файла.
@@ -50,7 +51,9 @@ export function build() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const html = build();
-  if (process.argv.includes('--check')) {
+  if (process.argv.includes('--print')) {
+    process.stdout.write(html);                                   // для тестов: tests/_src.js
+  } else if (process.argv.includes('--check')) {
     let cur = '';
     try { cur = readFileSync(OUT, 'utf8'); } catch (_) { /* нет файла */ }
     if (cur !== html) {

@@ -1,7 +1,7 @@
 /* Этап 0 (PROD / DEV): окружение по адресу, ключи сохранений и префикс кэша service worker.
    Блок ENV:BEGIN/END вынимается из index.html, начало sw.js выполняется с подставным self.location. */
 const fs = require('fs'), path = require('path');
-const src = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const src = require('./_src.js');   // TECH-001: сборка из src/
 const { detectEnv, envSaveKey } = Function(`${src.slice(src.indexOf('/* ENV:BEGIN'), src.indexOf('/* ENV:END */'))}; return { detectEnv, envSaveKey };`)();
 const sw = fs.readFileSync(path.join(__dirname, '..', 'sw.js'), 'utf8');
 const swHead = sw.slice(0, sw.indexOf('const SCOPE'));
