@@ -26,6 +26,7 @@ const swSrc = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
 ok('C05 sw.js пересобирает ответы после перенаправления хостинга (Cloudflare: /index.html → /) — при установке, из сети и из кэша',
   /function clean\(r\)/.test(swSrc) && /r\.redirected/.test(swSrc) && /fetch\(req\)\.then\(clean\)/.test(swSrc) && (swSrc.match(/clean\(/g) || []).length >= 4 && !/\.addAll\(/.test(swSrc));
 ok('C06 ярлык DEV стартует с ./ (без перенаправления /index.html → / на Cloudflare)', JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest-dev.webmanifest'), 'utf8')).start_url === './');
+ok('C07 sw.js не перехватывает archive/ (архив не подменяется текущей игрой при медленной сети)', /url\.pathname\.startsWith\(SCOPE \+ 'archive\/'\)\) return;/.test(swSrc));
 
 // ---- 2. Сохранения ----
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();

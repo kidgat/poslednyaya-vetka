@@ -51,6 +51,9 @@ function fromNetwork(e, cache, timeout) {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith(SCOPE)) return;
+  // Архивные версии (archive/) — мимо service worker: только с сетью. Иначе при медленной сети (>3 с)
+  // вместо архива показывалась бы текущая игра из кэша.
+  if (url.pathname.startsWith(SCOPE + 'archive/')) return;
   const page = e.request.mode === 'navigate' || url.pathname === SCOPE || url.pathname.endsWith('/index.html');
   e.respondWith(caches.open(CACHE).then(async c => {
     if (page) {
