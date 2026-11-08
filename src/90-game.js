@@ -12,6 +12,7 @@ const Game = {
     S1Art.start();                                                     // S1-ART: декод картинок улицы в фоне
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
+    STArt.start();                                                     // ST-ART-001: поверхность станции — после сборки мира (заменяет надземную часть)
     if ((ENV === 'dev' || Debug.on) && /[?&]hd(?:[=&]|$)/.test(location.search)) { buildHeroHD(); HD.on = true; HD.snap = /[?&]hd=snap/.test(location.search); }   // ART-TECH-001: прототип только по ?hd
     this.buildMs = Math.round(performance.now() - t0);
     Visual.load(); Zoom.load(); this.loadPower(); this.loadScavenge(); this.loadPlayer(); this.loadScene(); PowerView.sync(true); this.mainOn = Power.level('platform') > 0;
