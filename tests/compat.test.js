@@ -41,6 +41,10 @@ const sums = fs.readFileSync(path.join(ROOT, 'art', 'ART-SURF-001', 'SHA256SUMS'
 ok('A04 семь исходников ART-SURF-001 на месте и не изменены (SHA256SUMS)', sums.length === 7 && sums.every(([h, f]) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'art', 'ART-SURF-001', f))).digest('hex') === h));
 ok('A05 игра не грузит файлы ассетов: только data URI внутри страницы; art/ нет в sw.js', !/fetch\(|\.src = ['"](?!data:)/.test(fs.readFileSync(path.join(ROOT, 'src', '25-street-s1-art.js'), 'utf8')) && !/art\//.test(swSrc));
 ok('A06 резерв: процедурная S1 остаётся (buildStreetS1 вызывается при kind proc), ожидание и таймаут есть', /k === 'wait' \? buildStreetS1Wait\(\) : Object\.assign\(buildStreetS1\(\)/.test(src) && /WAIT_MS/.test(src) && src.includes('function buildStreetS1()'));
+const cl = JSON.parse(fs.readFileSync(path.join(ROOT, 'art', 's1', 'game', 'meta.json'), 'utf8')).cells, bot = r => r[1] + r[3];
+const baseY = bot(cl.entrance.r);
+ok('A08 S1-ART-ALIGN: первый этаж, ступени подъезда и торцы кончаются на одной земле исходника, тротуар — сразу под ней',
+  [...cl.ground.win, ...cl.ground.balc].every(c => bot(c.r) === baseY) && cl.walk.r[1] === baseY && [cl.endL, cl.endR].every(e => e.segs[4][0] + e.segs[4][1] === baseY), 'y ' + baseY);
 const size = Buffer.byteLength(src);
 ok('A07 размер index.html в пределах 1,3 МБ (S1-ART +~0,6 МБ)', size < 1.3 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
 

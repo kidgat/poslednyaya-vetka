@@ -102,7 +102,8 @@ function buildStreetS1Art(I) {
   const cell = (img, r, dx, dy, dw, dh) => g.drawImage(I[img], r[0], r[1], r[2], r[3], dx, dy, dw, dh);
   /** Пятиэтажка: секции по 352 px из колонок исходников (без зеркал), 5 этажей по 64 px, первый этаж с цоколем, подъезды по центру секций. */
   const house = (x0, sections, seed) => {
-    const hr = makeRng(seed), hp = a => a[(hr() * a.length) | 0], F = CONFIG.STREET, SEC = F.SECTION, GH = 68, UH = 64, RH = 41;
+    const hr = makeRng(seed), hp = a => a[(hr() * a.length) | 0], F = CONFIG.STREET, SEC = F.SECTION, UH = 64;
+    const GH = M.ground.win[0].r[3], RH = M.roof[0].r[3];               // S1-ART-ALIGN: первый этаж с цоколем до земли исходника — низ дома и ступеней ровно на GY
     const top = GY - GH - 4 * UH;
     let prev = { balc: null, win: null };
     for (let s = 0; s < sections; s++) {
@@ -120,29 +121,29 @@ function buildStreetS1Art(I) {
     }
     const x1 = x0 + sections * SEC;
     for (let x = x0, i = 0; x < x1; i++) { const r = M.roof[(i + seed) % 2]; const w = Math.min(r.r[2], x1 - x); cell(r.img, [r.r[0], r.r[1], w, r.r[3]], x, top - RH, w, RH); x += w; }
-    for (const [end, ex] of [[M.endL, x0 - M.endL.r[2]], [M.endR, x1]]) {        // торцы: крыша, 4 этажа, первый этаж
-      const [rx, ry, rw] = end.r;
-      const ys = [[0, 41, top - RH, RH], [41, 64, top, UH], [105, 64, top + UH, UH], [41, 64, top + 2 * UH, UH], [170, 62, top + 3 * UH, UH], [231, 68, GY - GH, GH]];
-      for (const [sy, sh, dy, dh] of ys) g.drawImage(I[end.img], rx, ry + sy, rw, sh, ex, dy, rw, dh);
+    for (const [end, ex] of [[M.endL, x0 - M.endL.w], [M.endR, x1]]) {          // торцы: крыша, 4 этажа (куски этажей 1,2,1,3), первый этаж
+      const [roof, r1, r2, r3, gr] = end.segs;
+      const ys = [[roof, top - RH, RH], [r1, top, UH], [r2, top + UH, UH], [r1, top + 2 * UH, UH], [r3, top + 3 * UH, UH], [gr, GY - GH, GH]];
+      for (const [[sy, sh], dy, dh] of ys) g.drawImage(I[end.img], end.x, sy, end.w, sh, ex, dy, end.w, dh);
     }
-    const wk = M.walk; for (let x = x0 - 8; x < x1 + 8; x += wk.r[2]) { const w = Math.min(wk.r[2], x1 + 8 - x); cell(wk.img, [wk.r[0], wk.r[1], w, wk.r[3]], x, GY - 2, w, wk.r[3]); }
+    const wk = M.walk; for (let x = x0 - 8; x < x1 + 8; x += wk.r[2]) { const w = Math.min(wk.r[2], x1 + 8 - x); cell(wk.img, [wk.r[0], wk.r[1], w, wk.r[3]], x, GY, w, wk.r[3]); }   // бордюр сразу под землёй
   };
   house(L.house1[0], L.house1[1], 31);
   house(L.house2[0], L.house2[1], 57);
-  // двор и края
-  for (const [x, f] of [[3430, false], [3500, true]]) flipDraw(g, I.rubble, x, GY - I.rubble.height + 4, f);
-  flipDraw(g, I.garage, 880, GY - I.garage.height + 2, false);
-  flipDraw(g, I.pole, 1735, GY - I.pole.height + 2, false);
+  // двор и края — S1-ART-ALIGN: нижний пиксель каждого предмета на линии земли GY (как низ дома и ступеней)
+  for (const [x, f] of [[3430, false], [3500, true]]) flipDraw(g, I.rubble, x, GY - I.rubble.height + 2, f);
+  flipDraw(g, I.garage, 880, GY - I.garage.height + 1, false);
+  flipDraw(g, I.pole, 1735, GY - I.pole.height + 1, false);
   for (const [x, h, sd] of L.trees) {
     const k = Math.max(0.78, Math.min(1.12, h / 300)), w = Math.round(I.tree.width * k), hh = Math.round(I.tree.height * k);
-    flipDraw(g, I.tree, x - (w >> 1), GY - hh + 2, sd % 2 === 1, w, hh);
+    flipDraw(g, I.tree, x - (w >> 1), GY - hh + 1, sd % 2 === 1, w, hh);
   }
-  for (const x of L.lamps) g.drawImage(I.lamp, x - 5, GY - I.lamp.height + 2);
+  for (const x of L.lamps) g.drawImage(I.lamp, x - 5, GY - I.lamp.height + 1);
   for (const x of L.benches) { g.drawImage(I.bench, x - 21, GY - I.bench.height + 1); g.drawImage(I.urn, x + 26, GY - I.urn.height + 1); }
-  L.cars.forEach(([x], i) => flipDraw(g, I.car, x - 47, GY - I.car.height + 3, i % 2 === 1));
+  L.cars.forEach(([x], i) => flipDraw(g, I.car, x - 47, GY - I.car.height + 1, i % 2 === 1));
   const junk = { sofa: 'bags', fridge: 'bags', barrel: 'tires', tires: 'tires', pallets: 'crate', cart: 'crate', sign: null };
-  for (const [k, x] of L.junk) { const n = junk[k]; if (n) flipDraw(g, I[n], x, GY - I[n].height + 2, rng() < 0.5); }
-  flipDraw(g, I.tires, L.dumpster + 40, GY - I.tires.height + 2, false); flipDraw(g, I.bags, L.dumpster - 20, GY - I.bags.height + 2, true);
+  for (const [k, x] of L.junk) { const n = junk[k]; if (n) flipDraw(g, I[n], x, GY - I[n].height + 1, rng() < 0.5); }
+  flipDraw(g, I.tires, L.dumpster + 40, GY - I.tires.height + 1, false); flipDraw(g, I.bags, L.dumpster - 20, GY - I.bags.height + 1, true);
   for (let x = 20; x < W; x += 170 + ((rng() * 260) | 0)) {             // клочья травы и мусор у земли (за героем)
     const im = I['clump' + ((rng() * 4) | 0)];
     if (rng() < 0.55) flipDraw(g, im, x, GY - im.height + 6, rng() < 0.5);
