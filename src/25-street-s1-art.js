@@ -87,16 +87,16 @@ function buildStreetS1Art(I) {
   gb.imageSmoothingEnabled = false;
   gb.drawImage(I.yard, s1L(1320, k76) - (I.yard.width >> 1), 318 - I.yard.height);
   gb.imageSmoothingEnabled = true;
-  for (const [x, f] of [[1700, false], [1762, true], [1824, false]]) flipDraw(gb, I.garage, s1L(x, k76), 318 - Math.round(I.garage.height * k76), f, Math.round(I.garage.width * k76), Math.round(I.garage.height * k76));
+  // S1-ART-FINAL: гаражи с заднего плана убраны — перекрывали фасад и подъезд башни; стоят во дворе на игровой плоскости
   gb.imageSmoothingEnabled = false;
   haze(gb, backC.width, 318, 0.16);
 
   // ---------- игровая плоскость (1): асфальт, пятиэтажки, предметы ----------
   const pc = makeCanvas(W, -TOP), g = ctx(pc); g.setTransform(1, 0, 0, 1, 0, -TOP);
-  for (let r = 0, y = GY - 8; y < 0; r++, y += I.asphalt.height - 6) {   // асфальт из рисунка до низа кадра, к зрителю темнее
+  for (let r = 0, y = GY - 8; y < 0; r++, y += I.asphalt.height - 6) {   // асфальт у дорожки, ниже — мокрый грунт
     const sh = makeCanvas(W, I.asphalt.height), gs = ctx(sh);
     tile(gs, I.asphalt, -((r * 397) % 600), W, 0, 80);
-    if (r) { gs.globalCompositeOperation = 'source-atop'; gs.fillStyle = `rgba(20,20,22,${Math.min(0.55, 0.12 * r)})`; gs.fillRect(0, 0, W, sh.height); }
+    if (r) { gs.globalCompositeOperation = 'source-atop'; gs.fillStyle = `rgba(104,94,78,${Math.min(0.3, 0.14 + 0.04 * r)})`; gs.fillRect(0, 0, W, sh.height); }   // S1-ART-FINAL: мокрый бурый грунт, не чёрная полоса
     g.drawImage(sh, 0, y);
   }
   const cell = (img, r, dx, dy, dw, dh) => g.drawImage(I[img], r[0], r[1], r[2], r[3], dx, dy, dw, dh);
@@ -132,7 +132,15 @@ function buildStreetS1Art(I) {
   house(L.house2[0], L.house2[1], 57);
   // двор и края — S1-ART-ALIGN: нижний пиксель каждого предмета на линии земли GY (как низ дома и ступеней)
   for (const [x, f] of [[3430, false], [3500, true]]) flipDraw(g, I.rubble, x, GY - I.rubble.height + 2, f);
-  flipDraw(g, I.garage, 880, GY - I.garage.height + 1, false);
+  /** Гараж на земле двора: контактная тень, тёмная кромка грунта у основания, бурьян по углам (S1-ART-FINAL). */
+  const garage = (x, flip) => {
+    const w = I.garage.width;
+    for (let i = 0; i < 4; i++) { g.fillStyle = `rgba(16,15,13,${0.5 - i * 0.11})`; g.fillRect(x - 2 - i * 2, GY - 1 + i, w + 4 + i * 4, 1); }   // тень ложится на грунт, к краям слабее
+    flipDraw(g, I.garage, x, GY - I.garage.height + 1, flip);
+    g.fillStyle = 'rgba(36,32,26,.55)'; g.fillRect(x + 1, GY - 2, w - 2, 2);                                // грязь и сырость на нижней кромке листа
+    for (const [dx, k] of [[-14, 0.42], [w - 30, 0.5]]) { const im = I.clump2, cw = Math.round(im.width * k), ch = Math.round(im.height * k); flipDraw(g, im, x + dx, GY - ch + 3, dx > 0, cw, ch); }
+  };
+  garage(880, false); garage(962, true); garage(1044, false);          // ряд гаражей во дворе у дома №2: за ними забор и деревья, не фасады
   flipDraw(g, I.pole, 1735, GY - I.pole.height + 1, false);
   for (const [x, h, sd] of L.trees) {
     const k = Math.max(0.78, Math.min(1.12, h / 300)), w = Math.round(I.tree.width * k), hh = Math.round(I.tree.height * k);
@@ -147,6 +155,18 @@ function buildStreetS1Art(I) {
   for (let x = 20; x < W; x += 170 + ((rng() * 260) | 0)) {             // клочья травы и мусор у земли (за героем)
     const im = I['clump' + ((rng() * 4) | 0)];
     if (rng() < 0.55) flipDraw(g, im, x, GY - im.height + 6, rng() < 0.5);
+  }
+  const gr = makeRng(5150);                                            // S1-ART-FINAL: передний план грунта (ниже уровня ходьбы, верх не выше GY + 10)
+  for (let x = 10; x < W; x += 60 + ((gr() * 110) | 0)) {
+    const y = GY + 12 + ((gr() * (-GY - 26)) | 0), t = gr();
+    if (t < 0.28) {                                                     // лужа: отражение пасмурного неба, тёмный край
+      const pw = 22 + ((gr() * 60) | 0), ph = 3 + ((gr() * 5) | 0);
+      for (let j = 0; j < ph; j++) { const q = Math.sqrt(1 - ((j + 0.5 - ph / 2) / (ph / 2)) ** 2), lw = Math.round(pw * q), lx = x + ((pw - lw) >> 1);
+        g.fillStyle = j === 0 ? '#2b2924' : j === 1 ? '#a3a5aa' : j < ph - 1 ? (j % 2 ? '#8b8d92' : '#7d7f84') : '#4a4842'; g.fillRect(lx, y + j, lw, 1); }
+      if (pw > 40) { g.fillStyle = 'rgba(200,202,206,.5)'; g.fillRect(x + (pw >> 2), y + 2, pw >> 2, 1); }
+    } else if (t < 0.58) { const im = I['clump' + ((gr() * 4) | 0)], k = 0.5 + gr() * 0.35; flipDraw(g, im, x, y - Math.round(im.height * k) + 4, gr() < 0.5, Math.round(im.width * k), Math.round(im.height * k)); }
+    else if (t < 0.78) { for (let i = 0; i < 3 + gr() * 4; i++) { const bx = x + ((gr() * 24) | 0), by = y + ((gr() * 6) | 0); g.fillStyle = ['#7a4434', '#8c5040', '#6a3a2e'][(gr() * 3) | 0]; g.fillRect(bx, by, 5, 3); g.fillStyle = 'rgba(20,18,16,.5)'; g.fillRect(bx, by + 3, 5, 1); } }   // битый кирпич
+    else for (let i = 0; i < 6 + gr() * 8; i++) { const sx = x + ((gr() * 40) | 0), sy = y + ((gr() * 8) | 0), c = 96 + ((gr() * 50) | 0); g.fillStyle = `rgb(${c},${c - 2},${c - 6})`; g.fillRect(sx, sy, 2 + ((gr() * 2) | 0), 2); g.fillStyle = 'rgba(18,16,14,.55)'; g.fillRect(sx, sy + 2, 2, 1); }   // камни
   }
   const play = layer(1, TOP, pc);
   // ---------- передний план (1,15): трава и обломки ниже ступней героя (верх не выше −112) ----------

@@ -44,6 +44,27 @@ def keyed(name):
     return np.dstack([a[..., :3], alpha])
 
 
+def unlight(arr, cx, cy, rad):
+    """S1-ART-FINAL: электричества нет — погасить лампу над подъездом и жёлтый ореол (корпус и решётка остаются).
+    В радиусе rad от лампы тёплый свет плавно сводится к холодному серому той же формы; в центре стекло тёмное."""
+    h, w = arr.shape[:2]
+    y0, y1, x0, x1 = max(0, cy - rad), min(h, cy + rad), max(0, cx - rad), min(w, cx + rad)
+    sub = arr[y0:y1, x0:x1]
+    yy, xx = np.mgrid[y0:y1, x0:x1]
+    d = np.sqrt((xx - cx) ** 2 + ((yy - cy) * np.where(yy > cy, 0.8, 1.25)) ** 2)   # вниз (на дверь) свет растекался дальше
+    f = np.clip(1 - d / rad, 0, 1) ** 1.2                            # сила ореола: 1 у лампы → 0 на краю
+    rgb = sub[..., :3]
+    lum = rgb @ np.array([0.30, 0.59, 0.11], np.float32)
+    warm = np.clip((rgb[..., 0] - rgb[..., 2]) * 4, 0, 1)            # только тёплые (освещённые) пиксели
+    k = (f * (0.35 + 0.65 * warm))[..., None]
+    grey = np.dstack([lum * 0.62, lum * 0.63, lum * 0.66])           # без света: темнее и холоднее
+    core = (d < rad * 0.22)[..., None] & (lum > 0.45)[..., None]     # раскалённое стекло → тёмное стекло
+    out = rgb * (1 - k) + grey * k
+    out = np.where(core, np.dstack([lum * 0.32 + 0.08, lum * 0.32 + 0.08, lum * 0.34 + 0.09]), out)
+    sub[..., :3] = np.clip(out, 0, 1)
+    return arr
+
+
 def crop_scale(arr, box, scale=None, size=None):
     x0, y0, x1, y1 = box
     sub = arr[y0:y1, x0:x1]
@@ -110,6 +131,7 @@ def main():
     save('yard', crop_scale(yard, (16, 150, 2268, 606), 0.30), meta)
     # --- дома: две пятиэтажки-исходника в масштабе этажа 64 px; ячейки режет игра по meta ---
     hs = keyed('houses')
+    unlight(hs, 725, 477, 60)                                      # лампа над подъездом дома A (все подъезды S1 и башня на заднем плане)
     k = K_HOUSE
     for nm, (x0, x1) in {'houseA': (504, 1012), 'houseB': (1570, 1992)}.items():
         save(nm, crop_scale(hs, (x0, 40, x1, 640), k), meta, {'origin': [x0, 40]})
