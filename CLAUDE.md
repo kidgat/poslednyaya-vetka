@@ -22,17 +22,22 @@ PROD — ветка `main` → https://kidgat.github.io/poslednyaya-vetka/ · DE
 | сцены, порталы, `pv.scene.v1` | `13-scene-core.js`, `23-scene.js` |
 | ядро сохранений SAVE-001 (не встроено) | `14-save.js` |
 | графика станции | `20-world.js` |
-| улица S1 и общие слои улиц | `21-outdoor.js`, `22-street-s1.js` |
+| улица S1: картинки (S1-ART), загрузчик, резерв | `25-street-s1-art.js` (картинки — `24-s1-art.js`, **не читать**: 0,6 МБ data URI) |
+| улица S1 процедурная (резерв) и общие слои улиц | `21-outdoor.js`, `22-street-s1.js` |
 | спрайты, NPC | `30-sprites.js`, `31-actors.js` |
 | управление, герой, камера | `40-input.js`, `41-player.js`, `42-camera-fx.js` |
 | отрисовка кадра | `50-render.js` |
 | кнопки, яркость, масштаб, фонарь, карточки | `60-ui.js`, `shell.html` |
 | цикл игры, загрузка/запись, service worker | `90-game.js` |
 
+## Картинки S1 (S1-ART)
+- Исходники `art/ART-SURF-001/` не менять (SHA256SUMS). Подготовка: `python3 tools/art/prep_s1.py` → `art/s1/game/`, упаковка: `node tools/art/pack.mjs` → `src/24-s1-art.js`, затем сборка.
+- В игре картинки только data URI внутри `index.html`: `sw.js` не трогать. `?s1=proc` — процедурная S1 для сравнения.
+
 ## Перед коммитом
 1. `node tools/build.mjs`
 2. Все наборы: `for t in env station life power scavenge player ux input npc scene save compat; do node tests/$t.test.js | tail -1; done`
-3. `node tools/build.mjs --check`. CI проверяет то же самое.
+3. `node tools/build.mjs --check` и `node tools/art/pack.mjs --check`. CI проверяет то же самое.
 
 ## Версия и офлайн
 - `CONFIG.VERSION` (`01-config.js`), `CACHE` в `sw.js` и `CHANGELOG.md` меняются вместе. Номер назначает Андрей.

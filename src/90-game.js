@@ -9,6 +9,7 @@ const Game = {
     const coarse = this.coarse = matchMedia('(pointer:coarse)').matches;
     if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — действие · R — в центр';
       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
+    S1Art.start();                                                     // S1-ART: декод картинок улицы в фоне
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     if ((ENV === 'dev' || Debug.on) && /[?&]hd(?:[=&]|$)/.test(location.search)) { buildHeroHD(); HD.on = true; HD.snap = /[?&]hd=snap/.test(location.search); }   // ART-TECH-001: прототип только по ?hd
