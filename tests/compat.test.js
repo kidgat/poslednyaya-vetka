@@ -31,8 +31,8 @@ ok('C07 sw.js не перехватывает archive/ (архив не подм
 // ---- S1-ART: картинки улицы ----
 const { execFileSync } = require('child_process');
 const crypto = require('crypto');
-let packOk = true; try { execFileSync(process.execPath, [path.join(ROOT, 'tools', 'art', 'pack.mjs'), '--check'], { stdio: 'pipe' }); } catch (_) { packOk = false; }
-ok('A01 src/24-s1-art.js совпадает с art/s1/game (node tools/art/pack.mjs --check)', packOk);
+let packOk = true; for (const set of ['s1', 'st']) try { execFileSync(process.execPath, [path.join(ROOT, 'tools', 'art', 'pack.mjs'), set, '--check'], { stdio: 'pipe' }); } catch (_) { packOk = false; }
+ok('A01 src/24-s1-art.js и src/26-st-art.js совпадают с art/s1/game и art/st/game (node tools/art/pack.mjs s1|st --check)', packOk);
 const artMeta = JSON.parse(fs.readFileSync(path.join(ROOT, 'art', 's1', 'game', 'meta.json'), 'utf8'));
 const artImgs = Object.entries(artMeta.images);
 ok('A02 ассеты S1 без магенты и розовой каймы (pink = 0 у всех)', artImgs.length >= 20 && artImgs.every(([, v]) => v.pink === 0), artImgs.filter(([, v]) => v.pink).map(([k]) => k).join());
@@ -46,7 +46,11 @@ const baseY = bot(cl.entrance.r);
 ok('A08 S1-ART-ALIGN: первый этаж, ступени подъезда и торцы кончаются на одной земле исходника, тротуар — сразу под ней',
   [...cl.ground.win, ...cl.ground.balc].every(c => bot(c.r) === baseY) && cl.walk.r[1] === baseY && [cl.endL, cl.endR].every(e => e.segs[4][0] + e.segs[4][1] === baseY), 'y ' + baseY);
 const size = Buffer.byteLength(src);
-ok('A07 размер index.html в пределах 1,3 МБ (S1-ART +~0,6 МБ)', size < 1.3 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
+ok('A07 размер index.html в пределах 1,5 МБ (S1-ART +~0,6 МБ, ST-ART-001 +~0,2 МБ)', size < 1.5 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
+const stSums = fs.readFileSync(path.join(ROOT, 'art', 'ST-ART-001', 'SHA256SUMS'), 'utf8').trim().split('\n').map(l => l.split(/\s+\*?/));
+ok('A09 исходник ST-ART-001 на месте и не изменён (SHA256SUMS)', stSums.length === 1 && stSums.every(([h, f]) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'art', 'ST-ART-001', f))).digest('hex') === h));
+const boot = src.split('\n').find(l => l.includes('buildWorld();') && l.includes('placeActors();')) || '';
+ok('A10 запуск игры: buildWorld, buildSprites, placeActors, FX.init вызываются (не попали в комментарий)', /^\s*buildWorld\(\); buildSprites\(\); placeActors\(\); FX\.init\(\);/.test(boot) && /STArt\.start\(\)/.test(src));
 
 // ---- 2. Сохранения ----
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
@@ -62,4 +66,5 @@ ok('C15 pv.scene.v1 старой геометрии S1 (без g) → null, ка
 ok('C16 pv.zoom.v1: 150 % → индекс 2; нет записи → 100 %', S.parseZoom(CONFIG, '{"v":1,"level":1.5}') === 2 && S.parseZoom(CONFIG, null) === 0);
 ok('C17 pv.visual.v1: «Атмосферно» сохраняется; неизвестное → «Нормально»', S.parseVisual(CONFIG.VISUAL, '{"v":1,"brightness":"dark"}') === 'dark' && S.parseVisual(CONFIG.VISUAL, '{"v":1,"brightness":"x"}') === 'normal');
 
+ok('A11 ST-ART-001: спуск в вестибюль (1650), проход во «Дворы» (левый край 1136) и правая граница (1980) прежние', CONFIG.FLOORS.surface.minX === 1136 && CONFIG.FLOORS.surface.maxX === 1980 && CONFIG.GATES[0].b.x === 1650 && CONFIG.SCENES.ST.portals[0].edge === 'left');
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

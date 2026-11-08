@@ -18,7 +18,7 @@ jobs:
       - name: index.html собран из src/
         run: node tools/build.mjs --check
       - name: картинки S1 упакованы из art/s1/game
-        run: node tools/art/pack.mjs --check
+        run: node tools/art/pack.mjs s1 --check && node tools/art/pack.mjs st --check
       - run: |
           for t in env station life power scavenge player ux input npc scene save compat; do
             echo "== $t"; node tests/$t.test.js | tail -1; node tests/$t.test.js > /dev/null || exit 1

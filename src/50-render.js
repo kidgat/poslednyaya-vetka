@@ -326,7 +326,7 @@ const Render = {
     gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
     gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
     const gy = Math.min(this.viewH, yo + GROUND_Y + 11);                // снаружи — светлее: пыльные сумерки (0.9: от уровня земли)
-    if (gy > 0) { const S = VP.surface; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }
+    if (gy > 0) { const S = STArt.state === 'ready' ? ST_ART_DAY : VP.surface; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }   // ST-ART-001: над землёй — дневной свет как во «Дворах»
     gl.globalCompositeOperation = 'lighter';
     let n = 0;
     /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
