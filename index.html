@@ -3375,8 +3375,7 @@ function buildStreetS1Art(I) {
     const c = makeCanvas(im.width, im.height), g = ctx(c);
     g.drawImage(im, 0, 0);
     const gr = g.createLinearGradient(0, 0, n, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,1)');
-    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, n, im.height);
-    g.fillStyle = '#000'; g.fillRect(n, 0, im.width - n, im.height);
+    g.globalCompositeOperation = 'destination-in'; g.fillStyle = gr; g.fillRect(0, 0, im.width, im.height);   // одним прямоугольником: destination-in стирает всё вне фигуры
     return c;
   };
   const tile = (g, im, x0, x1, y, overlap) => {                     // повтор по горизонтали со смешиванием стыков
