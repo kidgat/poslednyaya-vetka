@@ -28,6 +28,26 @@ ok('C05 sw.js пересобирает ответы после перенапр�
 ok('C06 ярлык DEV стартует с ./ (без перенаправления /index.html → / на Cloudflare)', JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest-dev.webmanifest'), 'utf8')).start_url === './');
 ok('C07 sw.js не перехватывает archive/ (архив не подменяется текущей игрой при медленной сети)', /url\.pathname\.startsWith\(SCOPE \+ 'archive\/'\)\) return;/.test(swSrc));
 
+// ---- S1-ART: картинки улицы ----
+const { execFileSync } = require('child_process');
+const crypto = require('crypto');
+let packOk = true; try { execFileSync(process.execPath, [path.join(ROOT, 'tools', 'art', 'pack.mjs'), '--check'], { stdio: 'pipe' }); } catch (_) { packOk = false; }
+ok('A01 src/24-s1-art.js совпадает с art/s1/game (node tools/art/pack.mjs --check)', packOk);
+const artMeta = JSON.parse(fs.readFileSync(path.join(ROOT, 'art', 's1', 'game', 'meta.json'), 'utf8'));
+const artImgs = Object.entries(artMeta.images);
+ok('A02 ассеты S1 без магенты и розовой каймы (pink = 0 у всех)', artImgs.length >= 20 && artImgs.every(([, v]) => v.pink === 0), artImgs.filter(([, v]) => v.pink).map(([k]) => k).join());
+ok('A03 палитра не урезана до потери деталей: средняя ошибка ≤ 5/255 у каждого ассета', artImgs.every(([, v]) => v.err <= 5), Math.max(...artImgs.map(([, v]) => v.err)) + '');
+const sums = fs.readFileSync(path.join(ROOT, 'art', 'ART-SURF-001', 'SHA256SUMS'), 'utf8').trim().split('\n').map(l => l.split(/\s+\*?/));
+ok('A04 семь исходников ART-SURF-001 на месте и не изменены (SHA256SUMS)', sums.length === 7 && sums.every(([h, f]) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'art', 'ART-SURF-001', f))).digest('hex') === h));
+ok('A05 игра не грузит файлы ассетов: только data URI внутри страницы; art/ нет в sw.js', !/fetch\(|\.src = ['"](?!data:)/.test(fs.readFileSync(path.join(ROOT, 'src', '25-street-s1-art.js'), 'utf8')) && !/art\//.test(swSrc));
+ok('A06 резерв: процедурная S1 остаётся (buildStreetS1 вызывается при kind proc), ожидание и таймаут есть', /k === 'wait' \? buildStreetS1Wait\(\) : Object\.assign\(buildStreetS1\(\)/.test(src) && /WAIT_MS/.test(src) && src.includes('function buildStreetS1()'));
+const cl = JSON.parse(fs.readFileSync(path.join(ROOT, 'art', 's1', 'game', 'meta.json'), 'utf8')).cells, bot = r => r[1] + r[3];
+const baseY = bot(cl.entrance.r);
+ok('A08 S1-ART-ALIGN: первый этаж, ступени подъезда и торцы кончаются на одной земле исходника, тротуар — сразу под ней',
+  [...cl.ground.win, ...cl.ground.balc].every(c => bot(c.r) === baseY) && cl.walk.r[1] === baseY && [cl.endL, cl.endR].every(e => e.segs[4][0] + e.segs[4][1] === baseY), 'y ' + baseY);
+const size = Buffer.byteLength(src);
+ok('A07 размер index.html в пределах 1,3 МБ (S1-ART +~0,6 МБ)', size < 1.3 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
+
 // ---- 2. Сохранения ----
 const CONFIG = Function(`${src.slice(src.indexOf('const CONFIG = {'), src.indexOf('\n};', src.indexOf('const CONFIG = {')) + 3)} return CONFIG;`)();
 const S = Function(`${src.slice(src.indexOf('/* SCAVENGE:BEGIN */'), src.indexOf('/* SCAVENGE:END */'))}; return { parsePlayerSave, parseZoom, parseVisual };`)();

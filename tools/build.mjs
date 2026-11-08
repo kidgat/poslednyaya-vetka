@@ -29,6 +29,8 @@ export const MODULES = [
   '21-outdoor.js',      // OUTDOOR SCENES: общие слои улицы
   '22-street-s1.js',    // STREET: улица S1 «Дворы»
   '23-scene.js',        // Scene: переходы, кэш сцен, buildWorld
+  '24-s1-art.js',       // S1-ART: картинки улицы S1 (сгенерировано tools/art/pack.mjs — не читать)
+  '25-street-s1-art.js',// S1-ART: сборка S1 из картинок, загрузчик S1Art; резерв — процедурная S1
   '30-sprites.js',      // PLAYER_SPRITE: спрайты героя и NPC
   '31-actors.js',       // ACTORS: NPC
   '40-input.js',        // INPUT
