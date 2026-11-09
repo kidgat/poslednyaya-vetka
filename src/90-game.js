@@ -120,7 +120,8 @@ const Game = {
     }
     if (this.mark && (this.mark.floor !== Player.floor || (!this.mark.fading && Player.target === null))) this.mark = null;   // этаж сменился / цель снята иначе
     if (this.mark && this.mark.fading) { this.mark.t -= dt; if (this.mark.t <= 0) this.mark = null; }
-    if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
+    if (action === 'use' && it && it.kind === 'door') { if (!this.trans) this.startTransition(it.portal); Player.update(dt, dir, null); }   // ST-VIEW-001: вход/выход/во дворы — переход с затемнением
+    else if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
       if (action === 'use') {
         if (it.kind === 'generator') GenPanel.toggle();
         else if (it.kind === 'inspect') InfoCard.use(it.item);
@@ -199,8 +200,8 @@ const Game = {
     else this.writePlayerV1(this.v1Fallback());
     this.writeScene({ scene: pos.scene, floor: pos.floor, x: pos.x, facing: pos.facing, pending: null });
   },
-  /** Положение для старого движка, пока герой вне станции: перед порталом P1 на улице станции. */
-  v1Fallback() { const p = CONFIG.SCENES.ST.portals[0]; return CONFIG.SCENES.ST.spawns[CONFIG.SCENES[p.to].portals.find(q => q.to === 'ST').spawn]; },
+  /** Положение для старого движка, пока герой вне станции: у двери выхода в вестибюле (валидная точка станции). */
+  v1Fallback() { const sp = CONFIG.SCENES.ST.spawns.fromSurf; return { floor: sp.floor, x: sp.x, facing: sp.facing }; },
   writePlayerV1(pos) {
     const rec = JSON.stringify({ v: 1, floor: pos.floor, x: Math.round(pos.x * 10) / 10, facing: pos.facing === -1 ? -1 : 1 });
     if (rec === this.lastPlayerRec) return;
@@ -221,6 +222,9 @@ const Game = {
     if (!r) { try { localStorage.removeItem(saveKey(CONFIG.SCENE.SAVE_KEY)); } catch (_) { /* нет доступа */ } return; }   // испорчена — только эта запись; pv.player.v1 не трогаем
     this.lastPlayerRec = v1;
     if (d && d.v1 !== undefined && d.v1 !== v1) { this.writeScene({ scene: 'ST', floor: Player.floor, x: Player.x, facing: Player.facing }); return; }   // pv.player.v1 менялся без нас — верим ему
+    if (r.scene === 'ST' && r.floor === 'surface') {                      // ST-VIEW-001: старая запись «на поверхности станции» → новая сцена поверхности
+      const sp = CONFIG.SCENES.SURF.spawns.fromMetro; Scene.enter('SURF'); Player.place(sp.floor, sp.x, sp.facing); this.armed = true; this.commitScenePos({ scene: 'SURF', ...sp }); return;
+    }
     if (r.scene === 'ST' && !r.pending) return;                           // на станции главный — pv.player.v1
     Scene.enter(r.scene);
     Player.place(r.floor, r.x, r.facing);
@@ -278,7 +282,7 @@ const Game = {
     const H = CONFIG.PLAYER.HOME;
     let raw = null; try { raw = localStorage.getItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
     const p = raw ? parsePlayerSave(CONFIG, raw) : null;
-    if (p) Player.place(p.floor, p.x, p.facing);
+    if (p && p.floor !== 'surface') Player.place(p.floor, p.x, p.facing);   // ST-VIEW-001: станция без поверхности; старая запись surface → домой (сцену восстановит loadScene)
     else {
       Player.place(H.floor, H.x, 1);                                     // нет записи или она испорчена — дома; прочие сохранения не трогаем
       if (raw) try { localStorage.removeItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
@@ -295,7 +299,7 @@ const Game = {
   updateAction() {
     const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
     let label = !it ? '' : it.kind === 'passage' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
-      : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
+      : it.kind === 'door' ? it.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
     if (it && it.kind === 'scavenge' && !Scavenge.available(it.item.id)) label = it.item.id === 'cache' ? '◎ Тайник пуст' : '◎ Пусто';
     if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
     if (label === this.actLabel) return;

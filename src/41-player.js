@@ -26,24 +26,27 @@ const Player = {
   },
   /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
   interaction() {
-    if (this.state !== 'walk' || Scene.id !== 'ST') return null;      // фаза А: снаружи станции действий нет (гараж, тайник, ворота — только на ST)
+    if (this.state !== 'walk') return null;
     const inside = (x, [a, b]) => x >= a && x <= b;
-    for (const q of CONFIG.PASSAGES)                                      // 1.0.1: служебные проходы
-      for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
-        if (this.floor === from.floor && Math.abs(this.x - from.x) <= q.radius) return { kind: 'passage', passage: q, from, to, dir: from.dir };
-    for (const gt of CONFIG.GATES)
-      for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
-        if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
-    const G = CONFIG.GENERATOR;
-    if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
-    for (const item of CONFIG.INSPECTS) {
-      if (this.floor !== item.floor) continue;
-      if (item.trigger) { if (inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' }; continue; }
-      const a = npcById(item.npc);                                       // разговор: от текущей позиции NPC
-      if (a && Math.abs(this.x - a.x) <= item.radius) return { kind: 'inspect', item, dir: 'use' };
+    // ST-VIEW-001: двери-порталы с затемнением — вход/выход метро (вестибюль) и «Во дворы» (поверхность).
+    const door = doorPortalAt(CONFIG, Scene.id, this.floor, this.x);
+    if (door) return { kind: 'door', portal: door, label: door.label, dir: 'use' };
+    if (Scene.id === 'ST') {                                              // подземные действия — только на станции
+      for (const q of CONFIG.PASSAGES)                                    // 1.0.1: служебные проходы
+        for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
+          if (this.floor === from.floor && Math.abs(this.x - from.x) <= q.radius) return { kind: 'passage', passage: q, from, to, dir: from.dir };
+      const G = CONFIG.GENERATOR;
+      if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
+      for (const item of CONFIG.INSPECTS) {
+        if (this.floor !== item.floor) continue;
+        if (item.trigger) { if (inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' }; continue; }
+        const a = npcById(item.npc);                                     // разговор: от текущей позиции NPC
+        if (a && Math.abs(this.x - a.x) <= item.radius) return { kind: 'inspect', item, dir: 'use' };
+      }
+    } else if (Scene.id === 'SURF') {                                     // сбор топлива — на поверхности
+      for (const spot of CONFIG.SCAVENGE.SPOTS)
+        if (this.floor === spot.floor && inside(this.x, spot.trigger)) return { kind: 'scavenge', item: spot, dir: 'use' };
     }
-    for (const spot of CONFIG.SCAVENGE.SPOTS)
-      if (this.floor === spot.floor && inside(this.x, spot.trigger)) return { kind: 'scavenge', item: spot, dir: 'use' };
     return null;
   },
   update(dt, dir, action) {

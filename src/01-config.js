@@ -206,12 +206,21 @@ const CONFIG = {
   STREET: { PLINTH: 24, PITCH: 64, FLOORS: 5, PARAPET: 10, WIN_W: 30, WIN_H: 32, SILL: 20, DOOR_W: 22, DOOR_H: 48, SECTION: 352, TOP: -502, HERO: 40 },
   SCENE: { SAVE_KEY: 'pv.scene.v1', HOLD: 0.25, FADE: 0.35, SAFE: 40, REARM: 24, CACHE: 2 },   // фаза А: удержание у края 0,25 с, затемнение 0,35 + 0,35 с, точка появления в 40 px от края, повторный портал — после 24 px, в памяти текущая + предыдущая сцена
   SCENES: {
-    ST: { name: 'Гагаринская', W: 2000, floors: null,                    // null — этажи станции CONFIG.FLOORS
-      portals: [{ id: 'P1', floor: 'surface', edge: 'left', to: 'S1', spawn: 'fromST' }],
-      spawns: { fromS1: { floor: 'surface', x: 1176, facing: 1 } } },
+    // ST-VIEW-001: станция — только подземка. Поверхность — отдельная сцена SURF. Вход — дверь-портал с затемнением (не вертикальные ворота).
+    ST: { name: 'Гагаринская', W: 2000, floors: null,                    // null — этажи станции CONFIG.FLOORS (surface остаётся как геометрия верха, но недостижим)
+      portals: [],
+      doors: [{ id: 'D_exit', floor: 'vestibule', x: 1650, radius: 16, label: '▲ Выйти на поверхность', to: 'SURF', spawn: 'fromMetro' }],
+      spawns: { fromSurf: { floor: 'vestibule', x: 1650, facing: 1 } } },
+    // Поверхность над «Гагаринской» — длинная улица (как «Дворы»): завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал.
+    SURF: { name: 'Гагаринская', W: 3400, geo: 1, layered: true, surf: true,
+      floors: { surface: { y: -122, minX: 120, maxX: 3280, cam: 0.79 } },
+      portals: [],
+      doors: [{ id: 'D_metro', floor: 'surface', x: 560, radius: 44, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
+              { id: 'D_yard', floor: 'surface', x: 1980, radius: 44, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
+      spawns: { fromMetro: { floor: 'surface', x: 680, facing: 1 }, fromS1: { floor: 'surface', x: 2080, facing: 1 } } },
     S1: { name: 'Дворы', W: 3600, geo: 2, layered: true,                // ШТАБ-022: реальная шкала; geo — версия геометрии (записи старой геометрии 1800 не восстанавливаются)
       floors: { surface: { y: -122, minX: 60, maxX: 3540, cam: 0.79 } },  // cam — доля высоты кадра для ступней на всех масштабах (ШТАБ-020: 0,78–0,80)
-      portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'ST', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
+      portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'SURF', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
       spawns: { fromST: { floor: 'surface', x: 3500, facing: -1 }, fromS2: { floor: 'surface', x: 100, facing: 1 } },
       layout: {                                                           // справа налево от станции: завал → пятиэтажка №1 (4 подъезда) → двор → спортплощадка → детская площадка → пятиэтажка №2 (временно)
         edgeR: [3420, 3600], house1: [1982, 4], house2: [140, 2], sport: [1180, 1700], play: [900, 1170],

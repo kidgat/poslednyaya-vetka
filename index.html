@@ -396,12 +396,21 @@ const CONFIG = {
   STREET: { PLINTH: 24, PITCH: 64, FLOORS: 5, PARAPET: 10, WIN_W: 30, WIN_H: 32, SILL: 20, DOOR_W: 22, DOOR_H: 48, SECTION: 352, TOP: -502, HERO: 40 },
   SCENE: { SAVE_KEY: 'pv.scene.v1', HOLD: 0.25, FADE: 0.35, SAFE: 40, REARM: 24, CACHE: 2 },   // фаза А: удержание у края 0,25 с, затемнение 0,35 + 0,35 с, точка появления в 40 px от края, повторный портал — после 24 px, в памяти текущая + предыдущая сцена
   SCENES: {
-    ST: { name: 'Гагаринская', W: 2000, floors: null,                    // null — этажи станции CONFIG.FLOORS
-      portals: [{ id: 'P1', floor: 'surface', edge: 'left', to: 'S1', spawn: 'fromST' }],
-      spawns: { fromS1: { floor: 'surface', x: 1176, facing: 1 } } },
+    // ST-VIEW-001: станция — только подземка. Поверхность — отдельная сцена SURF. Вход — дверь-портал с затемнением (не вертикальные ворота).
+    ST: { name: 'Гагаринская', W: 2000, floors: null,                    // null — этажи станции CONFIG.FLOORS (surface остаётся как геометрия верха, но недостижим)
+      portals: [],
+      doors: [{ id: 'D_exit', floor: 'vestibule', x: 1650, radius: 16, label: '▲ Выйти на поверхность', to: 'SURF', spawn: 'fromMetro' }],
+      spawns: { fromSurf: { floor: 'vestibule', x: 1650, facing: 1 } } },
+    // Поверхность над «Гагаринской» — длинная улица (как «Дворы»): завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал.
+    SURF: { name: 'Гагаринская', W: 3400, geo: 1, layered: true, surf: true,
+      floors: { surface: { y: -122, minX: 120, maxX: 3280, cam: 0.79 } },
+      portals: [],
+      doors: [{ id: 'D_metro', floor: 'surface', x: 560, radius: 44, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
+              { id: 'D_yard', floor: 'surface', x: 1980, radius: 44, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
+      spawns: { fromMetro: { floor: 'surface', x: 680, facing: 1 }, fromS1: { floor: 'surface', x: 2080, facing: 1 } } },
     S1: { name: 'Дворы', W: 3600, geo: 2, layered: true,                // ШТАБ-022: реальная шкала; geo — версия геометрии (записи старой геометрии 1800 не восстанавливаются)
       floors: { surface: { y: -122, minX: 60, maxX: 3540, cam: 0.79 } },  // cam — доля высоты кадра для ступней на всех масштабах (ШТАБ-020: 0,78–0,80)
-      portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'ST', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
+      portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'SURF', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
       spawns: { fromST: { floor: 'surface', x: 3500, facing: -1 }, fromS2: { floor: 'surface', x: 100, facing: 1 } },
       layout: {                                                           // справа налево от станции: завал → пятиэтажка №1 (4 подъезда) → двор → спортплощадка → детская площадка → пятиэтажка №2 (временно)
         edgeR: [3420, 3600], house1: [1982, 4], house2: [140, 2], sport: [1180, 1700], play: [900, 1170],
@@ -1121,10 +1130,19 @@ function edgePortalAt(cfg, id, floor, x, dir) {
   }
   return null;
 }
-/** Безопасная точка перед порталом на исходной стороне (прерванный переход): SAFE px от края, лицом к порталу. */
+/** Двери-порталы сцены (ST-VIEW-001): переход по действию «Войти»/«Во дворы» в точке x на этаже, а не у края. */
+function sceneDoors(cfg, id) { const s = cfg.SCENES[id]; return (s && s.doors) || []; }
+/** Дверь-портал рядом: герой на том же этаже в пределах radius от точки двери. */
+function doorPortalAt(cfg, id, floor, x) {
+  for (const d of sceneDoors(cfg, id)) if (d.floor === floor && Math.abs(x - d.x) <= d.radius) return d;
+  return null;
+}
+/** Безопасная точка перед порталом на исходной стороне (прерванный переход): у края (SAFE px, лицом к порталу) или у самой двери. */
 function portalSafeSpot(cfg, id, portal) {
   const F = sceneFloors(cfg, id)[portal.floor], c = cfg.SCENE.SAFE;
-  return portal.edge === 'left' ? { scene: id, floor: portal.floor, x: F.minX + c, facing: -1 } : { scene: id, floor: portal.floor, x: F.maxX - c, facing: 1 };
+  if (portal.edge === 'left') return { scene: id, floor: portal.floor, x: F.minX + c, facing: -1 };
+  if (portal.edge === 'right') return { scene: id, floor: portal.floor, x: F.maxX - c, facing: 1 };
+  return { scene: id, floor: portal.floor, x: portal.x, facing: 1 };     // дверь-портал: у самой двери
 }
 /** Точка назначения портала. */
 function portalTarget(cfg, portal) { const sp = cfg.SCENES[portal.to].spawns[portal.spawn]; return { scene: portal.to, floor: sp.floor, x: sp.x, facing: sp.facing }; }
@@ -1135,7 +1153,7 @@ function parseSceneSave(cfg, raw) {
   if (!d || d.v !== 1 || !cfg.SCENES[d.scene]) return null;
   if (cfg.SCENES[d.scene].geo !== undefined && d.g !== cfg.SCENES[d.scene].geo) return null;   // ШТАБ-022: запись другой геометрии сцены — не восстанавливать
   if (d.pending) {
-    const s = cfg.SCENES[d.pending.from], p = s && s.portals.find(q => q.id === d.pending.portal);
+    const s = cfg.SCENES[d.pending.from], p = s && (s.portals.find(q => q.id === d.pending.portal) || sceneDoors(cfg, d.pending.from).find(q => q.id === d.pending.portal));
     if (!p || !cfg.SCENES[p.to]) return null;
     return { ...portalSafeSpot(cfg, d.pending.from, p), pending: true };
   }
@@ -1158,17 +1176,17 @@ function validateScenes(cfg) {
         if (p.floor === sp.floor && gap < cfg.SCENE.SAFE - 0.5) err.push(`сцена ${id}: точка ${k} слишком близко к порталу ${p.id}`);
       }
     }
-    for (const p of s.portals) {
-      const d = cfg.SCENES[p.to];
-      if (!d || !d.spawns[p.spawn]) { err.push(`портал ${p.id}: нет точки ${p.to}.${p.spawn}`); continue; }
-      if (!fl[p.floor]) err.push(`портал ${p.id}: нет этажа ${p.floor}`);
-      if (id === 'ST' && p.floor !== 'surface') err.push(`портал ${p.id}: со станции — только с наружной дорожки`);
-      if (!d.portals.some(q => q.to === id)) err.push(`портал ${p.id}: нет обратного пути из ${p.to}`);
+    for (const p of [...s.portals, ...sceneDoors(cfg, id)]) {            // порталы края и двери-порталы
+      const d = cfg.SCENES[p.to], kind = p.edge ? 'портал' : 'дверь';
+      if (!d || !d.spawns[p.spawn]) { err.push(`${kind} ${p.id}: нет точки ${p.to}.${p.spawn}`); continue; }
+      if (!fl[p.floor]) err.push(`${kind} ${p.id}: нет этажа ${p.floor}`);
+      if (p.edge === undefined && (p.x < fl[p.floor].minX || p.x > fl[p.floor].maxX)) err.push(`дверь ${p.id}: точка x вне этажа`);
+      if (![...d.portals, ...sceneDoors(cfg, p.to)].some(q => q.to === id)) err.push(`${kind} ${p.id}: нет обратного пути из ${p.to}`);
     }
   }
-  for (const id of ids) {                                               // путь домой
+  for (const id of ids) {                                               // путь домой — по порталам и дверям
     const seen = new Set([id]), q = [id];
-    while (q.length) for (const p of cfg.SCENES[q.shift()].portals) if (!seen.has(p.to)) { seen.add(p.to); q.push(p.to); }
+    while (q.length) for (const p of [...cfg.SCENES[q[0]].portals, ...sceneDoors(cfg, q.shift())]) if (!seen.has(p.to)) { seen.add(p.to); q.push(p.to); }
     if (!seen.has('ST')) err.push(`сцена ${id}: нет пути на станцию`);
   }
   return err;
@@ -2480,7 +2498,8 @@ function drawBlock(R2, x0, w, floors, seed, tone) {
   for (let x = x0; x < x0 + w; x++) if (hash(x, seed + 9) > 0.92) R2(x, top + 2 + ((hash(seed, x) * (h - 10)) | 0), 1, 3 + ((hash(x, 3) * 8) | 0), 'rgba(20,18,16,.35)');   // потёки
 }
 function buildOutdoor(id) {
-  if (CONFIG.SCENES[id].layered) { const k = S1Art.kind(); return k === 'art' ? buildStreetS1Art(S1Art.imgs) : k === 'wait' ? buildStreetS1Wait() : Object.assign(buildStreetS1(), { kind: 'proc' }); }   // S1-ART; резерв — процедурная S1 (ШТАБ-022)
+  if (id === 'S1') { const k = S1Art.kind(); return k === 'art' ? buildStreetS1Art(S1Art.imgs) : k === 'wait' ? buildStreetS1Wait() : Object.assign(buildStreetS1(), { kind: 'proc' }); }   // S1-ART; резерв — процедурная S1 (ШТАБ-022)
+  if (id === 'SURF') return buildSurfPlaceholder();                       // ST-VIEW-001: поверхность станции (stage 1 — заглушка; stage 2 — картинки)
   const t0 = performance.now(), sc = CONFIG.SCENES[id], w = sc.W;
   const surf = makeCanvas(w, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
   const R2 = (x, y, ww, hh, c) => R(gm, x, surfRow(y), ww, hh, c);
@@ -3579,6 +3598,33 @@ function buildSurfaceArt(I, S, procSurface) {
   for (const [x0, x1, h] of [[1172, 1230, 37], [1414, 1472, 24], [1914, 1966, 18]]) g.drawImage(procSurface, x0, GY - h, x1 - x0, h + 2, x0, GY - h, x1 - x0, h + 2);
   return { sky, ruins, surface: surf };
 }
+/* ============================ ST-VIEW-001 ============================ */
+/* Поверхность над «Гагаринской» — отдельная длинная сцена SURF (как «Дворы»): завал · рабочий вход в метро ·
+   длинный дом · проход «Во дворы» · торцевой дом · заброшенный павильон · завал. Картинки готовятся из панорамы
+   art/ST-VIEW-001/ (tools/art/prep_stview.py → art/stview/game → src/29-stview-art.js). Пока картинок нет —
+   процедурная заглушка: плоская улица с подписями у дверей, чтобы проверить переходы, сбор топлива и сохранения. */
+const SurfArt = {
+  state: 'idle', imgs: null,
+  start() { if (this.state === 'idle') this.state = 'off'; },            // stage 1: картинок нет — всегда заглушка
+  kind() { return this.state === 'ready' ? 'art' : 'proc'; },
+};
+
+/** Заглушка поверхности: ровная улица шириной сцены, подписи у входа в метро, прохода во «Дворы» и точек сбора. */
+function buildSurfPlaceholder() {
+  const t0 = performance.now(), sc = CONFIG.SCENES.SURF, w = sc.W, F = sc.floors.surface;
+  const surf = makeCanvas(w, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
+  const R2 = (x, y, ww, hh, c) => R(gm, x, surfRow(y), ww, hh, c);
+  paintStreet(gm, w);
+  // дома-заглушки между дверями, чтобы видеть ориентиры
+  drawBlock(R2, 240, 300, 5, 11, [92, 86, 74]);                          // рабочий павильон слева (у входа в метро)
+  drawBlock(R2, 820, 1000, 5, 22, [96, 90, 78]);                         // длинный дом
+  drawBlock(R2, 2120, 360, 5, 33, [92, 88, 80]);                         // торцевой дом
+  drawBlock(R2, 2900, 300, 2, 44, [90, 86, 80]);                         // заброшенный павильон справа
+  R2(F.minX - 40, GROUND_Y - 70, 60, 70, '#2a2724'); R2(w - 20, GROUND_Y - 70, 60, 70, '#2a2724');   // завалы по краям
+  for (const d of sc.doors) { drawText(gm, d.label.replace(/^[^ ]+ /, ''), d.x - (textWidth(d.label.replace(/^[^ ]+ /, '')) >> 1), surfRow(GROUND_Y - 80), '#d8c090', 'rgba(0,0,0,.5)'); R2(d.x - 1, GROUND_Y - 76, 2, 76, '#d8c090'); }
+  for (const s of CONFIG.SCAVENGE.SPOTS) { const cx = (s.trigger[0] + s.trigger[1]) >> 1; drawText(gm, s.title, cx - (textWidth(s.title) >> 1), surfRow(GROUND_Y - 50), '#9a9488', null); }
+  return { surface: surf, lights: [], emissive: [], kind: 'proc', buildMs: performance.now() - t0, bytes: w * SURF_H * 4 };
+}
 /* ============================ PLAYER_SPRITE ===============================
    Персонаж рисуется кодом в кадры 26×42 (лицом вправо), затем к силуэту
    добавляется тёмный контур для читаемости на любом фоне. */
@@ -4159,24 +4205,27 @@ const Player = {
   },
   /** Что рядом: лестница { kind:'stair', stair, dir } или гермоворота { kind:'gate', from, to, dir }; иначе null. */
   interaction() {
-    if (this.state !== 'walk' || Scene.id !== 'ST') return null;      // фаза А: снаружи станции действий нет (гараж, тайник, ворота — только на ST)
+    if (this.state !== 'walk') return null;
     const inside = (x, [a, b]) => x >= a && x <= b;
-    for (const q of CONFIG.PASSAGES)                                      // 1.0.1: служебные проходы
-      for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
-        if (this.floor === from.floor && Math.abs(this.x - from.x) <= q.radius) return { kind: 'passage', passage: q, from, to, dir: from.dir };
-    for (const gt of CONFIG.GATES)
-      for (const [from, to] of [[gt.a, gt.b], [gt.b, gt.a]])
-        if (this.floor === from.floor && Math.abs(this.x - from.x) <= gt.radius) return { kind: 'gate', from, to, dir: from.dir };
-    const G = CONFIG.GENERATOR;
-    if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
-    for (const item of CONFIG.INSPECTS) {
-      if (this.floor !== item.floor) continue;
-      if (item.trigger) { if (inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' }; continue; }
-      const a = npcById(item.npc);                                       // разговор: от текущей позиции NPC
-      if (a && Math.abs(this.x - a.x) <= item.radius) return { kind: 'inspect', item, dir: 'use' };
+    // ST-VIEW-001: двери-порталы с затемнением — вход/выход метро (вестибюль) и «Во дворы» (поверхность).
+    const door = doorPortalAt(CONFIG, Scene.id, this.floor, this.x);
+    if (door) return { kind: 'door', portal: door, label: door.label, dir: 'use' };
+    if (Scene.id === 'ST') {                                              // подземные действия — только на станции
+      for (const q of CONFIG.PASSAGES)                                    // 1.0.1: служебные проходы
+        for (const [from, to] of [[q.a, q.b], [q.b, q.a]])
+          if (this.floor === from.floor && Math.abs(this.x - from.x) <= q.radius) return { kind: 'passage', passage: q, from, to, dir: from.dir };
+      const G = CONFIG.GENERATOR;
+      if (this.floor === G.floor && inside(this.x, G.trigger)) return { kind: 'generator', dir: 'use' };
+      for (const item of CONFIG.INSPECTS) {
+        if (this.floor !== item.floor) continue;
+        if (item.trigger) { if (inside(this.x, item.trigger)) return { kind: 'inspect', item, dir: 'use' }; continue; }
+        const a = npcById(item.npc);                                     // разговор: от текущей позиции NPC
+        if (a && Math.abs(this.x - a.x) <= item.radius) return { kind: 'inspect', item, dir: 'use' };
+      }
+    } else if (Scene.id === 'SURF') {                                     // сбор топлива — на поверхности
+      for (const spot of CONFIG.SCAVENGE.SPOTS)
+        if (this.floor === spot.floor && inside(this.x, spot.trigger)) return { kind: 'scavenge', item: spot, dir: 'use' };
     }
-    for (const spot of CONFIG.SCAVENGE.SPOTS)
-      if (this.floor === spot.floor && inside(this.x, spot.trigger)) return { kind: 'scavenge', item: spot, dir: 'use' };
     return null;
   },
   update(dt, dir, action) {
@@ -5264,7 +5313,8 @@ const Game = {
     }
     if (this.mark && (this.mark.floor !== Player.floor || (!this.mark.fading && Player.target === null))) this.mark = null;   // этаж сменился / цель снята иначе
     if (this.mark && this.mark.fading) { this.mark.t -= dt; if (this.mark.t <= 0) this.mark = null; }
-    if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
+    if (action === 'use' && it && it.kind === 'door') { if (!this.trans) this.startTransition(it.portal); Player.update(dt, dir, null); }   // ST-VIEW-001: вход/выход/во дворы — переход с затемнением
+    else if (action && it && (it.kind === 'generator' || it.kind === 'inspect' || it.kind === 'scavenge')) {   // окна: без хода
       if (action === 'use') {
         if (it.kind === 'generator') GenPanel.toggle();
         else if (it.kind === 'inspect') InfoCard.use(it.item);
@@ -5343,8 +5393,8 @@ const Game = {
     else this.writePlayerV1(this.v1Fallback());
     this.writeScene({ scene: pos.scene, floor: pos.floor, x: pos.x, facing: pos.facing, pending: null });
   },
-  /** Положение для старого движка, пока герой вне станции: перед порталом P1 на улице станции. */
-  v1Fallback() { const p = CONFIG.SCENES.ST.portals[0]; return CONFIG.SCENES.ST.spawns[CONFIG.SCENES[p.to].portals.find(q => q.to === 'ST').spawn]; },
+  /** Положение для старого движка, пока герой вне станции: у двери выхода в вестибюле (валидная точка станции). */
+  v1Fallback() { const sp = CONFIG.SCENES.ST.spawns.fromSurf; return { floor: sp.floor, x: sp.x, facing: sp.facing }; },
   writePlayerV1(pos) {
     const rec = JSON.stringify({ v: 1, floor: pos.floor, x: Math.round(pos.x * 10) / 10, facing: pos.facing === -1 ? -1 : 1 });
     if (rec === this.lastPlayerRec) return;
@@ -5365,6 +5415,9 @@ const Game = {
     if (!r) { try { localStorage.removeItem(saveKey(CONFIG.SCENE.SAVE_KEY)); } catch (_) { /* нет доступа */ } return; }   // испорчена — только эта запись; pv.player.v1 не трогаем
     this.lastPlayerRec = v1;
     if (d && d.v1 !== undefined && d.v1 !== v1) { this.writeScene({ scene: 'ST', floor: Player.floor, x: Player.x, facing: Player.facing }); return; }   // pv.player.v1 менялся без нас — верим ему
+    if (r.scene === 'ST' && r.floor === 'surface') {                      // ST-VIEW-001: старая запись «на поверхности станции» → новая сцена поверхности
+      const sp = CONFIG.SCENES.SURF.spawns.fromMetro; Scene.enter('SURF'); Player.place(sp.floor, sp.x, sp.facing); this.armed = true; this.commitScenePos({ scene: 'SURF', ...sp }); return;
+    }
     if (r.scene === 'ST' && !r.pending) return;                           // на станции главный — pv.player.v1
     Scene.enter(r.scene);
     Player.place(r.floor, r.x, r.facing);
@@ -5422,7 +5475,7 @@ const Game = {
     const H = CONFIG.PLAYER.HOME;
     let raw = null; try { raw = localStorage.getItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
     const p = raw ? parsePlayerSave(CONFIG, raw) : null;
-    if (p) Player.place(p.floor, p.x, p.facing);
+    if (p && p.floor !== 'surface') Player.place(p.floor, p.x, p.facing);   // ST-VIEW-001: станция без поверхности; старая запись surface → домой (сцену восстановит loadScene)
     else {
       Player.place(H.floor, H.x, 1);                                     // нет записи или она испорчена — дома; прочие сохранения не трогаем
       if (raw) try { localStorage.removeItem(saveKey(CONFIG.PLAYER.SAVE_KEY)); } catch (_) { /* нет доступа */ }
@@ -5439,7 +5492,7 @@ const Game = {
   updateAction() {
     const it = GenPanel.open || InfoCard.open ? null : Player.interaction();
     let label = !it ? '' : it.kind === 'passage' ? (it.dir === 'up' ? '▲ Подняться' : '▼ Спуститься')
-      : it.kind === 'gate' ? it.from.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
+      : it.kind === 'door' ? it.label : it.kind === 'generator' ? (Scavenge.carried > 0 ? '⚙ Генератор · сдать канистры' : '⚙ Генератор') : it.item.label;
     if (it && it.kind === 'scavenge' && !Scavenge.available(it.item.id)) label = it.item.id === 'cache' ? '◎ Тайник пуст' : '◎ Пусто';
     if (label && !this.coarse) label += it.dir === 'up' ? '  ·  W' : it.dir === 'down' ? '  ·  S' : '  ·  E';
     if (label === this.actLabel) return;

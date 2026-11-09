@@ -33,6 +33,7 @@ export const MODULES = [
   '25-street-s1-art.js',// S1-ART: сборка S1 из картинок, загрузчик S1Art; резерв — процедурная S1
   '26-st-art.js',       // ST-ART-001: картинки поверхности станции (сгенерировано tools/art/pack.mjs st — не читать)
   '27-surface-st-art.js',// ST-ART-001: надземная часть станции из картинок; резерв — процедурная поверхность
+  '28-surface-view.js',  // ST-VIEW-001: поверхность станции — отдельная сцена SURF (заглушка + загрузчик картинок)
   '30-sprites.js',      // PLAYER_SPRITE: спрайты героя и NPC
   '31-actors.js',       // ACTORS: NPC
   '40-input.js',        // INPUT

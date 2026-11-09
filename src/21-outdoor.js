@@ -28,7 +28,8 @@ function drawBlock(R2, x0, w, floors, seed, tone) {
   for (let x = x0; x < x0 + w; x++) if (hash(x, seed + 9) > 0.92) R2(x, top + 2 + ((hash(seed, x) * (h - 10)) | 0), 1, 3 + ((hash(x, 3) * 8) | 0), 'rgba(20,18,16,.35)');   // потёки
 }
 function buildOutdoor(id) {
-  if (CONFIG.SCENES[id].layered) { const k = S1Art.kind(); return k === 'art' ? buildStreetS1Art(S1Art.imgs) : k === 'wait' ? buildStreetS1Wait() : Object.assign(buildStreetS1(), { kind: 'proc' }); }   // S1-ART; резерв — процедурная S1 (ШТАБ-022)
+  if (id === 'S1') { const k = S1Art.kind(); return k === 'art' ? buildStreetS1Art(S1Art.imgs) : k === 'wait' ? buildStreetS1Wait() : Object.assign(buildStreetS1(), { kind: 'proc' }); }   // S1-ART; резерв — процедурная S1 (ШТАБ-022)
+  if (id === 'SURF') return buildSurfPlaceholder();                       // ST-VIEW-001: поверхность станции (stage 1 — заглушка; stage 2 — картинки)
   const t0 = performance.now(), sc = CONFIG.SCENES[id], w = sc.W;
   const surf = makeCanvas(w, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
   const R2 = (x, y, ww, hh, c) => R(gm, x, surfRow(y), ww, hh, c);
