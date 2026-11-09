@@ -24,6 +24,7 @@ PROD — ветка `main` → https://kidgat.github.io/poslednyaya-vetka/ · DE
 | графика станции | `20-world.js` |
 | улица S1: картинки (S1-ART), загрузчик, резерв | `25-street-s1-art.js` (картинки — `24-s1-art.js`, **не читать**: 0,6 МБ data URI) |
 | поверхность над станцией: картинки (ST-ART-001), загрузчик, свет над землёй | `27-surface-st-art.js` (картинки — `26-st-art.js`, **не читать**) |
+| поверхность-сцена SURF (ST-VIEW): сборка из панорамы + Canvas-дорога, загрузчик | `28-surface-view.js` (панорама — `29-stview-art.js`, **не читать**: ~0,75 МБ data URI) |
 | улица S1 процедурная (резерв) и общие слои улиц | `21-outdoor.js`, `22-street-s1.js` |
 | спрайты, NPC | `30-sprites.js`, `31-actors.js` |
 | управление, герой, камера | `40-input.js`, `41-player.js`, `42-camera-fx.js` |
@@ -39,7 +40,7 @@ PROD — ветка `main` → https://kidgat.github.io/poslednyaya-vetka/ · DE
 ## Перед коммитом
 1. `node tools/build.mjs`
 2. Все наборы: `for t in env station life power scavenge player ux input npc scene save compat; do node tests/$t.test.js | tail -1; done`
-3. `node tools/build.mjs --check`, `node tools/art/pack.mjs s1 --check`, `node tools/art/pack.mjs st --check`. CI проверяет то же самое.
+3. `node tools/build.mjs --check`, `node tools/art/pack.mjs s1 --check`, `node tools/art/pack.mjs st --check`, `node tools/art/pack.mjs stview --check`. CI проверяет то же самое.
 
 ## Версия и офлайн
 - `CONFIG.VERSION` (`01-config.js`), `CACHE` в `sw.js` и `CHANGELOG.md` меняются вместе. Номер назначает Андрей.

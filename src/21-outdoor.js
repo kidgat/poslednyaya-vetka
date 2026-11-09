@@ -29,7 +29,7 @@ function drawBlock(R2, x0, w, floors, seed, tone) {
 }
 function buildOutdoor(id) {
   if (id === 'S1') { const k = S1Art.kind(); return k === 'art' ? buildStreetS1Art(S1Art.imgs) : k === 'wait' ? buildStreetS1Wait() : Object.assign(buildStreetS1(), { kind: 'proc' }); }   // S1-ART; резерв — процедурная S1 (ШТАБ-022)
-  if (id === 'SURF') return buildSurfPlaceholder();                       // ST-VIEW-001: поверхность станции (stage 1 — заглушка; stage 2 — картинки)
+  if (id === 'SURF') return SurfArt.kind() === 'art' ? buildSurfaceArtScene(SurfArt.imgs) : buildSurfPlaceholder();   // ST-VIEW-002: панорама; резерв — заглушка
   const t0 = performance.now(), sc = CONFIG.SCENES[id], w = sc.W;
   const surf = makeCanvas(w, SURF_H), gm = surf.getContext('2d', { willReadFrequently: true });
   const R2 = (x, y, ww, hh, c) => R(gm, x, surfRow(y), ww, hh, c);

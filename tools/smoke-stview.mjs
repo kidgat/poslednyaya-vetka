@@ -44,14 +44,14 @@ let land = await useAndWait('SURF');
 s = await scene();
 ok('S4 выход на поверхность: переход с затемнением завершён, сцена SURF', land && s.id === 'SURF', 'id=' + s.id);
 
-// 3. SURF → ST через дверь D_metro (560)
-ok('S5 постановка к входу в метро (560)', await place('SURF', 'surface', 560, -1));
+// 3. SURF → ST через дверь D_metro (410)
+ok('S5 постановка к входу в метро (410)', await place('SURF', 'surface', 410, -1));
 land = await useAndWait('ST');
 s = await scene();
 ok('S6 вход в метро: вернулись в подземку ST', land && s.id === 'ST', 'id=' + s.id);
 
-// 4. SURF → S1 «Дворы» через дверь D_yard (1980)
-await place('SURF', 'surface', 1980, 1);
+// 4. SURF → S1 «Дворы» через дверь D_yard (1382)
+await place('SURF', 'surface', 1382, 1);
 land = await useAndWait('S1');
 s = await scene();
 ok('S7 проход «Во дворы»: сцена S1', land && s.id === 'S1', 'id=' + s.id);
@@ -72,7 +72,7 @@ ok('S9 сохранение сцены записано и корректно', 
 
 // 7. подземка остаётся рабочей (вернёмся в ST и проверим, что рисуется без ошибок)
 errors.length = 0;
-await place('SURF', 'surface', 560, -1); await useAndWait('ST');
+await place('SURF', 'surface', 410, -1); await useAndWait('ST');
 await page.waitForTimeout(400);
 ok('S10 подземка после переходов — без ошибок рендера', errors.length === 0, errors[0] || '');
 

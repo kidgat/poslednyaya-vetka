@@ -211,13 +211,14 @@ const CONFIG = {
       portals: [],
       doors: [{ id: 'D_exit', floor: 'vestibule', x: 1650, radius: 16, label: '▲ Выйти на поверхность', to: 'SURF', spawn: 'fromMetro' }],
       spawns: { fromSurf: { floor: 'vestibule', x: 1650, facing: 1 } } },
-    // Поверхность над «Гагаринской» — длинная улица (как «Дворы»): завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал.
-    SURF: { name: 'Гагаринская', W: 3400, geo: 1, layered: true, surf: true,
-      floors: { surface: { y: -122, minX: 120, maxX: 3280, cam: 0.79 } },
+    // ST-VIEW-002: поверхность над «Гагаринской» — длинная улица из панорамы ART-ST-001 (завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал).
+    // Координаты выведены из рисунка: панорама слева на x0=100, масштаб k=64/70 (этаж 64 px). Двери — на тёплом входе (src 338) и на проходе (src 1402): x = x0 + src·k.
+    SURF: { name: 'Гагаринская', W: 2200, geo: 1, layered: true, surf: true,
+      floors: { surface: { y: -122, minX: 250, maxX: 2040, cam: 0.79 } },
       portals: [],
-      doors: [{ id: 'D_metro', floor: 'surface', x: 560, radius: 44, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
-              { id: 'D_yard', floor: 'surface', x: 1980, radius: 44, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
-      spawns: { fromMetro: { floor: 'surface', x: 680, facing: 1 }, fromS1: { floor: 'surface', x: 2080, facing: 1 } } },
+      doors: [{ id: 'D_metro', floor: 'surface', x: 410, radius: 40, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
+              { id: 'D_yard', floor: 'surface', x: 1382, radius: 40, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
+      spawns: { fromMetro: { floor: 'surface', x: 500, facing: 1 }, fromS1: { floor: 'surface', x: 1300, facing: -1 } } },
     S1: { name: 'Дворы', W: 3600, geo: 2, layered: true,                // ШТАБ-022: реальная шкала; geo — версия геометрии (записи старой геометрии 1800 не восстанавливаются)
       floors: { surface: { y: -122, minX: 60, maxX: 3540, cam: 0.79 } },  // cam — доля высоты кадра для ступней на всех масштабах (ШТАБ-020: 0,78–0,80)
       portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'SURF', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],

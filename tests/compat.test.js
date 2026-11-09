@@ -46,7 +46,7 @@ const baseY = bot(cl.entrance.r);
 ok('A08 S1-ART-ALIGN: первый этаж, ступени подъезда и торцы кончаются на одной земле исходника, тротуар — сразу под ней',
   [...cl.ground.win, ...cl.ground.balc].every(c => bot(c.r) === baseY) && cl.walk.r[1] === baseY && [cl.endL, cl.endR].every(e => e.segs[4][0] + e.segs[4][1] === baseY), 'y ' + baseY);
 const size = Buffer.byteLength(src);
-ok('A07 размер index.html в пределах 1,5 МБ (S1-ART +~0,6 МБ, ST-ART-001 +~0,2 МБ)', size < 1.5 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
+ok('A07 размер index.html в пределах 2,1 МБ (S1-ART +~0,6 МБ, ST-ART-001 +~0,2 МБ, ST-VIEW-002 панорама +~0,75 МБ)', size < 2.1 * 1024 * 1024, Math.round(size / 1024) + ' КБ');
 const stSums = fs.readFileSync(path.join(ROOT, 'art', 'ST-ART-001', 'SHA256SUMS'), 'utf8').trim().split('\n').map(l => l.split(/\s+\*?/));
 ok('A09 исходник ST-ART-001 на месте и не изменён (SHA256SUMS)', stSums.length === 1 && stSums.every(([h, f]) => crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, 'art', 'ST-ART-001', f))).digest('hex') === h));
 const boot = src.split('\n').find(l => l.includes('buildWorld();') && l.includes('placeActors();')) || '';
@@ -67,5 +67,5 @@ ok('C16 pv.zoom.v1: 150 % → индекс 2; нет записи → 100 %', S.
 ok('C17 pv.visual.v1: «Атмосферно» сохраняется; неизвестное → «Нормально»', S.parseVisual(CONFIG.VISUAL, '{"v":1,"brightness":"dark"}') === 'dark' && S.parseVisual(CONFIG.VISUAL, '{"v":1,"brightness":"x"}') === 'normal');
 
 const dExit = CONFIG.SCENES.ST.doors.find(d => d.id === 'D_exit'), dYard = CONFIG.SCENES.SURF.doors.find(d => d.id === 'D_yard');
-ok('A11 ST-VIEW-001: выход из метро — дверь D_exit в вестибюле (1650) в сцену SURF; проход во «Дворы» — дверь D_yard (1980); прежняя геометрия FLOORS.surface сохранена как константа рисовки грунта', CONFIG.FLOORS.surface.minX === 1136 && CONFIG.FLOORS.surface.maxX === 1980 && CONFIG.GATES[0].b.x === 1650 && CONFIG.SCENES.ST.portals.length === 0 && dExit && dExit.floor === 'vestibule' && dExit.x === 1650 && dExit.to === 'SURF' && dYard && dYard.x === 1980 && dYard.to === 'S1');
+ok('A11 ST-VIEW-002: выход из метро — дверь D_exit в вестибюле (1650) в сцену SURF; проход во «Дворы» — дверь D_yard на SURF; прежняя геометрия FLOORS.surface сохранена как константа рисовки грунта', CONFIG.FLOORS.surface.minX === 1136 && CONFIG.FLOORS.surface.maxX === 1980 && CONFIG.GATES[0].b.x === 1650 && CONFIG.SCENES.ST.portals.length === 0 && dExit && dExit.floor === 'vestibule' && dExit.x === 1650 && dExit.to === 'SURF' && dYard && dYard.to === 'S1' && dYard.x > CONFIG.SCENES.SURF.floors.surface.minX && dYard.x < CONFIG.SCENES.SURF.floors.surface.maxX);
 console.log(`\n${pass} PASS, ${fail} FAIL`); process.exit(fail ? 1 : 0);

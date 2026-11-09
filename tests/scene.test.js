@@ -26,15 +26,15 @@ ok('SC09 дверь/портал → обратный путь → исходн�
   const metro = S.portalTarget(CONFIG, portal('SURF', 'D_metro')), exit = S.portalTarget(CONFIG, portal('ST', 'D_exit'));
   const yard = S.portalTarget(CONFIG, portal('SURF', 'D_yard')), back = S.portalTarget(CONFIG, portal('S1', 'P1r'));
   const c = S.portalTarget(CONFIG, portal('S1', 'P2')), d = S.portalTarget(CONFIG, portal('S2', 'P2r'));
-  return metro.scene === 'ST' && metro.floor === 'vestibule' && metro.x === 1650 && exit.scene === 'SURF' && exit.floor === 'surface' && exit.x === 680
-    && yard.scene === 'S1' && yard.x === 3500 && yard.facing === -1 && back.scene === 'SURF' && back.x === 2080 && back.facing === 1
+  return metro.scene === 'ST' && metro.floor === 'vestibule' && metro.x === 1650 && exit.scene === 'SURF' && exit.floor === 'surface' && exit.x === 500
+    && yard.scene === 'S1' && yard.x === 3500 && yard.facing === -1 && back.scene === 'SURF' && back.x === 1300 && back.facing === -1
     && c.scene === 'S2' && c.x === 1400 && c.facing === -1 && d.scene === 'S1' && d.x === 100 && d.facing === 1;
 })());
 
 // Двери-порталы (по действию, в точке x) и порталы края
-ok('SC10 двери: вход в метро (SURF 560), во дворы (SURF 1980), выход (ST вестибюль 1650); между ними — ничего', S.doorPortalAt(CONFIG, 'SURF', 'surface', 560)?.id === 'D_metro' && S.doorPortalAt(CONFIG, 'SURF', 'surface', 1980)?.id === 'D_yard'
-  && S.doorPortalAt(CONFIG, 'ST', 'vestibule', 1650)?.id === 'D_exit' && !S.doorPortalAt(CONFIG, 'SURF', 'surface', 1000) && !S.doorPortalAt(CONFIG, 'ST', 'surface', 1650));
-ok('SC11 дверь срабатывает в пределах radius и не срабатывает вне его / не на том этаже', S.doorPortalAt(CONFIG, 'SURF', 'surface', 560 + 44)?.id === 'D_metro' && !S.doorPortalAt(CONFIG, 'SURF', 'surface', 560 + 45) && !S.doorPortalAt(CONFIG, 'S1', 'surface', 560));
+ok('SC10 двери: вход в метро (SURF 410), во дворы (SURF 1382), выход (ST вестибюль 1650); между ними — ничего', S.doorPortalAt(CONFIG, 'SURF', 'surface', 410)?.id === 'D_metro' && S.doorPortalAt(CONFIG, 'SURF', 'surface', 1382)?.id === 'D_yard'
+  && S.doorPortalAt(CONFIG, 'ST', 'vestibule', 1650)?.id === 'D_exit' && !S.doorPortalAt(CONFIG, 'SURF', 'surface', 900) && !S.doorPortalAt(CONFIG, 'ST', 'surface', 1650));
+ok('SC11 дверь срабатывает в пределах radius и не срабатывает вне его / не на том этаже', S.doorPortalAt(CONFIG, 'SURF', 'surface', 410 + 40)?.id === 'D_metro' && !S.doorPortalAt(CONFIG, 'SURF', 'surface', 410 + 41) && !S.doorPortalAt(CONFIG, 'S1', 'surface', 410));
 ok('SC12 внутренние этажи станции (вестибюль, ярусы, платформа) у своих краёв порталов края не дают', Object.entries(F).filter(([f]) => f !== 'surface').every(([f, Fl]) => !S.edgePortalAt(CONFIG, 'ST', f, Fl.minX, -1) && !S.edgePortalAt(CONFIG, 'ST', f, Fl.maxX, 1)));
 ok('SC13 у ST нет порталов края ни на одном этаже', Object.keys(S.sceneFloors(CONFIG, 'ST')).every(f => !S.edgePortalAt(CONFIG, 'ST', f, F[f] ? F[f].minX : 0, -1) && !S.edgePortalAt(CONFIG, 'ST', f, F[f] ? F[f].maxX : 0, 1)));
 ok('SC14 S1: справа P1r (→ SURF), слева P2 (→ S2); S2: справа P2r (→ S1), слева ничего', S.edgePortalAt(CONFIG, 'S1', 'surface', 3540, 1)?.to === 'SURF' && S.edgePortalAt(CONFIG, 'S1', 'surface', 60, -1)?.to === 'S2'
@@ -61,10 +61,10 @@ ok('SC20 ключ: PROD pv.scene.v1, DEV pv.dev.scene.v1', envSaveKey('prod', C.
 ok('SC21 обычная запись S1/S2 восстанавливается как есть', (() => { const a = P({ v: 1, scene: 'S1', g: 2, floor: 'surface', x: 900.04, facing: -1, pending: null }), b = P({ v: 1, scene: 'S2', floor: 'surface', x: 500, facing: 1 });
   return a && a.scene === 'S1' && a.x === 900 && a.facing === -1 && !a.pending && b && b.scene === 'S2' && b.x === 500; })());
 ok('SC22 прерванный переход → безопасная точка ПЕРЕД порталом/дверью на стороне источника', (() => {
-  const a = P({ v: 1, scene: 'SURF', g: 1, floor: 'surface', x: 560, facing: 1, pending: { portal: 'D_metro', from: 'SURF', to: 'ST', ticket: 3 } });   // дверь: у самой двери
+  const a = P({ v: 1, scene: 'SURF', g: 1, floor: 'surface', x: 500, facing: 1, pending: { portal: 'D_metro', from: 'SURF', to: 'ST', ticket: 3 } });   // дверь: у самой двери
   const b = P({ v: 1, scene: 'S1', g: 2, floor: 'surface', x: 100, facing: -1, pending: { portal: 'P2', from: 'S1', to: 'S2', ticket: 9 } });              // край
   const e = P({ v: 1, scene: 'ST', floor: 'vestibule', x: 1650, pending: { portal: 'D_exit', from: 'ST', to: 'SURF', ticket: 1 } });                        // дверь выхода
-  return a.scene === 'SURF' && a.x === 560 && a.facing === 1 && a.pending && b.scene === 'S1' && b.x === 60 + C.SAFE && e.scene === 'ST' && e.floor === 'vestibule' && e.x === 1650;
+  return a.scene === 'SURF' && a.x === 410 && a.facing === 1 && a.pending && b.scene === 'S1' && b.x === 60 + C.SAFE && e.scene === 'ST' && e.floor === 'vestibule' && e.x === 1650;
 })());
 ok('SC23 точка источника для ST — допустимая запись pv.player.v1 для 1.2.0 (вестибюль, не удалённая поверхность)', (() => {
   const a = P({ v: 1, scene: 'ST', floor: 'vestibule', x: 1650, pending: { portal: 'D_exit', from: 'ST', to: 'SURF', ticket: 1 } });
@@ -105,7 +105,7 @@ ok('SC45 раскладка S1: дом №1 (4 подъезда) и спортп
 ok('SC46 камера улицы: отдельная ветка только для слоистых сцен, ступни на 0,78–0,80; станция — прежний путь', SC.S1.floors.surface.cam >= 0.78 && SC.S1.floors.surface.cam <= 0.8 && /if \(Scene\.def\(\)\.layered\) \{ const F = Scene\.floor\(f\); return clamp\(F\.y - this\.viewH \* F\.cam, CONFIG\.STREET\.TOP, -this\.viewH\); \}/.test(src) && !SC.ST.layered && !SC.S2.layered);
 ok('SC47 улица рисуется процедурно в самой странице (внешних файлов нет — офлайн-кэш sw.js не меняется)', (() => { const b = src.slice(src.indexOf('/* STREET:BEGIN'), src.indexOf('/* STREET:END */')); return b.length > 5000 && !/new Image|fetch\(|\.png|\.jpe?g|\.webp/.test(b); })());
 // ST-VIEW-001: поверхность станции как отдельная сцена
-ok('SC50 SURF: длинная слоистая улица, свой этаж surface на уровне земли, двери внутри дорожки, обе ведут домой', SC.SURF.W >= 3000 && SC.SURF.layered === true && SC.SURF.floors.surface.y === F.surface.y
+ok('SC50 SURF: длинная слоистая улица, свой этаж surface на уровне земли, двери внутри дорожки, обе ведут домой', SC.SURF.W >= 2000 && SC.SURF.layered === true && SC.SURF.floors.surface.y === F.surface.y
   && S.sceneDoors(CONFIG, 'SURF').every(d => d.x > SC.SURF.floors.surface.minX && d.x < SC.SURF.floors.surface.maxX) && reach('SURF').has('ST'));
 ok('SC51 миграция: старая запись «станция/поверхность» в loadScene уводит на SURF; поверхность из pv.player.v1 → домой', /if \(r\.scene === 'ST' && r\.floor === 'surface'\) \{[\s\S]{0,260}Scene\.enter\('SURF'\)/.test(src) && /if \(p && p\.floor !== 'surface'\) Player\.place/.test(src));
 ok('SC52 дверь-портал в игре: действие use у двери запускает переход с затемнением (startTransition)', /if \(action === 'use' && it && it\.kind === 'door'\) \{ if \(!this\.trans\) this\.startTransition\(it\.portal\); /.test(src) && /it\.kind === 'door' \? it\.label/.test(src));

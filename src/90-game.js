@@ -10,6 +10,7 @@ const Game = {
     if (!coarse) { document.body.classList.add('desktop'); this.els.hint.textContent = 'A / D или ← / → — идти · W / S — лестница и шлюз · E — действие · R — в центр';
       document.getElementById('tapText').textContent = 'Нажмите клавишу или кликните, чтобы начать'; }
     S1Art.start();                                                     // S1-ART: декод картинок улицы в фоне
+    SurfArt.start();                                                   // ST-VIEW-002: декод панорамы поверхности в фоне
     const t0 = performance.now();
     buildWorld(); buildSprites(); placeActors(); FX.init();
     STArt.start();                                                     // ST-ART-001: поверхность станции — после сборки мира (заменяет надземную часть)
