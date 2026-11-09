@@ -144,6 +144,7 @@ const Game = {
     Camera.update(dt, Player);
     FX.update(dt, this.t, Camera.x, Render.viewW);
     if (Scene.id === 'ST') { updateActors(dt); updateLamps(dt); }        // фаза А: жители и лампы станции живут только на станции (не пересоздаются)
+    else if (Scene.id === 'SURF') updateActors(dt);                      // ST-VIEW-003: наземные мутанты бродят по поверхности SURF
     const go = Player.gateOpenTarget();                                 // створки шлюза догоняют нужное положение
     WORLD.gate.open = clamp(WORLD.gate.open + (go > WORLD.gate.open ? 1 : -1) * dt * 1.8, 0, 1);
     if (dir && !this.moved) { this.moved = true; setTimeout(() => this.els.hint.classList.add('gone'), 1500); }   // подсказка уходит после первого шага

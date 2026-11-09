@@ -11,6 +11,7 @@ const surfRow = y => y + SURF_H;        // мировой y → строка к�
 const HALL_CLIP = { x0: -Infinity, x1: Infinity, y0: 108, y1: 270 };   // 1.0: свет зала не уходит под пути, на ярус −2
 const UPPER_CLIP = { x0: -Infinity, x1: Infinity, y0: 15, y1: 107 };
 const SURF_CLIP = { x0: -Infinity, x1: Infinity, y0: -SURF_H, y1: CONFIG.FLOORS.surface.y + 11 };
+const ST_EARTH = [104, 92, 76];   // ST-VIEW-003: тусклый свет над станцией (грунт/бетон), множится на WORLD.earth
 const VEST_CLIP = { x0: -Infinity, x1: Infinity, y0: 19 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y, y1: 100 + CONFIG.FLOORS.vestibule.y - CONFIG.FLOORS.upper.y };
 /** 1.0: ярус −2 — отдельный заранее нарисованный канвас во всю ширину мира, y [270, WORLD_BOTTOM). */
 const UTIL = { y0: H, y1: CONFIG.FLOORS.utility.y + 24 };
@@ -1114,6 +1115,27 @@ function buildSurface() {
   lamp.clip = SURF_CLIP;
   addEmissive(1649, GROUND_Y - 34, 3, 1, [255, 226, 170], lamp);
   R2(1647, GROUND_Y - 36, 7, 2, '#4a4a48');
-  WORLD.sky = sky; WORLD.ruins = ruins; WORLD.surface = surf;
+  WORLD.sky = sky; WORLD.ruins = ruins; WORLD.surface = surf;   // город над станцией: нужен сцене S2 «К Дуплету» как фон (параллакс)
+
+  // ST-VIEW-003: над помещениями станции ST — сплошная непрозрачная толща грунта и бетонная плита (вместо города).
+  // Отдельный холст WORLD.earth во всю ширину: ST рисует его, город (sky/ruins/surface) остаётся только для S2.
+  const earth = makeCanvas(W, SURF_H), ge = earth.getContext('2d', { willReadFrequently: true });
+  const E2 = (x, y, w, h, c) => R(ge, x, surfRow(y), w, h, c);
+  paintRegion(ge, 0, 0, W, SURF_H, (x, row, o) => {
+    const y = row - SURF_H, n = (hash(x, y + 333) - 0.5) * 9;           // мировой y (верх −SURF_H, низ 0)
+    const dy = GROUND_Y - y;                                            // высота над уровнем земли (>0 — грунт над станцией)
+    const strat = (Math.floor((dy + Math.sin(x * 0.03) * 3) / 9) % 2) ? 6 : 0;   // горизонтальные слои грунта
+    const base = 60 - clamp(dy, 0, 240) * 0.07;                         // к верху немного темнее (плотная порода)
+    return setC(o, base + 8 + strat, base + strat, base - 10 + strat, n);
+  });
+  for (let i = 0; i < W * 4; i++) { const x = (hash(i, 5) * W) | 0, y = GROUND_Y - ((hash(i, 6) * (SURF_H - 24)) | 0);   // камешки и вкрапления
+    ge.fillStyle = rgb([78, 72, 62], 0.7 + hash(i, 7) * 0.5); ge.fillRect(x, surfRow(y), 1 + ((hash(i, 8) * 2) | 0), 1); }
+  const ct = GROUND_Y - 17, cb = GROUND_Y - 3;                          // бетонная плита-перекрытие над станцией
+  E2(0, ct, W, cb - ct, '#64646a');
+  E2(0, ct, W, 1, '#7c7c82'); E2(0, cb - 1, W, 1, '#3f3f45');           // светлая и тёмная кромки плиты
+  for (let x = 0; x < W; x += 1) if (hash(x, 91) > 0.82) E2(x, ct, 1, cb - ct, '#55555b');   // следы опалубки
+  for (let x = 3; x < W; x += 16) { E2(x, ct + 5, 4, 1, '#51515a'); if (hash(x, 92) > 0.6) E2(x + 1, ct + 5, 2, 1, 'rgba(120,70,44,.5)'); }   // арматура, ржавчина
+  for (let x = 6; x < W; x += 11) if (hash(x, 93) > 0.5) { const h = 4 + ((hash(x, 94) * 9) | 0); E2(x, ct - h, 1, h, 'rgba(40,34,26,.6)'); }   // корешки из плиты вверх в грунт
+  WORLD.earth = earth;
 }
 

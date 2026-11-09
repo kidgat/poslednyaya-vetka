@@ -68,19 +68,16 @@ const Render = {
     const PB = CONFIG.PARALLAX.BACK, PF = CONFIG.PARALLAX.FORE;
     g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = '#16181b'; g.fillRect(0, 0, vw, vh);
-    // 1. Поверхность: небо, дальние руины, улица с вестибюлем (видна, когда камера поднята).
+    // 1. Над станцией — сплошная толща грунта и бетона (ST-VIEW-003: город вынесен в отдельную сцену SURF).
     if (yo > 0) {
-      g.drawImage(WORLD.sky, this.sx(0, CONFIG.PARALLAX.SKY, camX, frac), yo - SURF_H);
-      g.drawImage(WORLD.ruins, this.sx(0, CONFIG.PARALLAX.RUINS, camX, frac), yo - SURF_H);
-      g.drawImage(WORLD.surface, -camI, yo - SURF_H);
+      g.drawImage(WORLD.earth, -camI, yo - SURF_H);
       if (WORLD.vest && VEST.x1 - camI > 0 && VEST.x0 - camI < vw) g.drawImage(WORLD.vest, VEST.x0 - camI, VEST.y0 + yo);   // 0.9: вестибюль в грунте
     }
     // 2. Станция и створки гермоворот.
     g.drawImage(WORLD.back, this.sx(0, PB, camX, frac), yo);
     g.drawImage(WORLD.main, -camI, yo);
     if (WORLD.util && yo + H < vh - 1) g.drawImage(WORLD.util, -camI, yo + H);   // 1.0: ярус −2 — только когда виден (последняя строка буфера — запас под дробный сдвиг)
-    this.drawGate(g, camI, yo);
-    if (yo > 0) this.drawScavenge(g, camI, yo);
+    this.drawGate(g, camI, yo);   // ST-VIEW-003: наземные тайники/створки/канистры — в сцене SURF, не над станцией
     // 3. Динамика под освещением (освещается картой света).
     g.fillStyle = 'rgb(222,212,190)';
     for (const d of FX.dust) { g.globalAlpha = d.a; g.fillRect(Math.round(d.x - camI), Math.round(d.y + yo), 1, 1); }
@@ -191,6 +188,13 @@ const Render = {
     for (const p of FX.puffs) { g.globalAlpha = p.life * 1.4; g.fillRect(Math.round(p.x - camI), Math.round(p.y) + yo, 2, 1); }
     g.globalAlpha = 1;
     this.occ.length = 0; this.archDY = 0; this.playerOcc = null;
+    if (Scene.id === 'SURF') for (const a of ACTORS) {                   // ST-VIEW-003: наземные мутанты поверхности (та же система акторов, но рисуются здесь)
+      if (a.floor !== 'surface') continue;
+      const mx = Math.round(a.x) - camI, foot = a.y + yo;
+      if (mx + 20 < 0 || mx - 20 > vw || foot < 0 || foot - 39 > vh) continue;
+      g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(mx - 8, foot, 17, 1);
+      blit(g, actorSprite(a), mx, foot - 39, a.facing, 17);
+    }
     const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
     const fy = Math.round(Player.prevY + (Player.y - Player.prevY) * alpha) + yo;
     g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(px - 9, fy, 19, 1); g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(px - 7, fy + 1, 15, 1);
@@ -306,6 +310,7 @@ const Render = {
   drawActors(g, camI, yo) {
     const vw = this.viewW + 1, vh = this.viewH;
     for (const a of ACTORS) {
+      if (a.floor === 'surface') continue;                               // ST-VIEW-003: наземные мутанты живут в сцене SURF, не над станцией
       const spr = actorSprite(a);
       if (a.kind === 'sleeper') {
         const x = a.bed[0] - camI - spr.bb.x, y = a.bed[1] + yo - (spr.bb.y + spr.bb.h);
@@ -326,7 +331,7 @@ const Render = {
     gl.globalCompositeOperation = 'source-over'; gl.globalAlpha = 1;
     gl.fillStyle = `rgb(${A[0]},${A[1]},${A[2]})`; gl.fillRect(0, 0, vw, this.viewH);
     const gy = Math.min(this.viewH, yo + GROUND_Y + 11);                // снаружи — светлее: пыльные сумерки (0.9: от уровня земли)
-    if (gy > 0) { const S = STArt.state === 'ready' ? ST_ART_DAY : VP.surface; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }   // ST-ART-001: над землёй — дневной свет как во «Дворах»
+    if (gy > 0) { const S = WORLD.earth ? ST_EARTH : STArt.state === 'ready' ? ST_ART_DAY : VP.surface; gl.fillStyle = `rgb(${S[0]},${S[1]},${S[2]})`; gl.fillRect(0, 0, vw, gy); }   // ST-VIEW-003: над станцией — тусклый грунт, не дневной свет
     gl.globalCompositeOperation = 'lighter';
     let n = 0;
     /** Мягкое пятно света; clip — прямоугольник мира, за который свет не выходит (стены, перекрытия). */
