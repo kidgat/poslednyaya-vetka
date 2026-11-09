@@ -76,6 +76,24 @@ await place('SURF', 'surface', 410, -1); await useAndWait('ST');
 await page.waitForTimeout(400);
 ok('S10 подземка после переходов — без ошибок рендера', errors.length === 0, errors[0] || '');
 
+// 8. ST-VIEW-003: над станцией не должно быть НИКАКИХ визуальных следов наземных мутантов
+//    (спрайт, тень и — отдельным проходом — светящиеся глаза #dcec78). Считаем «глазные» зелёные пиксели.
+const eyePixels = topFrac => page.evaluate(tf => {
+  const c = document.getElementById('screen'), g = c.getContext('2d');
+  const d = g.getImageData(0, 0, c.width, Math.floor(c.height * tf)).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 150 && d[i + 1] - d[i] > 12 && d[i + 1] - d[i + 2] > 35) n++;
+  return n;
+}, topFrac);
+await page.evaluate(() => window.pvDebug.place('surface', 1500, 1)); await page.waitForTimeout(700);   // уровень поверхности ST, где раньше бродили мутанты
+const stEyesA = await eyePixels(0.55);
+await page.waitForTimeout(900);                                                                         // мутанты двигаются — ловим и движущиеся точки
+const stEyesB = await eyePixels(0.55);
+ok('S11 над станцией ST нет свечения глаз наземных мутантов (ни статично, ни в движении)', stEyesA === 0 && stEyesB === 0, `кадр1=${stEyesA} кадр2=${stEyesB}`);
+await page.evaluate(() => window.pvDebug.place('vestibule', 1650, 1)); await page.waitForTimeout(500);
+ok('S12 в вестибюле ST тоже нет глаз мутантов над грунтом', (await eyePixels(0.5)) === 0);
+await page.evaluate(() => window.pvDebug.scenePlace('SURF', 'surface', 1467, 1)); await page.waitForTimeout(700);   // рядом с мутантом на поверхности
+ok('S13 на поверхности SURF мутанты работают полностью (глаза видны)', (await eyePixels(0.95)) > 0);
+
 await browser.close();
 const fails = results.filter(r => !r[0]).length;
 console.log(`\n${results.length - fails} PASS, ${fails} FAIL`);

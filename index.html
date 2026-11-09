@@ -4738,6 +4738,7 @@ const Render = {
       if (mx + 20 < 0 || mx - 20 > vw || foot < 0 || foot - 39 > vh) continue;
       g.fillStyle = 'rgba(0,0,0,.38)'; g.fillRect(mx - 8, foot, 17, 1);
       blit(g, actorSprite(a), mx, foot - 39, a.facing, 17);
+      g.fillStyle = '#dcec78'; g.fillRect(mx + (a.facing >= 0 ? 11 : -11), foot - 26, 1, 1);   // глаза мутанта (как было над станцией — теперь здесь)
     }
     const px = Math.round(Player.prevX + (Player.x - Player.prevX) * alpha) - camI;
     const fy = Math.round(Player.prevY + (Player.y - Player.prevY) * alpha) + yo;
@@ -5010,8 +5011,8 @@ const Render = {
     }
     if (d) this.flushGlow(d, this.occ);                                    // персонажи стоят перед стеной: свечение — за ними
     this.drawFireLayer(camX, frac, t, camI, yo);
-    g.fillStyle = '#dcec78';                                             // глаза мутантов — часть самого мутанта
-    for (const a of ACTORS) if (a.kind === 'mutant') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
+    g.fillStyle = '#dcec78';                                             // глаза мутантов — часть самого мутанта (ST-VIEW-003: наземные мутанты — только в SURF, их глаза над станцией не светят)
+    for (const a of ACTORS) if (a.kind === 'mutant' && a.floor !== 'surface') g.fillRect(Math.round(a.x) - camI + (a.facing >= 0 ? 11 : -11), a.y + yo - 26, 1, 1);
     this.drawHandLights(camI, yo, t);
     this.drawBubbles(camI, yo);
   },
