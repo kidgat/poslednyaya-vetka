@@ -4,7 +4,7 @@
   "k": 0.9142857142857143,
   "pxPerM": 22.857142857142858
  },
- "ground": 516,
+ "ground": 519,
  "landmarks_src": {
   "metro_door": 338,
   "yard_passage": 1402
@@ -14,9 +14,9 @@
    "w": 1986,
    "h": 528,
    "pink": 0,
-   "err": 3.04,
-   "bytes": 575294
+   "err": 3.09,
+   "bytes": 603421
   }
  },
- "totalBytes": 575294
+ "totalBytes": 603421
 }

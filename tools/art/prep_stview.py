@@ -21,13 +21,13 @@ sys.path.insert(0, os.path.dirname(__file__))
 from prep_s1 import crop_scale, png8, pink_count          # тот же BOX-масштаб и PNG8, что у «Дворов»
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-SRC = os.path.join(ROOT, 'art', 'ST-ART-001', '01-surface-gagarinskaya.png')
+SRC = os.path.join(ROOT, 'art', 'ST-ART-002', '01-surface-gagarinskaya.png')   # редакция 2 (уточнённый арт); композиция и ориентиры как у ST-ART-001
 S1G = os.path.join(ROOT, 'art', 's1', 'game')
 OUT = os.path.join(ROOT, 'art', 'stview', 'game')
 
 K = 64 / 70            # этаж длинного дома на рисунке ≈ 70 px → 64 px игровых
 CROP_TOP = 8           # верх: чуть выше крон и крыш (небо панорамы оставляем — оно часть фона)
-GROUND = 572           # линия земли зданий на рисунке (ниже — мокрая перспективная площадь, её срезаем)
+GROUND = 576           # линия земли зданий на рисунке (ниже — мокрая перспективная площадь, её срезаем)
 CROP_BOT = 586         # низ полосы: немного ниже оснований зданий (бордюр), дальше — Canvas-дорога
 GRADE = 0.30           # мягкое приведение к палитре «Дворов» (0 — как на рисунке, 1 — полностью под S1)
 
