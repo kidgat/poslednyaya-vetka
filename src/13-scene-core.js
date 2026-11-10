@@ -11,10 +11,19 @@ function edgePortalAt(cfg, id, floor, x, dir) {
   }
   return null;
 }
-/** Безопасная точка перед порталом на исходной стороне (прерванный переход): SAFE px от края, лицом к порталу. */
+/** Двери-порталы сцены (ST-VIEW-001): переход по действию «Войти»/«Во дворы» в точке x на этаже, а не у края. */
+function sceneDoors(cfg, id) { const s = cfg.SCENES[id]; return (s && s.doors) || []; }
+/** Дверь-портал рядом: герой на том же этаже в пределах radius от точки двери. */
+function doorPortalAt(cfg, id, floor, x) {
+  for (const d of sceneDoors(cfg, id)) if (d.floor === floor && Math.abs(x - d.x) <= d.radius) return d;
+  return null;
+}
+/** Безопасная точка перед порталом на исходной стороне (прерванный переход): у края (SAFE px, лицом к порталу) или у самой двери. */
 function portalSafeSpot(cfg, id, portal) {
   const F = sceneFloors(cfg, id)[portal.floor], c = cfg.SCENE.SAFE;
-  return portal.edge === 'left' ? { scene: id, floor: portal.floor, x: F.minX + c, facing: -1 } : { scene: id, floor: portal.floor, x: F.maxX - c, facing: 1 };
+  if (portal.edge === 'left') return { scene: id, floor: portal.floor, x: F.minX + c, facing: -1 };
+  if (portal.edge === 'right') return { scene: id, floor: portal.floor, x: F.maxX - c, facing: 1 };
+  return { scene: id, floor: portal.floor, x: portal.x, facing: 1 };     // дверь-портал: у самой двери
 }
 /** Точка назначения портала. */
 function portalTarget(cfg, portal) { const sp = cfg.SCENES[portal.to].spawns[portal.spawn]; return { scene: portal.to, floor: sp.floor, x: sp.x, facing: sp.facing }; }
@@ -25,7 +34,7 @@ function parseSceneSave(cfg, raw) {
   if (!d || d.v !== 1 || !cfg.SCENES[d.scene]) return null;
   if (cfg.SCENES[d.scene].geo !== undefined && d.g !== cfg.SCENES[d.scene].geo) return null;   // ШТАБ-022: запись другой геометрии сцены — не восстанавливать
   if (d.pending) {
-    const s = cfg.SCENES[d.pending.from], p = s && s.portals.find(q => q.id === d.pending.portal);
+    const s = cfg.SCENES[d.pending.from], p = s && (s.portals.find(q => q.id === d.pending.portal) || sceneDoors(cfg, d.pending.from).find(q => q.id === d.pending.portal));
     if (!p || !cfg.SCENES[p.to]) return null;
     return { ...portalSafeSpot(cfg, d.pending.from, p), pending: true };
   }
@@ -48,17 +57,17 @@ function validateScenes(cfg) {
         if (p.floor === sp.floor && gap < cfg.SCENE.SAFE - 0.5) err.push(`сцена ${id}: точка ${k} слишком близко к порталу ${p.id}`);
       }
     }
-    for (const p of s.portals) {
-      const d = cfg.SCENES[p.to];
-      if (!d || !d.spawns[p.spawn]) { err.push(`портал ${p.id}: нет точки ${p.to}.${p.spawn}`); continue; }
-      if (!fl[p.floor]) err.push(`портал ${p.id}: нет этажа ${p.floor}`);
-      if (id === 'ST' && p.floor !== 'surface') err.push(`портал ${p.id}: со станции — только с наружной дорожки`);
-      if (!d.portals.some(q => q.to === id)) err.push(`портал ${p.id}: нет обратного пути из ${p.to}`);
+    for (const p of [...s.portals, ...sceneDoors(cfg, id)]) {            // порталы края и двери-порталы
+      const d = cfg.SCENES[p.to], kind = p.edge ? 'портал' : 'дверь';
+      if (!d || !d.spawns[p.spawn]) { err.push(`${kind} ${p.id}: нет точки ${p.to}.${p.spawn}`); continue; }
+      if (!fl[p.floor]) err.push(`${kind} ${p.id}: нет этажа ${p.floor}`);
+      if (p.edge === undefined && (p.x < fl[p.floor].minX || p.x > fl[p.floor].maxX)) err.push(`дверь ${p.id}: точка x вне этажа`);
+      if (![...d.portals, ...sceneDoors(cfg, p.to)].some(q => q.to === id)) err.push(`${kind} ${p.id}: нет обратного пути из ${p.to}`);
     }
   }
-  for (const id of ids) {                                               // путь домой
+  for (const id of ids) {                                               // путь домой — по порталам и дверям
     const seen = new Set([id]), q = [id];
-    while (q.length) for (const p of cfg.SCENES[q.shift()].portals) if (!seen.has(p.to)) { seen.add(p.to); q.push(p.to); }
+    while (q.length) for (const p of [...cfg.SCENES[q[0]].portals, ...sceneDoors(cfg, q.shift())]) if (!seen.has(p.to)) { seen.add(p.to); q.push(p.to); }
     if (!seen.has('ST')) err.push(`сцена ${id}: нет пути на станцию`);
   }
   return err;

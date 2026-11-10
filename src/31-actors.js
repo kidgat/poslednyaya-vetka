@@ -28,9 +28,10 @@ function placeActors() {
   actor('pig', 'pig', 990, UY, { minX: 972, maxX: 1040, speed: 7, facing: 1 });
   actor('pig', 'pig', 1062, UY, { minX: 1046, maxX: 1110, speed: 6, facing: -1 });
   actor('pig', 'pig', 1086, UY, { minX: 1086, maxX: 1086, facing: -1 });     // третья стоит у кормушки и вертит головой
-  actor('mutant', 'mutant', 1250, S, { minX: 1140, maxX: 1560, speed: 20 });
-  actor('mutant', 'mutant', 1480, S, { minX: 1300, maxX: 1580, speed: 15 });
-  actor('mutant', 'mutant', 1820, S, { minX: 1730, maxX: 1975, speed: 24 });
+  // ST-VIEW: наземные мутанты бродят в границах сцены SURF (minX 145 … maxX 940), не над станцией
+  actor('mutant', 'mutant', 360, S, { minX: 300, maxX: 520, speed: 20 });
+  actor('mutant', 'mutant', 600, S, { minX: 500, maxX: 720, speed: 15 });
+  actor('mutant', 'mutant', 820, S, { minX: 700, maxX: 905, speed: 24 });
   actor('sitter', 'trader.1', 940, P, { facing: -1 }); actor('sitter', 'stalker.2', 962, P, { facing: -1 });         // слушатели у трибуны
   actor('stand', 'resident-m.2', 832, P, { facing: 1 });   // NPC-001: облики — CONFIG.LOOKS (места прежние)
 }

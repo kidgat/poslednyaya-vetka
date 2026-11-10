@@ -1,0 +1,22 @@
+{
+ "note": "Сгенерировано tools/art/prep_stview.py из art/ST-ART-001 — не править руками",
+ "scale": {
+  "k": 0.42,
+  "pxPerM": 22.857142857142858
+ },
+ "ground": 239,
+ "landmarks_src": {
+  "metro_door": 338,
+  "yard_passage": 1402
+ },
+ "images": {
+  "panorama": {
+   "w": 912,
+   "h": 243,
+   "pink": 0,
+   "err": 2.95,
+   "bytes": 139680
+  }
+ },
+ "totalBytes": 139680
+}

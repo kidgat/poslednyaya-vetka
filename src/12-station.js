@@ -78,7 +78,9 @@ function validateStationPlan(plan, cfg) {
   for (const i of it) {
     const f = floor(i.floor);
     if (!f || f.status !== 'active') { err.push(`действие ${i.id} на неактивном уровне ${i.floor}`); continue; }
-    const F = cfg.FLOORS[f.legacyFloor], [a, b] = i.trigger;
+    // ST-VIEW: сбор на поверхности — механика сцены SURF, её участки проверяем по границам SURF, а не прежнего наземного этажа станции.
+    const surf = i.kind === 'scavenge' && cfg.SCENES && cfg.SCENES.SURF && cfg.SCENES.SURF.floors.surface;
+    const F = surf || cfg.FLOORS[f.legacyFloor], [a, b] = i.trigger;
     if (!F) continue;                                          // рассинхрон уровня уже записан выше
     if (!(a < b)) err.push(`действие ${i.id}: пустой участок`);
     if (b < F.minX || a > F.maxX) err.push(`действие ${i.id} недостижимо (${a}–${b} вне ${F.minX}–${F.maxX})`);

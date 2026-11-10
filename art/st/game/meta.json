@@ -1,0 +1,50 @@
+{
+ "note": "Сгенерировано tools/art/prep_st.py из art/ST-ART-001 — не править руками",
+ "scale": {
+  "house": 0.9142857142857143,
+  "closed": 0.46,
+  "open": 0.6
+ },
+ "images": {
+  "long": {
+   "w": 731,
+   "h": 219,
+   "pink": 0,
+   "err": 2.47,
+   "bytes": 75688
+  },
+  "closed": {
+   "w": 207,
+   "h": 144,
+   "pink": 0,
+   "err": 2.45,
+   "bytes": 13207
+  },
+  "endhouse": {
+   "w": 291,
+   "h": 240,
+   "pink": 0,
+   "err": 2.57,
+   "bytes": 36616
+  },
+  "open": {
+   "w": 232,
+   "h": 184,
+   "pink": 0,
+   "err": 2.34,
+   "bytes": 22111,
+   "door": [
+    133,
+    184
+   ]
+  },
+  "barrier": {
+   "w": 38,
+   "h": 31,
+   "pink": 0,
+   "err": 2.52,
+   "bytes": 1843
+  }
+ },
+ "totalBytes": 149465
+}

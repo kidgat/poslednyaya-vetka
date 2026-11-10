@@ -1,6 +1,7 @@
-// S1-ART: упаковка ассетов улицы S1 в модуль игры.
-//   node tools/art/pack.mjs          — записать src/24-s1-art.js из art/s1/game/*.png и meta.json
-//   node tools/art/pack.mjs --check  — сверить: модуль совпадает с файлами (CI, tests/compat.test.js)
+// S1-ART / ST-ART-001: упаковка ассетов в модуль игры.
+//   node tools/art/pack.mjs [s1|st]          — записать модуль из art/<набор>/game/*.png и meta.json (по умолчанию s1)
+//   node tools/art/pack.mjs [s1|st] --check  — сверить: модуль совпадает с файлами (CI, tests/compat.test.js)
+//   s1 → src/24-s1-art.js (S1_ART_META, S1_ART_SRC) · st → src/26-st-art.js (ST_ART_META, ST_ART_SRC)
 // Без зависимостей. Картинки встраиваются data URI прямо в index.html — sw.js и офлайн-кэш не меняются.
 // Подготовка картинок из исходников — tools/art/prep_s1.py (Python, вне CI).
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -8,10 +9,14 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const DIR = join(ROOT, 'art', 's1', 'game');
-const OUT = join(ROOT, 'src', '24-s1-art.js');
+const SETS = {
+  s1: { dir: join(ROOT, 'art', 's1', 'game'), out: join(ROOT, 'src', '24-s1-art.js'), name: 'S1_ART', title: 'S1-ART: картинки улицы S1 из ART-SURF-001', srcs: 'art/ART-SURF-001/, подготовка: tools/art/prep_s1.py → art/s1/game/. Сборка сцены — src/25-street-s1-art.js.' },
+  st: { dir: join(ROOT, 'art', 'st', 'game'), out: join(ROOT, 'src', '26-st-art.js'), name: 'ST_ART', title: 'ST-ART-001: картинки поверхности над «Гагаринской»', srcs: 'art/ST-ART-001/, подготовка: tools/art/prep_st.py → art/st/game/. Сборка — src/27-surface-st-art.js.' },
+  stview: { dir: join(ROOT, 'art', 'stview', 'game'), out: join(ROOT, 'src', '29-stview-art.js'), name: 'STVIEW_ART', title: 'ST-VIEW-002: фон поверхности SURF из панорамы «Гагаринской»', srcs: 'art/ST-ART-001/01-surface-gagarinskaya.png, подготовка: tools/art/prep_stview.py → art/stview/game/. Сборка сцены — внизу этого файла.' },
+};
 
-export function pack() {
+export function pack(set = 's1') {
+  const { dir: DIR, name, title, srcs } = SETS[set];
   const meta = JSON.parse(readFileSync(join(DIR, 'meta.json'), 'utf8'));
   const names = Object.keys(meta.images).sort();
   const lines = names.map(n => {
@@ -22,10 +27,10 @@ export function pack() {
   });
   const dims = Object.fromEntries(names.map(n => [n, [meta.images[n].w, meta.images[n].h]]));
   return [
-    '/* S1-ART: картинки улицы S1 из ART-SURF-001 (СГЕНЕРИРОВАНО tools/art/pack.mjs — не читать и не править руками).',
-    '   Исходники: art/ART-SURF-001/, подготовка: tools/art/prep_s1.py → art/s1/game/. Сборка сцены — src/25-street-s1-art.js. */',
-    `const S1_ART_META = ${JSON.stringify({ dims, cells: meta.cells })};`,
-    'const S1_ART_SRC = {',
+    `/* ${title} (СГЕНЕРИРОВАНО tools/art/pack.mjs — не читать и не править руками).`,
+    `   Исходники: ${srcs} */`,
+    `const ${name}_META = ${JSON.stringify({ dims, cells: meta.cells || null })};`,
+    `const ${name}_SRC = {`,
     ...lines,
     '};',
     '',
@@ -33,13 +38,14 @@ export function pack() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const js = pack();
+  const set = process.argv.find(a => SETS[a]) || 's1', { out: OUT } = SETS[set], rel = OUT.slice(ROOT.length + 1);
+  const js = pack(set);
   if (process.argv.includes('--check')) {
     let cur = ''; try { cur = readFileSync(OUT, 'utf8'); } catch (_) { /* нет файла */ }
-    if (cur !== js) { console.error('FAIL  src/24-s1-art.js не совпадает с art/s1/game. Запустите: node tools/art/pack.mjs'); process.exit(1); }
-    console.log('OK  src/24-s1-art.js совпадает с art/s1/game');
+    if (cur !== js) { console.error(`FAIL  ${rel} не совпадает с art/${set}/game. Запустите: node tools/art/pack.mjs ${set}`); process.exit(1); }
+    console.log(`OK  ${rel} совпадает с art/${set}/game`);
   } else {
     writeFileSync(OUT, js);
-    console.log(`src/24-s1-art.js: ${Buffer.byteLength(js)} байт`);
+    console.log(`${rel}: ${Buffer.byteLength(js)} байт`);
   }
 }

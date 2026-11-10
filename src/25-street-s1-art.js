@@ -16,7 +16,8 @@ const S1Art = {
       return (im.decode ? im.decode() : new Promise((ok, no) => { im.onload = ok; im.onerror = no; })).then(() => [k, im]);
     })).then(list => {
       if (this.state !== 'loading') return;
-      this.imgs = Object.fromEntries(list); this.state = 'ready'; this.ms = Math.round(performance.now() - t0); this.swap();
+      this.imgs = Object.fromEntries(list); this.state = 'ready'; this.ms = Math.round(performance.now() - t0); this.swap()
+      STArt.apply();                                                   // ST-ART-001: поверхность станции ждёт неба и города «Дворов»
     }).catch(e => { if (this.state !== 'loading') return; this.state = 'failed'; this.error = String(e && e.message || e); console.warn('S1-ART: картинки не загрузились, процедурная S1', e); this.swap(); });
   },
   /** Какая S1 нужна сейчас: картинки / ожидание (дымка) / процедурная (резерв). */
