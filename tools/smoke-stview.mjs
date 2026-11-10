@@ -44,14 +44,14 @@ let land = await useAndWait('SURF');
 s = await scene();
 ok('S4 выход на поверхность: переход с затемнением завершён, сцена SURF', land && s.id === 'SURF', 'id=' + s.id);
 
-// 3. SURF → ST через дверь D_metro (410)
-ok('S5 постановка к входу в метро (410)', await place('SURF', 'surface', 410, -1));
+// 3. SURF → ST через дверь D_metro (212)
+ok('S5 постановка к входу в метро (212)', await place('SURF', 'surface', 212, -1));
 land = await useAndWait('ST');
 s = await scene();
 ok('S6 вход в метро: вернулись в подземку ST', land && s.id === 'ST', 'id=' + s.id);
 
-// 4. SURF → S1 «Дворы» через дверь D_yard (1382)
-await place('SURF', 'surface', 1382, 1);
+// 4. SURF → S1 «Дворы» через дверь D_yard (652)
+await place('SURF', 'surface', 652, 1);
 land = await useAndWait('S1');
 s = await scene();
 ok('S7 проход «Во дворы»: сцена S1', land && s.id === 'S1', 'id=' + s.id);
@@ -72,7 +72,7 @@ ok('S9 сохранение сцены записано и корректно', 
 
 // 7. подземка остаётся рабочей (вернёмся в ST и проверим, что рисуется без ошибок)
 errors.length = 0;
-await place('SURF', 'surface', 410, -1); await useAndWait('ST');
+await place('SURF', 'surface', 212, -1); await useAndWait('ST');
 await page.waitForTimeout(400);
 ok('S10 подземка после переходов — без ошибок рендера', errors.length === 0, errors[0] || '');
 
@@ -84,15 +84,17 @@ const eyePixels = topFrac => page.evaluate(tf => {
   for (let i = 0; i < d.length; i += 4) if (d[i + 1] > 150 && d[i + 1] - d[i] > 12 && d[i + 1] - d[i + 2] > 35) n++;
   return n;
 }, topFrac);
-await page.evaluate(() => window.pvDebug.place('surface', 1500, 1)); await page.waitForTimeout(700);   // уровень поверхности ST, где раньше бродили мутанты
+await page.evaluate(() => window.pvDebug.place('surface', 600, 1)); await page.waitForTimeout(700);   // уровень поверхности ST, где на этаже surface патрулируют мутанты
 const stEyesA = await eyePixels(0.55);
 await page.waitForTimeout(900);                                                                         // мутанты двигаются — ловим и движущиеся точки
 const stEyesB = await eyePixels(0.55);
 ok('S11 над станцией ST нет свечения глаз наземных мутантов (ни статично, ни в движении)', stEyesA === 0 && stEyesB === 0, `кадр1=${stEyesA} кадр2=${stEyesB}`);
 await page.evaluate(() => window.pvDebug.place('vestibule', 1650, 1)); await page.waitForTimeout(500);
 ok('S12 в вестибюле ST тоже нет глаз мутантов над грунтом', (await eyePixels(0.5)) === 0);
-await page.evaluate(() => window.pvDebug.scenePlace('SURF', 'surface', 1467, 1)); await page.waitForTimeout(700);   // рядом с мутантом на поверхности
-ok('S13 на поверхности SURF мутанты работают полностью (глаза видны)', (await eyePixels(0.95)) > 0);
+await page.evaluate(() => window.pvDebug.scenePlace('SURF', 'surface', 600, 1)); await page.waitForTimeout(300);   // в сцену SURF
+const mobX = await page.evaluate(() => { const m = window.pvDebug.actors().find(a => a.kind === 'mutant'); return m ? Math.round(m.x) : null; });
+await page.evaluate(x => window.pvDebug.scenePlace('SURF', 'surface', x, 1), mobX); await page.waitForTimeout(250);   // точно на мутанта
+ok('S13 на поверхности SURF мутанты работают полностью (глаза видны)', mobX !== null && (await eyePixels(0.95)) > 0, 'мутант x=' + mobX);
 
 await browser.close();
 const fails = results.filter(r => !r[0]).length;

@@ -4,8 +4,8 @@
    (data URI из src/29-stview-art.js, подготовка tools/art/prep_stview.py из art/ST-ART-001) + Canvas-дорога.
    Композиция и масштаб — с утверждённого рисунка: панорама слева на ART_X0, этаж ≈ 64 px (Глеб 40 px).
    Резерв: пока картинка не декодирована, при ошибке или с ?surf=proc — процедурная заглушка. */
-const ART_X0 = 100;                   // мировой x левого края панорамы (двери: x = ART_X0 + src·k; см. CONFIG.SCENES.SURF)
-const ART_GROUND = 516;               // строка линии земли внутри panorama.png (meta.ground) → GROUND_Y
+const ART_X0 = 70;                    // мировой x левого края панорамы (двери: x = ART_X0 + src·K; см. CONFIG.SCENES.SURF и tools/art/prep_stview.py)
+const ART_GROUND = 239;              // строка линии земли внутри panorama.png (meta.ground при текущем K) → GROUND_Y
 
 const SurfArt = {
   state: 'idle', imgs: null, ms: 0, error: '', WAIT_MS: 10000,

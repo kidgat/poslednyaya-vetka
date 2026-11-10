@@ -211,14 +211,15 @@ const CONFIG = {
       portals: [],
       doors: [{ id: 'D_exit', floor: 'vestibule', x: 1650, radius: 16, label: '▲ Выйти на поверхность', to: 'SURF', spawn: 'fromMetro' }],
       spawns: { fromSurf: { floor: 'vestibule', x: 1650, facing: 1 } } },
-    // ST-VIEW-002: поверхность над «Гагаринской» — длинная улица из панорамы ART-ST-001 (завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал).
-    // Координаты выведены из рисунка: панорама слева на x0=100, масштаб k=64/70 (этаж 64 px). Двери — на тёплом входе (src 338) и на проходе (src 1402): x = x0 + src·k.
-    SURF: { name: 'Гагаринская', W: 2200, geo: 1, layered: true, surf: true,
-      floors: { surface: { y: -122, minX: 250, maxX: 2040, cam: 0.79 } },
+    // ST-VIEW: поверхность над «Гагаринской» — улица из панорамы ART-ST-002 (завал · рабочий вход в метро · длинный дом · проход во «Дворы» · торцевой дом · заброшенный павильон · завал).
+    // ВСЯ геометрия выведена из панорамы: левый край на x0=70, масштаб K=0.42 (tools/art/prep_stview.py). Мировой x = x0 + src·K.
+    // Двери на тёплом входе (src 338 → 212) и на проходе «ДВОРЫ» (src 1385 → 652). Замена картинки того же размера 2172×724 и той же композиции не трогает эти числа.
+    SURF: { name: 'Гагаринская', W: 1042, geo: 1, layered: true, surf: true,
+      floors: { surface: { y: -122, minX: 145, maxX: 940, cam: 0.79 } },
       portals: [],
-      doors: [{ id: 'D_metro', floor: 'surface', x: 410, radius: 40, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
-              { id: 'D_yard', floor: 'surface', x: 1382, radius: 40, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
-      spawns: { fromMetro: { floor: 'surface', x: 500, facing: 1 }, fromS1: { floor: 'surface', x: 1300, facing: -1 } } },
+      doors: [{ id: 'D_metro', floor: 'surface', x: 212, radius: 40, label: '⬛ Войти в метро', to: 'ST', spawn: 'fromSurf' },
+              { id: 'D_yard', floor: 'surface', x: 652, radius: 40, label: '▲ Во дворы', to: 'S1', spawn: 'fromST' }],
+      spawns: { fromMetro: { floor: 'surface', x: 266, facing: 1 }, fromS1: { floor: 'surface', x: 582, facing: -1 } } },
     S1: { name: 'Дворы', W: 3600, geo: 2, layered: true,                // ШТАБ-022: реальная шкала; geo — версия геометрии (записи старой геометрии 1800 не восстанавливаются)
       floors: { surface: { y: -122, minX: 60, maxX: 3540, cam: 0.79 } },  // cam — доля высоты кадра для ступней на всех масштабах (ШТАБ-020: 0,78–0,80)
       portals: [{ id: 'P1r', floor: 'surface', edge: 'right', to: 'SURF', spawn: 'fromS1' }, { id: 'P2', floor: 'surface', edge: 'left', to: 'S2', spawn: 'fromS1' }],
@@ -425,9 +426,10 @@ const CONFIG = {
   SCAVENGE: {
     CARRY_MAX: 2, CACHE_REFILL: 180, SAVE_KEY: 'pv.scavenge.v1',
     SPOTS: [
-      { id: 'garage', kind: 'once',   floor: 'surface', trigger: [1188, 1214], label: '◎ Осмотреть гараж',  title: 'ГАРАЖ' },
-      { id: 'car',    kind: 'once',   floor: 'surface', trigger: [1426, 1460], label: '◎ Осмотреть машину', title: 'СГОРЕВШАЯ МАШИНА' },
-      { id: 'cache',  kind: 'refill', floor: 'surface', trigger: [1922, 1950], label: '◎ Тайник разведчиков', title: 'ТАЙНИК РАЗВЕДЧИКОВ' },
+      // ST-VIEW: координаты привязаны к панораме SURF (x = 70 + src·0.42), чтобы точки сбора оставались в границах сцены у своих ориентиров: машина — у входа, тайник — в правых руинах.
+      { id: 'car',    kind: 'once',   floor: 'surface', trigger: [283, 315], label: '◎ Осмотреть машину', title: 'СГОРЕВШАЯ МАШИНА' },
+      { id: 'garage', kind: 'once',   floor: 'surface', trigger: [474, 506], label: '◎ Осмотреть гараж',  title: 'ГАРАЖ' },
+      { id: 'cache',  kind: 'refill', floor: 'surface', trigger: [852, 884], label: '◎ Тайник разведчиков', title: 'ТАЙНИК РАЗВЕДЧИКОВ' },
     ],
   },
   /* Реестр «Гагаринской 3.0»: уровни и замыслы. active — уже есть в игре, planned — только план. */
